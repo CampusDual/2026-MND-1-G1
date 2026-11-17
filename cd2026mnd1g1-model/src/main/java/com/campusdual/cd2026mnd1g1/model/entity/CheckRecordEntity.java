@@ -28,7 +28,7 @@ public class CheckRecordEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "usuario_id", nullable = false)
-    private DaycareUserEntity user;
+    private UserEntity user;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "tipo", nullable = false, length = 10)
@@ -47,8 +47,8 @@ public class CheckRecordEntity {
     public void setId(Long id) { this.id = id; }
     public ReservationEntity getReservation() { return reservation; }
     public void setReservation(ReservationEntity reservation) { this.reservation = reservation; }
-    public DaycareUserEntity getUser() { return user; }
-    public void setUser(DaycareUserEntity user) { this.user = user; }
+    public UserEntity getUser() { return user; }
+    public void setUser(UserEntity user) { this.user = user; }
     public CheckRecordType getType() { return type; }
     public void setType(CheckRecordType type) { this.type = type; }
     public LocalDateTime getOccurredAt() { return occurredAt; }

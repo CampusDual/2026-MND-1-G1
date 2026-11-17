@@ -31,7 +31,7 @@ public class IncidentEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "usuario_id", nullable = false)
-    private DaycareUserEntity user;
+    private UserEntity user;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "gravedad", nullable = false, length = 10)
@@ -49,8 +49,8 @@ public class IncidentEntity {
     public void setReservation(ReservationEntity reservation) { this.reservation = reservation; }
     public Long getAppointmentId() { return appointmentId; }
     public void setAppointmentId(Long appointmentId) { this.appointmentId = appointmentId; }
-    public DaycareUserEntity getUser() { return user; }
-    public void setUser(DaycareUserEntity user) { this.user = user; }
+    public UserEntity getUser() { return user; }
+    public void setUser(UserEntity user) { this.user = user; }
     public IncidentSeverity getSeverity() { return severity; }
     public void setSeverity(IncidentSeverity severity) { this.severity = severity; }
     public String getDescription() { return description; }

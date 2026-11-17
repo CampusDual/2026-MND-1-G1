@@ -3,15 +3,19 @@ package com.campusdual.cd2026mnd1g1.model.service;
 import com.campusdual.cd2026mnd1g1.api.dto.UserDto;
 import com.campusdual.cd2026mnd1g1.api.dto.UserUpsertRequestDto;
 import com.campusdual.cd2026mnd1g1.api.service.UserService;
+import com.campusdual.cd2026mnd1g1.model.entity.CenterEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.RoleEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.UserEntity;
+import com.campusdual.cd2026mnd1g1.model.exception.ResourceNotFoundException;
 import com.campusdual.cd2026mnd1g1.model.exception.UserNotFoundException;
+import com.campusdual.cd2026mnd1g1.model.repository.CenterRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.RoleRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -25,13 +29,18 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final CenterRepository centerRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public UserServiceImpl(UserRepository userRepository,
-                           RoleRepository roleRepository,
-                           PasswordEncoder passwordEncoder) {
+    public UserServiceImpl(
+            UserRepository userRepository,
+            RoleRepository roleRepository,
+            CenterRepository centerRepository,
+            PasswordEncoder passwordEncoder
+    ) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
+        this.centerRepository = centerRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -53,17 +62,14 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserDto create(UserUpsertRequestDto userRequest) {
         validateRequest(userRequest);
-        String normalizedUsername = normalizeUsername(userRequest.getUsername());
-        if (this.userRepository.existsByUsername(normalizedUsername)) {
-            throw new IllegalArgumentException("Ya existe un usuario con ese nombre");
+        String username = normalizeUsername(userRequest.getUsername());
+        String email = normalizeUsername(userRequest.getEmail());
+        if (this.userRepository.existsByUsername(username) || this.userRepository.existsByEmail(email)) {
+            throw new IllegalArgumentException("Ya existe un usuario con ese nombre o email");
         }
 
         UserEntity userEntity = new UserEntity();
-        userEntity.setUsername(normalizedUsername);
-        userEntity.setPassword(this.passwordEncoder.encode(userRequest.getPassword()));
-        userEntity.setEnabled(userRequest.getEnabled());
-        userEntity.setRoles(resolveRoles(userRequest.getRoles()));
-
+        applyRequest(userEntity, userRequest, username, email);
         return mapToDto(this.userRepository.save(userEntity));
     }
 
@@ -71,21 +77,23 @@ public class UserServiceImpl implements UserService {
     public UserDto update(Long id, UserUpsertRequestDto userRequest) {
         validateId(id);
         validateRequest(userRequest);
-
         UserEntity userEntity = this.userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException(id));
 
-        String normalizedUsername = normalizeUsername(userRequest.getUsername());
-        if (!userEntity.getUsername().equals(normalizedUsername)
-                && this.userRepository.existsByUsername(normalizedUsername)) {
-            throw new IllegalArgumentException("Ya existe un usuario con ese nombre");
-        }
+        String username = normalizeUsername(userRequest.getUsername());
+        String email = normalizeUsername(userRequest.getEmail());
+        this.userRepository.findByUsernameOrEmail(username, username)
+                .filter(existing -> !existing.getId().equals(id))
+                .ifPresent(existing -> {
+                    throw new IllegalArgumentException("Ya existe un usuario con ese nombre");
+                });
+        this.userRepository.findByUsernameOrEmail(email, email)
+                .filter(existing -> !existing.getId().equals(id))
+                .ifPresent(existing -> {
+                    throw new IllegalArgumentException("Ya existe un usuario con ese email");
+                });
 
-        userEntity.setUsername(normalizedUsername);
-        userEntity.setPassword(this.passwordEncoder.encode(userRequest.getPassword()));
-        userEntity.setEnabled(userRequest.getEnabled());
-        userEntity.setRoles(resolveRoles(userRequest.getRoles()));
-
+        applyRequest(userEntity, userRequest, username, email);
         return mapToDto(this.userRepository.save(userEntity));
     }
 
@@ -98,25 +106,39 @@ public class UserServiceImpl implements UserService {
         this.userRepository.deleteById(id);
     }
 
-    private UserDto mapToDto(UserEntity userEntity) {
-        Set<String> roles = userEntity.getRoles().stream().map(RoleEntity::getName).collect(LinkedHashSet::new, Set::add, Set::addAll);
-        return new UserDto(userEntity.getId(), userEntity.getUsername(), userEntity.getEnabled(), roles);
+    private void applyRequest(UserEntity userEntity, UserUpsertRequestDto request, String username, String email) {
+        CenterEntity center = this.centerRepository.findById(request.getCenterId())
+                .orElseThrow(() -> new ResourceNotFoundException("No existe el centro indicado"));
+        userEntity.setCenter(center);
+        userEntity.setRole(resolveRole(request.getRoles().iterator().next()));
+        userEntity.setFirstName(request.getFirstName().trim());
+        userEntity.setLastName(request.getLastName().trim());
+        userEntity.setNationalId(request.getNationalId().trim().toUpperCase(Locale.ROOT));
+        userEntity.setEmail(email);
+        userEntity.setUsername(username);
+        userEntity.setPasswordHash(this.passwordEncoder.encode(request.getPassword()));
+        userEntity.setActive(request.getEnabled());
+        if (userEntity.getCreatedAt() == null) {
+            userEntity.setCreatedAt(LocalDateTime.now());
+        }
     }
 
-    private Set<RoleEntity> resolveRoles(Set<String> roleNames) {
-        Set<RoleEntity> roles = new LinkedHashSet<>();
-        for (String roleName : roleNames) {
-            String normalizedRole = normalizeRoleName(roleName);
-            RoleEntity roleEntity = this.roleRepository.findByName(normalizedRole)
-                    .orElseGet(() -> createRole(normalizedRole));
-            roles.add(roleEntity);
-        }
-        return roles;
+    private UserDto mapToDto(UserEntity userEntity) {
+        Set<String> roles = new LinkedHashSet<>();
+        String roleName = userEntity.getRole().getName();
+        roles.add(roleName.startsWith("ROLE_") ? roleName : "ROLE_" + roleName);
+        return new UserDto(userEntity.getId(), userEntity.getUsername(), userEntity.getActive(), roles);
+    }
+
+    private RoleEntity resolveRole(String roleName) {
+        String normalizedRole = normalizeRoleName(roleName);
+        return this.roleRepository.findByName(normalizedRole).orElseGet(() -> createRole(normalizedRole));
     }
 
     private RoleEntity createRole(String roleName) {
         RoleEntity roleEntity = new RoleEntity();
         roleEntity.setName(roleName);
+        roleEntity.setDescription("Rol creado desde la gestión de usuarios");
         return this.roleRepository.save(roleEntity);
     }
 
@@ -128,35 +150,43 @@ public class UserServiceImpl implements UserService {
 
     private void validateRequest(UserUpsertRequestDto userRequest) {
         if (Objects.isNull(userRequest)) {
-            throw new IllegalArgumentException("El cuerpo de la peticion no puede ser nulo");
+            throw new IllegalArgumentException("El cuerpo de la petición no puede ser nulo");
         }
-        if (Objects.isNull(userRequest.getUsername()) || userRequest.getUsername().isBlank()) {
-            throw new IllegalArgumentException("El nombre de usuario es obligatorio");
+        if (userRequest.getCenterId() == null || userRequest.getCenterId() <= 0) {
+            throw new IllegalArgumentException("El centro es obligatorio y debe ser mayor que cero");
         }
-        if (Objects.isNull(userRequest.getPassword()) || userRequest.getPassword().isBlank()) {
-            throw new IllegalArgumentException("La contrasena es obligatoria");
+        requireText(userRequest.getFirstName(), "El nombre es obligatorio");
+        requireText(userRequest.getLastName(), "Los apellidos son obligatorios");
+        requireText(userRequest.getNationalId(), "El DNI es obligatorio");
+        requireText(userRequest.getEmail(), "El email es obligatorio");
+        requireText(userRequest.getPassword(), "La contraseña es obligatoria");
+        requireText(userRequest.getUsername(), "El nombre de usuario es obligatorio");
+        if (userRequest.getRoles() == null || userRequest.getRoles().size() != 1) {
+            throw new IllegalArgumentException("Debe indicarse exactamente un rol");
         }
-        if (Objects.isNull(userRequest.getEnabled())) {
-            throw new IllegalArgumentException("El estado enabled es obligatorio");
-        }
-        if (Objects.isNull(userRequest.getRoles()) || userRequest.getRoles().isEmpty()) {
-            throw new IllegalArgumentException("Debe indicarse al menos un rol");
+    }
+
+    private void requireText(String value, String message) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(message);
         }
     }
 
     private String normalizeUsername(String username) {
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("El nombre de usuario o email es obligatorio");
+        }
         return username.trim().toLowerCase(Locale.ROOT);
     }
 
     private String normalizeRoleName(String roleName) {
         if (roleName == null || roleName.isBlank()) {
-            throw new IllegalArgumentException("El nombre del rol no puede estar vacio");
+            throw new IllegalArgumentException("El nombre del rol no puede estar vacío");
         }
         String normalizedRole = roleName.trim().toUpperCase(Locale.ROOT);
-        if (!normalizedRole.startsWith("ROLE_")) {
-            normalizedRole = "ROLE_" + normalizedRole;
+        if (normalizedRole.startsWith("ROLE_")) {
+            normalizedRole = normalizedRole.substring("ROLE_".length());
         }
         return normalizedRole;
     }
 }
-

@@ -22,7 +22,6 @@ import com.campusdual.cd2026mnd1g1.model.entity.CheckRecordType;
 import com.campusdual.cd2026mnd1g1.model.entity.DailyRecordEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.DailyRecordType;
 import com.campusdual.cd2026mnd1g1.model.entity.DaycareGroupEntity;
-import com.campusdual.cd2026mnd1g1.model.entity.DaycareUserEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.DogEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.IncompatibilityEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.IncidentEntity;
@@ -30,16 +29,17 @@ import com.campusdual.cd2026mnd1g1.model.entity.IncidentSeverity;
 import com.campusdual.cd2026mnd1g1.model.entity.MedicationEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.ReservationEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.ReservationStatus;
+import com.campusdual.cd2026mnd1g1.model.entity.UserEntity;
 import com.campusdual.cd2026mnd1g1.model.exception.OperationalUserNotFoundException;
 import com.campusdual.cd2026mnd1g1.model.exception.ResourceNotFoundException;
 import com.campusdual.cd2026mnd1g1.model.repository.AllergyRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.CheckRecordRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.DailyRecordRepository;
-import com.campusdual.cd2026mnd1g1.model.repository.DaycareUserRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.IncompatibilityRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.IncidentRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.MedicationRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.ReservationRepository;
+import com.campusdual.cd2026mnd1g1.model.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,7 +52,7 @@ import java.util.Objects;
 @Transactional
 public class DaycareOperationsServiceImpl implements DaycareOperationsService {
 
-    private final DaycareUserRepository daycareUserRepository;
+    private final UserRepository userRepository;
     private final ReservationRepository reservationRepository;
     private final AllergyRepository allergyRepository;
     private final MedicationRepository medicationRepository;
@@ -62,7 +62,7 @@ public class DaycareOperationsServiceImpl implements DaycareOperationsService {
     private final IncidentRepository incidentRepository;
 
     public DaycareOperationsServiceImpl(
-            DaycareUserRepository daycareUserRepository,
+            UserRepository userRepository,
             ReservationRepository reservationRepository,
             AllergyRepository allergyRepository,
             MedicationRepository medicationRepository,
@@ -71,7 +71,7 @@ public class DaycareOperationsServiceImpl implements DaycareOperationsService {
             DailyRecordRepository dailyRecordRepository,
             IncidentRepository incidentRepository
     ) {
-        this.daycareUserRepository = daycareUserRepository;
+        this.userRepository = userRepository;
         this.reservationRepository = reservationRepository;
         this.allergyRepository = allergyRepository;
         this.medicationRepository = medicationRepository;
@@ -84,7 +84,7 @@ public class DaycareOperationsServiceImpl implements DaycareOperationsService {
     @Override
     @Transactional(readOnly = true)
     public List<ReservationDayDto> findReservations(LocalDate date, Long groupId, String username) {
-        DaycareUserEntity user = findActiveUser(username);
+        UserEntity user = findActiveUser(username);
         LocalDate requestedDate = date == null ? LocalDate.now() : date;
         validateOptionalId(groupId, "grupo");
 
@@ -98,7 +98,7 @@ public class DaycareOperationsServiceImpl implements DaycareOperationsService {
     @Override
     public CheckRecordDto createCheckRecord(Long reservationId, CheckRecordRequestDto request, String username) {
         validateCheckRecordRequest(request);
-        DaycareUserEntity user = findActiveUser(username);
+        UserEntity user = findActiveUser(username);
         ReservationEntity reservation = findReservationInCenter(reservationId, user);
         LocalDateTime occurredAt = LocalDateTime.now();
 
@@ -123,7 +123,7 @@ public class DaycareOperationsServiceImpl implements DaycareOperationsService {
         if (request == null || request.getType() == null) {
             throw new IllegalArgumentException("El tipo de actividad es obligatorio");
         }
-        DaycareUserEntity user = findActiveUser(username);
+        UserEntity user = findActiveUser(username);
         ReservationEntity reservation = findReservationInCenter(reservationId, user);
 
         DailyRecordEntity record = new DailyRecordEntity();
@@ -141,7 +141,7 @@ public class DaycareOperationsServiceImpl implements DaycareOperationsService {
                 || request.getDescription() == null || request.getDescription().isBlank()) {
             throw new IllegalArgumentException("La gravedad y la descripción de la incidencia son obligatorias");
         }
-        DaycareUserEntity user = findActiveUser(username);
+        UserEntity user = findActiveUser(username);
         ReservationEntity reservation = findReservationInCenter(reservationId, user);
 
         IncidentEntity incident = new IncidentEntity();
@@ -254,11 +254,11 @@ public class DaycareOperationsServiceImpl implements DaycareOperationsService {
         return dto;
     }
 
-    private DaycareUserEntity findActiveUser(String username) {
+    private UserEntity findActiveUser(String username) {
         if (username == null || username.isBlank()) {
             throw new OperationalUserNotFoundException("No se pudo identificar al usuario autenticado");
         }
-        DaycareUserEntity user = this.daycareUserRepository.findByEmail(username)
+        UserEntity user = this.userRepository.findByUsernameOrEmail(username, username)
                 .orElseThrow(() -> new OperationalUserNotFoundException(
                         "El usuario autenticado no tiene un usuario operativo asociado al centro"));
         if (!Boolean.TRUE.equals(user.getActive())) {
@@ -267,7 +267,7 @@ public class DaycareOperationsServiceImpl implements DaycareOperationsService {
         return user;
     }
 
-    private ReservationEntity findReservationInCenter(Long reservationId, DaycareUserEntity user) {
+    private ReservationEntity findReservationInCenter(Long reservationId, UserEntity user) {
         if (Objects.isNull(reservationId) || reservationId <= 0) {
             throw new IllegalArgumentException("El identificador de reserva debe ser mayor que cero");
         }

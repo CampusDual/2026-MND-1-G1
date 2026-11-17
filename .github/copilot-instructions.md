@@ -49,6 +49,12 @@ y siguiendo principios SOLID.
 - **BBDD**: PostgreSQL
 - **Gestión de versiones**: Git, GitHub
 
+## Tablas canónicas de autenticación
+- Las tablas únicas para usuarios y roles son `USUARIOS` y `ROL`.
+- La autenticación y los datos operativos deben consultar `USUARIOS`; no crear ni mantener tablas paralelas como `users` o `usuario`.
+- Los roles se asignan mediante `USUARIOS.rol_id`; los permisos se mantienen en `permiso` y `rol_permiso`.
+- Los cambios sobre esquemas ya migrados se implementan con una nueva migración Flyway, sin editar migraciones aplicadas.
+
 ## Estilo y reglas de código
 - Funciones pequeñas con una sola responsabilidad
 - Maneja siempre los errores explícitamente (bloques try/catch o validación de nulos).

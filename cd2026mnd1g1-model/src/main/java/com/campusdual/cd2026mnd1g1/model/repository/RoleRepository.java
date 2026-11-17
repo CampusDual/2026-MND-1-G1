@@ -17,6 +17,8 @@ public interface RoleRepository extends JpaRepository<RoleEntity, Long> {
      */
     Optional<RoleEntity> findByName(String name);
 
+
+
     /**
      * Comprueba si existe un rol por su nombre.
      *
@@ -25,4 +27,3 @@ public interface RoleRepository extends JpaRepository<RoleEntity, Long> {
      */
     boolean existsByName(String name);
 }
-

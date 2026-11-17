@@ -18,7 +18,7 @@ public class RolePermissionEntity {
     @MapsId("roleId")
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "rol_id", nullable = false)
-    private DaycareRoleEntity role;
+    private RoleEntity role;
 
     @MapsId("permissionId")
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -27,8 +27,8 @@ public class RolePermissionEntity {
 
     public RolePermissionId getId() { return id; }
     public void setId(RolePermissionId id) { this.id = id; }
-    public DaycareRoleEntity getRole() { return role; }
-    public void setRole(DaycareRoleEntity role) { this.role = role; }
+    public RoleEntity getRole() { return role; }
+    public void setRole(RoleEntity role) { this.role = role; }
     public PermissionEntity getPermission() { return permission; }
     public void setPermission(PermissionEntity permission) { this.permission = permission; }
 }

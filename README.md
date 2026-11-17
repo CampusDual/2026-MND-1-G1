@@ -116,6 +116,16 @@ En el arranque se crea un usuario admin:
 - usuario: `admin`
 - contraseña: `admin1234`
 
+Usuarios de demostración disponibles tras ejecutar las migraciones:
+- `admin` o `admin@guarderiademo.test` / `admin1234`
+- `recepcionista` o `recepcionista@guarderiademo.test` / `admin1234`
+- `tutor` o `tutor@guarderiademo.test` / `admin1234`
+
+La autenticación usa las tablas canónicas `USUARIOS` y `ROL`. Los permisos se asocian a los roles mediante `rol_permiso`; las migraciones Flyway consolidan las tablas históricas de usuarios y roles.
+
+## Historial del cambio de autenticación
+- Plan aplicado (aprobado el 17/11/2026): consolidar usuarios y roles, conservar el login por username/email, sembrar cuentas demo con rol asignado y mantener permisos asociados a `ROL`.
+
 
 1. Arranca backend en modo `v`.
 2. Arranca frontend (`npm start`).

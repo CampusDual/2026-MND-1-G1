@@ -651,6 +651,7 @@ components:
         roles:
           type: array
           minItems: 1
+          maxItems: 1
           items:
             type: string
             minLength: 1
@@ -660,6 +661,11 @@ components:
       type: object
       required:
         - username
+        - centerId
+        - firstName
+        - lastName
+        - nationalId
+        - email
         - password
         - enabled
         - roles
@@ -670,6 +676,28 @@ components:
           maxLength: 80
           description: Nombre de usuario. Se normaliza internamente a minusculas.
           example: manager
+        centerId:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Identificador del centro asociado.
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 120
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 160
+        nationalId:
+          type: string
+          minLength: 1
+          maxLength: 20
+        email:
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 254
         password:
           type: string
           minLength: 8
@@ -682,11 +710,12 @@ components:
         roles:
           type: array
           minItems: 1
+          maxItems: 1
           items:
             type: string
             minLength: 1
             maxLength: 80
-            description: Rol del usuario; si no incluye prefijo ROLE_ se normaliza.
+            description: Rol único del usuario; si lleva prefijo ROLE_ se elimina antes de almacenarlo.
             example: ADMIN
     ValidationErrorItem:
       type: object

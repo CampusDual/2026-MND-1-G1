@@ -18,6 +18,23 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
     Optional<UserEntity> findByUsername(String username);
 
     /**
+     * Busca una cuenta con el nombre de acceso o el email indicado.
+     *
+     * @param username nombre de acceso
+     * @param email correo electrónico
+     * @return usuario encontrado si existe
+     */
+    Optional<UserEntity> findByUsernameOrEmail(String username, String email);
+
+    /**
+     * Comprueba si ya existe una cuenta con el email indicado.
+     *
+     * @param email correo electrónico
+     * @return true si existe
+     */
+    boolean existsByEmail(String email);
+
+    /**
      * Comprueba si existe un usuario por su nombre de usuario.
      *
      * @param username nombre de usuario
@@ -25,4 +42,3 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
      */
     boolean existsByUsername(String username);
 }
-
