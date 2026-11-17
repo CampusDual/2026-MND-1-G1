@@ -63,7 +63,9 @@ public class SecurityConfig {
             if (this.openApiGenerationEnabled) {
                 http
                         .csrf(AbstractHttpConfigurer::disable)
-                        .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+                        .authorizeHttpRequests(auth -> auth
+                                .requestMatchers("/api/reservas/**").authenticated()
+                                .anyRequest().permitAll());
                 return http.build();
             }
             http

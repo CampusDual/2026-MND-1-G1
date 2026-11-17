@@ -7,7 +7,7 @@ import { Observable, catchError, map, of } from 'rxjs';
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly usersPath: string = '/api/users';
+  private readonly authenticationPath: string = '/api/users';
   private readonly authenticatedSignal = signal<boolean>(false);
   private readonly authHeaderSignal = signal<string>('');
   private readonly errorMessageSignal = signal<string>('');
@@ -37,7 +37,7 @@ export class AuthService {
 
     this.errorMessageSignal.set('');
 
-    return this.http.get<unknown[]>(this.usersPath, { headers }).pipe(
+    return this.http.get<unknown[]>(this.authenticationPath, { headers }).pipe(
       map(() => {
         this.authHeaderSignal.set(authHeader);
         this.authenticatedSignal.set(true);

@@ -4,7 +4,7 @@
     <p>Inicia sesion con un usuario existente del backend.</p>
 
     <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" novalidate>
-      <label for="username">Username</label>
+      <label for="username">Email o usuario</label>
       <input id="username" type="text" formControlName="username" autocomplete="username" />
 
       @if (loginForm.controls.username.touched && loginForm.controls.username.invalid) {

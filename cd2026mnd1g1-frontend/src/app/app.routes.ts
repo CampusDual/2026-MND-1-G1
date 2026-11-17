@@ -5,7 +5,7 @@ import { ItWorksComponent } from './main/it-works.component';
 
 export const routes: Routes = [
 	{ path: 'login', component: LoginComponent },
-	{ path: 'it-works', component: ItWorksComponent, canActivate: [authGuard] },
+	{ path: 'tablero-diario', component: ItWorksComponent, canActivate: [authGuard] },
 	{ path: '', pathMatch: 'full', redirectTo: 'login' },
 	{ path: '**', redirectTo: 'login' }
 ];

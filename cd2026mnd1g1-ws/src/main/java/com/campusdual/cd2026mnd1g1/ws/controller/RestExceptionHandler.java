@@ -1,11 +1,14 @@
 package com.campusdual.cd2026mnd1g1.ws.controller;
 
 import com.campusdual.cd2026mnd1g1.model.exception.UserNotFoundException;
+import com.campusdual.cd2026mnd1g1.model.exception.ResourceNotFoundException;
+import com.campusdual.cd2026mnd1g1.model.exception.OperationalUserNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -32,14 +35,28 @@ public class RestExceptionHandler {
     }
 
     /**
+     * Mapea recursos de dominio no encontrados.
+     *
+     * @param exception excepcion de recurso inexistente
+     * @return respuesta HTTP 404
+     */
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleResourceNotFound(ResourceNotFoundException exception) {
+        return buildErrorResponse(HttpStatus.NOT_FOUND, exception.getMessage());
+    }
+
+    /**
      * Mapea errores de permisos insuficientes.
      *
      * @param exception excepcion de acceso denegado
      * @return respuesta HTTP 403
      */
-    @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException exception) {
-        return buildErrorResponse(HttpStatus.FORBIDDEN, "No tienes permisos para realizar esta operacion");
+    @ExceptionHandler({AccessDeniedException.class, OperationalUserNotFoundException.class})
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(RuntimeException exception) {
+        String message = exception instanceof OperationalUserNotFoundException
+                ? exception.getMessage()
+                : "No tienes permisos para realizar esta operacion";
+        return buildErrorResponse(HttpStatus.FORBIDDEN, message);
     }
 
     /**
@@ -48,7 +65,7 @@ public class RestExceptionHandler {
      * @param exception excepcion de validacion
      * @return respuesta HTTP 400
      */
-    @ExceptionHandler({IllegalArgumentException.class, MethodArgumentNotValidException.class})
+    @ExceptionHandler({IllegalArgumentException.class, MethodArgumentNotValidException.class, ConstraintViolationException.class})
     public ResponseEntity<Map<String, Object>> handleBadRequest(Exception exception) {
         String message = exception.getMessage();
         if (exception instanceof MethodArgumentNotValidException methodArgumentNotValidException) {
@@ -58,6 +75,17 @@ public class RestExceptionHandler {
             }
         }
         return buildErrorResponse(HttpStatus.BAD_REQUEST, message);
+    }
+
+    /**
+     * Mapea conflictos por reglas de negocio.
+     *
+     * @param exception excepcion de estado incompatible
+     * @return respuesta HTTP 409
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, Object>> handleConflict(IllegalStateException exception) {
+        return buildErrorResponse(HttpStatus.CONFLICT, exception.getMessage());
     }
 
     /**
