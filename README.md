@@ -126,6 +126,55 @@ La autenticación usa las tablas canónicas `USUARIOS` y `ROL`. Los permisos se 
 ## Historial del cambio de autenticación
 - Plan aplicado (aprobado el 17/11/2026): consolidar usuarios y roles, conservar el login por username/email, sembrar cuentas demo con rol asignado y mantener permisos asociados a `ROL`.
 
+## Consulta de reservas para recepción
+- Plan aplicado (aprobado el 17/11/2026): consulta de solo lectura por fecha, detalle protegido por rol y centro, presencia derivada de `check_registro`, sin cambios de esquema.
+- La zona horaria para “hoy” es `Europe/Madrid`. La API permite consultar cualquier fecha con paginación (50 resultados por defecto, máximo 100).
+- Recepcionista, Admin y Gerente pueden consultar las reservas de su propio centro. Tutor y usuario del centro cliente B2B no pueden acceder. No se acepta un centro enviado por el navegador.
+- Se muestran también las reservas canceladas. Se distinguen del estado de presencia y no se presentan como llegadas pendientes. Una salida sin entrada previa se marca como incoherente.
+- El tablero no permite crear, editar ni cancelar reservas, ni registrar entradas o salidas. Al recargar una ruta protegida habrá que iniciar sesión de nuevo; después se recupera la ruta y la fecha solicitadas.
+- La base de datos no registra si `MEDIA_JORNADA` es de mañana o tarde. Los datos de Kira usan ese valor sin asignar una franja. Una reserva cancelada libera capacidad de grupo, pero la restricción única de perro y fecha impide una segunda reserva para el mismo perro y día.
+
+### Cuentas y carga de datos manuales
+Las cuentas `admin`, `recepcionista` y `tutor` se crean por migraciones existentes. Para los casos `gerente` y `cliente-b2b`, el script reutiliza hashes BCrypt ya guardados; no contiene contraseñas en texto plano.
+
+1. Arranca la base local persistente y el backend con el perfil `p` (ver “Perfil p” arriba).
+2. Desde DBeaver, conéctate al HSQLDB local y ejecuta `scripts/dev/seed-reception-demo.sql` una vez. Está preparado para repetirse en la misma fecha sin duplicar tutores, perros, reservas ni registros de entrada/salida.
+3. El script es solo para desarrollo local: no lo ejecutes contra PostgreSQL compartido ni producción. No se carga automáticamente y no borra datos.
+4. Comprueba que `SELECT CURRENT_DATE` en HSQLDB coincide con la fecha de `Europe/Madrid`; esa fecha es D. El script crea reservas D−1, D y D+1.
+
+| Cuenta/rol | Centro o ámbito | Perros/tutores y fecha | Estado y registros | Resultado esperado |
+|---|---|---|---|---|
+| `recepcionista` / Recepcionista | Guardería Demo (propia) | Luna / Ana Núñez, D | Confirmada; sin entrada | Aparece como “Sin entrada registrada”. |
+| `recepcionista` / Recepcionista | Guardería Demo (propia) | Bruno / Ana Núñez, D | Confirmada; entrada registrada | Aparece “En el centro”. |
+| `recepcionista` / Recepcionista | Guardería Demo (propia) | Kira / Belén López, D | Confirmada, media jornada; sin entrada | Aparece sin franja horaria inventada. |
+| `recepcionista` / Recepcionista | Guardería Demo (propia) | Coco / César Vázquez, D | Completada; entrada y salida | Aparece “Salida registrada”. |
+| `recepcionista` / Recepcionista | Guardería Demo (propia) | Nala / Inés Peña, D | Cancelada; sin entrada ni salida | Aparece claramente como cancelada, no como llegada pendiente. |
+| `recepcionista` / Recepcionista | Guardería Demo (propia) | Otra Luna / Inés Peña, D | Confirmada; sin entrada | Se distingue de la otra Luna por tutor y referencia. |
+| `recepcionista` / Recepcionista | Guardería Demo (propia) | Kira / Belén López, D−1 | Confirmada; sin entrada | Solo aparece al consultar D−1. |
+| `recepcionista` / Recepcionista | Guardería Demo (propia) | Luna y Bruno / Ana Núñez, D+1 | Confirmadas; sin entrada | Solo aparecen al consultar D+1. |
+| `tutor` / Tutor | Guardería Demo (propia) | Cualquier fecha | Sin permisos de recepción | Respuesta de acceso denegado. |
+| `cliente-b2b` / Tutor en centro CLIENTE | Guardería Cliente Demo | Sin reservas de guardería | Sin permisos de recepción | No puede consultar ni siquiera cambiando el ID. |
+| `admin` / Admin y `gerente` / Gerente | Guardería Demo (propia) | Cualquier fecha | Solo consulta | Acceden al listado y detalle de su centro. |
+
+El script deja vacío el campo opcional de raza de Coco. Para localizar un día sin reservas sin asumir una fecha fija, ejecuta en HSQLDB:
+
+```sql
+SELECT CURRENT_DATE + days.X AS fecha_sin_reservas
+FROM SYSTEM_RANGE(2, 365) days
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM reserva r
+    JOIN perro p ON p.id = r.perro_id
+    JOIN centro c ON c.id = p.centro_id
+    WHERE c.cif = 'B00000000'
+      AND r.fecha = CURRENT_DATE + days.X
+)
+ORDER BY days.X
+FETCH FIRST 1 ROW ONLY;
+```
+
+Los tests automatizados usan su propia base HSQLDB de pruebas y no dependen de este script ni de los datos manuales. En los tests, la presencia se comprueba desde `check_registro`; una salida sin entrada se muestra como registro incoherente.
+
 
 1. Arranca backend en modo `v`.
 2. Arranca frontend (`npm start`).

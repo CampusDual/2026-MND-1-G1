@@ -1,28 +1,43 @@
 :host{display:block;min-height:100vh;color:#19384a;background:#f5f8fa}
 .topbar{min-height:68px;display:flex;align-items:center;justify-content:space-between;padding:0 5%;background:#fff;border-bottom:1px solid #e5edef}
 .brand{display:flex;align-items:center;gap:.6rem;color:#153449;font-weight:700;text-decoration:none}
-.brand-mark,.group-icon,.summary-icon,.dog-avatar{display:grid;place-items:center;border-radius:12px}
+.brand-mark,.dog-avatar{display:grid;place-items:center;border-radius:12px}
 .brand-mark{width:36px;height:36px;color:white;background:#159b8a;font-size:1.2rem}
 .brand-divider{color:#9cabb4;font-weight:400}.brand strong{color:#527080;font-size:.92rem}
-.topbar-actions{display:flex;align-items:center;gap:1rem}.today{color:#657987;font-size:.82rem;text-transform:capitalize}
 .logout-button,.refresh-button{padding:.55rem .8rem;border:1px solid #dce6e9;border-radius:8px;color:#3c5867;background:white;font:inherit;font-size:.8rem;font-weight:600;cursor:pointer}
-.page-content{width:min(1120px,90%);margin:auto;padding:2.5rem 0 4rem}
-.page-heading{display:flex;align-items:end;justify-content:space-between;gap:1rem;margin-bottom:1.5rem}
+.page-content{width:min(980px,90%);margin:auto;padding:2.5rem 0 4rem}
+.page-heading{display:flex;align-items:end;justify-content:space-between;gap:1rem;margin-bottom:1.4rem}
 .eyebrow{margin:0 0 .45rem;color:#168d80;font-size:.7rem;font-weight:800;letter-spacing:.12em}
-h1{margin:0;font-size:clamp(1.8rem,3vw,2.4rem);letter-spacing:-.04em}.subtitle{margin:.5rem 0 0;color:#758794}
-.summary-row{display:flex;gap:.8rem;margin-bottom:1.5rem}
-.summary-card{min-width:170px;display:flex;align-items:center;gap:.7rem;padding:.8rem 1rem;border:1px solid #e6edf0;border-radius:12px;background:white}
-.summary-icon{width:38px;height:38px;background:#edf5ff}.summary-icon-green{color:#128b7b;background:#e8f7f3}
-.summary-card div{display:grid}.summary-card strong{font-size:1.25rem}.summary-card div span,.group-title div>span{color:#7d8d97;font-size:.75rem}
-.group-section{overflow:hidden;margin-bottom:1.2rem;border:1px solid #e4ecef;border-radius:14px;background:white}
-.group-header{min-height:70px;display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.8rem 1.1rem;border-bottom:1px solid #edf1f3}
-.group-title{display:flex;align-items:center;gap:.7rem}.group-icon{width:36px;height:36px;color:#118c7e;background:#e9f7f3}
-.group-title h2{margin:0;font-size:1rem}.group-title div>span{display:block;margin-top:.2rem}
-.occupancy{min-width:125px;display:grid;grid-template-columns:1fr auto;gap:.3rem .6rem}
-.occupancy-label,.no-capacity{color:#83929a;font-size:.74rem}.occupancy strong{color:#278b7d;font-size:.86rem}.occupancy strong span{color:#8c9aa1;font-weight:500}
-.occupancy-track{grid-column:1/-1;height:5px;border-radius:5px;background:#eaf0f1}.occupancy-track span{display:block;height:100%;border-radius:inherit;background:#2fb49e}
-.dog-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:.8rem;padding:.9rem}
-.dog-card{min-width:0;padding:.85rem;border:1px solid #e8eef0;border-radius:12px}
-.dog-card-heading{display:flex;align-items:center;gap:.6rem}.dog-avatar{width:38px;height:38px;flex:none;background:#fff4e8}
-.dog-heading-text{min-width:0;flex:1}.dog-heading-text h3{overflow:hidden;margin:0;font-size:.94rem;text-overflow:ellipsis;white-space:nowrap}
-.dog-heading-text p{overflow:hidden;margin:.2rem 0 0;color:#85949c;font-size:.72rem;text-overflow:ellipsis;white-space:nowrap}
+h1{margin:0;font-size:clamp(1.8rem,3vw,2.4rem);letter-spacing:-.04em}
+.subtitle{margin:.5rem 0 0;color:#758794}
+.date-filter{display:flex;align-items:center;flex-wrap:wrap;gap:.8rem;margin-bottom:1.2rem;padding:1rem;border:1px solid #e4ecef;border-radius:12px;background:white}
+.date-filter label{font-size:.82rem;font-weight:700}.date-filter input{padding:.45rem;border:1px solid #dce6e9;border-radius:7px;color:#294453;font:inherit}
+.date-label{color:#657987;font-size:.84rem;text-transform:capitalize}
+.results-count{margin:0 0 .7rem;color:#758794;font-size:.82rem}
+.reservation-list{display:grid;gap:.7rem}
+.reservation-card{padding:1rem;border:1px solid #e4ecef;border-radius:12px;background:white}
+.reservation-card.cancelled{border-color:#ead6d3;background:#fffafa}
+.reservation-main{display:flex;align-items:center;gap:.75rem}
+.dog-avatar{width:42px;height:42px;flex:none;background:#fff4e8;font-size:1.25rem}
+.reservation-identity{min-width:0;flex:1}
+.reservation-identity h2{margin:0;font-size:1rem}
+.reservation-identity p{margin:.25rem 0 0;color:#758794;font-size:.8rem}
+.reservation-badges{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.4rem}
+.modality-badge,.status-badge{padding:.32rem .5rem;border-radius:99px;font-size:.7rem;font-weight:700}
+.modality-badge{color:#48677b;background:#eef4f7}
+.status-badge{color:#8b671d;background:#fff7df}
+.status-cancelled{color:#9e3f36;background:#ffebe8}
+.reservation-footer{display:flex;align-items:center;justify-content:space-between;gap:.8rem;margin-top:.85rem;padding-top:.7rem;border-top:1px solid #edf1f3}
+.presence{color:#168170;font-size:.78rem}
+.presence-warning{color:#a34837;font-weight:700}
+.detail-link{color:#167d72;font-size:.78rem;font-weight:700;text-decoration:none}
+.detail-link:hover{text-decoration:underline}
+.pagination{display:flex;align-items:center;justify-content:center;gap:1rem;margin-top:1rem}
+.pagination span{color:#657987;font-size:.8rem}
+.refresh-button:disabled{opacity:.55;cursor:wait}
+.notice{margin:0 0 .9rem;padding:.8rem 1rem;border-radius:9px;font-size:.84rem}
+.notice p{margin:.25rem 0 .7rem}.notice h2{margin:0;font-size:1rem}
+.notice-error{color:#9e3f36;background:#fff0ed}
+.loading-card,.empty-state{display:grid;justify-items:center;gap:.7rem;padding:3rem 1rem;border:1px solid #e4ecef;border-radius:14px;color:#758794;background:white}
+.empty-icon{font-size:2rem}.empty-state h2{margin:0;font-size:1.2rem}.empty-state p{margin:0;text-transform:capitalize}
+@media(max-width:650px){.topbar{padding:1rem 4%}.brand{font-size:.9rem}.brand strong{display:block;font-size:.8rem}.brand-divider{display:none}.page-content{width:92%;padding-top:1.8rem}.page-heading{align-items:flex-start}.subtitle{font-size:.84rem}.reservation-main{align-items:flex-start}.reservation-badges{flex-direction:column;align-items:flex-end}.reservation-footer{align-items:flex-start;flex-direction:column}}

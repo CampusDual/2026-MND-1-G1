@@ -1,188 +1,148 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
+import { Component, OnDestroy, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Observable, Subject, Subscription, catchError, map, of, switchMap, tap } from 'rxjs';
 import { AuthService } from '../core/auth.service';
 import { DaycareOperationsService } from '../core/daycare-operations.service';
 import {
-  DailyRecordType,
-  DailyReservation,
-  IncidentSeverity,
-  ReservationGroup
+  ReceptionPresenceStatus,
+  ReceptionReservation,
+  ReceptionReservationPage
 } from '../core/operational.models';
+
+type ReservationLoadResult =
+  | { kind: 'success'; page: ReceptionReservationPage }
+  | { kind: 'error'; error: HttpErrorResponse };
+
 /**
- * Tablero diario de reservas y operaciones rápidas de guardería.
+ * Consulta de solo lectura de reservas para recepción.
  */
 @Component({
   selector: 'app-it-works',
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './it-works.component.html',
-  styleUrls: ['./it-works.component.scss', './it-works-actions.component.scss']
+  styleUrls: ['./it-works.component.scss']
 })
-export class ItWorksComponent implements OnInit {
-  readonly activityTypes: DailyRecordType[] = ['COMIDA', 'PASEO', 'JUEGO', 'DESCANSO', 'OTRO'];
-  readonly incidentSeverities: IncidentSeverity[] = ['LEVE', 'MODERADA', 'GRAVE'];
-  readonly todayLabel: string = new Intl.DateTimeFormat('es-ES', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  }).format(new Date());
-  groups: ReservationGroup[] = [];
-  isLoading: boolean = true;
-  isSaving: boolean = false;
-  errorMessage: string = '';
-  successMessage: string = '';
-  activeForm: { reservationId: number; kind: 'actividad' | 'incidencia' } | null = null;
-  selectedActivity: DailyRecordType = 'COMIDA';
-  activityNotes: string = '';
-  selectedSeverity: IncidentSeverity = 'LEVE';
-  incidentDescription: string = '';
+export class ItWorksComponent implements OnInit, OnDestroy {
+  private readonly pageSize: number = 50;
+  private readonly loadRequests: Subject<{ date: string; page: number }> = new Subject();
+  private readonly subscriptions: Subscription = new Subscription();
 
-  get totalReservations(): number {
-    return this.groups.reduce(
-      (total: number, group: ReservationGroup) => total + group.reservations.length,
-      0
-    );
-  }
+  selectedDate: string = '';
+  reservations: ReceptionReservation[] = [];
+  currentPage: number = 0;
+  totalPages: number = 0;
+  totalElements: number = 0;
+  isLoading: boolean = true;
+  hasAccessError: boolean = false;
+  errorMessage: string = '';
 
   constructor(
     private readonly authService: AuthService,
     private readonly router: Router,
+    private readonly route: ActivatedRoute,
     private readonly daycareOperationsService: DaycareOperationsService
   ) {}
 
   ngOnInit(): void {
-    this.loadReservations();
+    this.subscriptions.add(this.loadRequests.pipe(
+      tap(() => {
+        this.isLoading = true;
+        this.hasAccessError = false;
+        this.errorMessage = '';
+        this.reservations = [];
+        this.totalElements = 0;
+        this.totalPages = 0;
+      }),
+      switchMap(({ date, page }): Observable<ReservationLoadResult> =>
+        this.daycareOperationsService.getReceptionReservations(date, page, this.pageSize).pipe(
+          map((result: ReceptionReservationPage): ReservationLoadResult => ({ kind: 'success', page: result })),
+          catchError((error: HttpErrorResponse) =>
+            of<ReservationLoadResult>({ kind: 'error', error })
+          )
+        )
+      )
+    ).subscribe((result: ReservationLoadResult) => this.handleLoadResult(result)));
+
+    this.subscriptions.add(this.route.queryParamMap.subscribe((parameters) => {
+      this.selectedDate = parameters.get('date') ?? this.getTodayDateInCenterZone();
+      this.requestReservations(0);
+    }));
+  }
+
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
+  }
+
+  onDateChanged(): void {
+    if (!this.isValidDate(this.selectedDate)) {
+      this.reservations = [];
+      this.errorMessage = 'La fecha indicada no es válida.';
+      this.isLoading = false;
+      return;
+    }
+
+    const currentDate: string | null = this.route.snapshot.queryParamMap.get('date');
+    if (currentDate === this.selectedDate) {
+      this.requestReservations(0);
+      return;
+    }
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { date: this.selectedDate },
+      replaceUrl: true
+    });
   }
 
   loadReservations(): void {
-    this.isLoading = true;
-    this.errorMessage = '';
-    this.daycareOperationsService.getDailyReservations().subscribe({
-      next: (reservations: DailyReservation[]) => {
-        this.groups = this.groupReservations(
-          reservations.filter((reservation: DailyReservation) => reservation.status !== 'CANCELADA')
-        );
-      },
-      error: (error: HttpErrorResponse) => {
-        this.errorMessage = this.getErrorMessage(error, 'No se pudieron cargar las reservas del día.');
-        this.isLoading = false;
-      },
-      complete: () => {
-        this.isLoading = false;
-      }
-    });
+    this.requestReservations(this.currentPage);
   }
 
-  groupReservations(reservations: DailyReservation[]): ReservationGroup[] {
-    const groups = new Map<number | null, ReservationGroup>();
-    for (const reservation of reservations) {
-      const groupId: number | null = reservation.groupOccupancy?.groupId ?? null;
-      let group: ReservationGroup | undefined = groups.get(groupId);
-      if (!group) {
-        group = {
-          id: groupId,
-          label: groupId === null ? 'Sin grupo' : `Grupo ${groupId}`,
-          occupancy: reservation.groupOccupancy,
-          reservations: []
-        };
-        groups.set(groupId, group);
-      }
-      group.reservations.push(reservation);
+  changePage(page: number): void {
+    if (page >= 0 && page < this.totalPages && page !== this.currentPage) {
+      this.requestReservations(page);
     }
-    return [...groups.values()].sort((first: ReservationGroup, second: ReservationGroup) => {
-      if (first.id === null) {
-        return 1;
-      }
-      if (second.id === null) {
-        return -1;
-      }
-      return first.id - second.id;
-    });
   }
 
-  recordCheck(reservation: DailyReservation, type: 'ENTRADA' | 'SALIDA'): void {
-    this.clearMessages();
-    this.isSaving = true;
-    this.daycareOperationsService.createCheckRecord(reservation.id, { type }).subscribe({
-      next: () => {
-        this.successMessage = type === 'ENTRADA'
-          ? `Entrada registrada para ${reservation.dog.name}.`
-          : `Salida registrada para ${reservation.dog.name}.`;
-        this.loadReservations();
-      },
-      error: (error: HttpErrorResponse) => {
-        this.errorMessage = this.getErrorMessage(error, 'No se pudo registrar la entrada o salida.');
-        this.isSaving = false;
-      },
-      complete: () => {
-        this.isSaving = false;
-      }
-    });
+  statusLabel(status: ReceptionReservation['status']): string {
+    const labels: Record<ReceptionReservation['status'], string> = {
+      PENDIENTE: 'Pendiente',
+      CONFIRMADA: 'Confirmada',
+      EN_CURSO: 'En curso',
+      COMPLETADA: 'Completada',
+      CANCELADA: 'Cancelada'
+    };
+    return labels[status];
   }
 
-  openForm(reservationId: number, kind: 'actividad' | 'incidencia'): void {
-    this.clearMessages();
-    this.activeForm = { reservationId, kind };
-    this.selectedActivity = 'COMIDA';
-    this.activityNotes = '';
-    this.selectedSeverity = 'LEVE';
-    this.incidentDescription = '';
+  modalityLabel(modality: ReceptionReservation['modality']): string {
+    return modality === 'DIA_COMPLETO' ? 'Día completo' : 'Media jornada';
   }
 
-  closeForm(): void {
-    this.activeForm = null;
+  presenceLabel(status: ReceptionPresenceStatus): string {
+    const labels: Record<ReceptionPresenceStatus, string> = {
+      SIN_ENTRADA_REGISTRADA: 'Sin entrada registrada',
+      EN_EL_CENTRO: 'En el centro',
+      SALIDA_REGISTRADA: 'Salida registrada',
+      REGISTRO_INCOHERENTE: 'Registro incoherente: salida sin entrada'
+    };
+    return labels[status];
   }
 
-  submitQuickAction(reservation: DailyReservation): void {
-    if (!this.activeForm || this.activeForm.reservationId !== reservation.id || this.isSaving) {
-      return;
+  displayDate(date: string): string {
+    if (!this.isValidDate(date)) {
+      return date;
     }
-    if (this.activeForm.kind === 'incidencia' && !this.incidentDescription.trim()) {
-      this.errorMessage = 'Escribe una descripción para la incidencia.';
-      return;
-    }
-
-    this.clearMessages();
-    this.isSaving = true;
-    const request = this.activeForm.kind === 'actividad'
-      ? this.daycareOperationsService.createDailyRecord(reservation.id, {
-          type: this.selectedActivity,
-          notes: this.activityNotes.trim() || undefined
-        })
-      : this.daycareOperationsService.createIncident(reservation.id, {
-          severity: this.selectedSeverity,
-          description: this.incidentDescription.trim()
-        });
-
-    request.subscribe({
-      next: () => {
-        this.successMessage = this.activeForm?.kind === 'actividad'
-          ? `Actividad registrada para ${reservation.dog.name}.`
-          : `Incidencia registrada para ${reservation.dog.name}.`;
-        this.activeForm = null;
-      },
-      error: (error: HttpErrorResponse) => {
-        this.errorMessage = this.getErrorMessage(error, 'No se pudo guardar la acción.');
-        this.isSaving = false;
-      },
-      complete: () => {
-        this.isSaving = false;
-      }
-    });
-  }
-
-  hasAlerts(reservation: DailyReservation): boolean {
-    return reservation.dog.allergies.length > 0
-      || reservation.dog.medications.length > 0
-      || reservation.dog.incompatibilities.length > 0;
-  }
-
-  getOccupancyPercentage(occupancy: { occupied: number; capacityMax: number }): number {
-    return Math.min(occupancy.occupied / occupancy.capacityMax * 100, 100);
+    return new Intl.DateTimeFormat('es-ES', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC'
+    }).format(new Date(`${date}T12:00:00Z`));
   }
 
   logout(): void {
@@ -190,21 +150,56 @@ export class ItWorksComponent implements OnInit {
     this.router.navigate(['/login']);
   }
 
-  private clearMessages(): void {
-    this.errorMessage = '';
-    this.successMessage = '';
+  private requestReservations(page: number): void {
+    this.currentPage = page;
+    this.loadRequests.next({ date: this.selectedDate, page });
   }
 
-  private getErrorMessage(error: HttpErrorResponse, fallback: string): string {
-    if (error.status === 401) {
-      return 'La sesión ha caducado. Vuelve a iniciar sesión.';
+  private handleLoadResult(result: ReservationLoadResult): void {
+    this.isLoading = false;
+    if (result.kind === 'success') {
+      this.reservations = result.page.items;
+      this.currentPage = result.page.page;
+      this.totalPages = result.page.totalPages;
+      this.totalElements = result.page.totalElements;
+      return;
     }
-    if (error.status === 403) {
-      return 'No tienes permiso para realizar esta acción.';
+
+    if (result.error.status === 401) {
+      this.requireLogin();
+      return;
     }
-    if (error.status === 0) {
-      return 'No se puede conectar con el backend.';
+    if (result.error.status === 403) {
+      this.hasAccessError = true;
+      return;
     }
-    return fallback;
+    this.errorMessage = result.error.status === 400
+      ? 'La fecha o la página solicitada no tienen un formato válido.'
+      : 'No se pudieron cargar las reservas. Comprueba la conexión e inténtalo de nuevo.';
+  }
+
+  private requireLogin(): void {
+    const returnUrl: string = this.router.url;
+    this.authService.logout();
+    this.router.navigate(['/login'], { queryParams: { returnUrl } });
+  }
+
+  private isValidDate(value: string): boolean {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return false;
+    }
+    const parsedDate: Date = new Date(`${value}T00:00:00Z`);
+    return !Number.isNaN(parsedDate.getTime()) && parsedDate.toISOString().slice(0, 10) === value;
+  }
+
+  private getTodayDateInCenterZone(): string {
+    const parts: Intl.DateTimeFormatPart[] = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Madrid',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).formatToParts(new Date());
+    const values: Map<string, string> = new Map(parts.map((part) => [part.type, part.value]));
+    return `${values.get('year')}-${values.get('month')}-${values.get('day')}`;
   }
 }

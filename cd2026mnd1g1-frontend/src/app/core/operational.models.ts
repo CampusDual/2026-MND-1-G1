@@ -69,3 +69,59 @@ export interface ReservationGroup {
   occupancy: GroupOccupancy | null;
   reservations: DailyReservation[];
 }
+
+export type ReceptionPresenceStatus =
+  | 'SIN_ENTRADA_REGISTRADA'
+  | 'EN_EL_CENTRO'
+  | 'SALIDA_REGISTRADA'
+  | 'REGISTRO_INCOHERENTE';
+
+export interface ReceptionReservation {
+  id: number;
+  date: string;
+  modality: 'DIA_COMPLETO' | 'MEDIA_JORNADA';
+  status: 'PENDIENTE' | 'CONFIRMADA' | 'EN_CURSO' | 'COMPLETADA' | 'CANCELADA';
+  dogId: number;
+  dogName: string;
+  tutorName: string | null;
+  presenceStatus: ReceptionPresenceStatus;
+}
+
+export interface ReceptionReservationPage {
+  items: ReceptionReservation[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export interface ReceptionDog {
+  id: number;
+  name: string;
+  breed: string | null;
+  size: 'PEQUENO' | 'MEDIANO' | 'GRANDE';
+  birthDate: string | null;
+}
+
+export interface ReceptionTutor {
+  name: string;
+  phone: string;
+}
+
+export interface ReceptionPresence {
+  status: ReceptionPresenceStatus;
+  lastEntryAt: string | null;
+  entryPetCondition: string | null;
+  lastExitAt: string | null;
+  inconsistent: boolean;
+}
+
+export interface ReceptionReservationDetail {
+  id: number;
+  date: string;
+  modality: 'DIA_COMPLETO' | 'MEDIA_JORNADA';
+  status: 'PENDIENTE' | 'CONFIRMADA' | 'EN_CURSO' | 'COMPLETADA' | 'CANCELADA';
+  dog: ReceptionDog;
+  tutor: ReceptionTutor | null;
+  presence: ReceptionPresence;
+}

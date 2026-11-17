@@ -2,171 +2,90 @@
   <header class="topbar">
     <a class="brand" routerLink="/tablero-diario" aria-label="PawCare, tablero diario">
       <span class="brand-mark" aria-hidden="true">P</span>
-      <span>PawCare <span class="brand-divider">·</span> <strong>Tablero diario</strong></span>
+      <span>PawCare <span class="brand-divider">·</span> <strong>Tablero de recepción</strong></span>
     </a>
-    <div class="topbar-actions">
-      <span class="today">{{ todayLabel }}</span>
-      <button class="logout-button" type="button" (click)="logout()">Cerrar sesión</button>
-    </div>
+    <button class="logout-button" type="button" (click)="logout()">Cerrar sesión</button>
   </header>
 
   <section class="page-content">
     <div class="page-heading">
       <div>
-        <p class="eyebrow">OPERATIVA DE HOY</p>
-        <h1>Buenos días <span aria-hidden="true">☀</span></h1>
-        <p class="subtitle">Aquí tienes el resumen de los perros que nos acompañan hoy.</p>
+        <p class="eyebrow">CONSULTA DE RESERVAS</p>
+        <h1>Reservas del día</h1>
+        <p class="subtitle">Consulta las reservas y la situación de entrada o salida.</p>
       </div>
       <button class="refresh-button" type="button" [disabled]="isLoading" (click)="loadReservations()">
         <span aria-hidden="true">↻</span> Actualizar
       </button>
     </div>
 
-    @if (errorMessage) {
-      <div class="notice notice-error" role="alert">{{ errorMessage }}</div>
-    }
-    @if (successMessage) {
-      <div class="notice notice-success" role="status">{{ successMessage }}</div>
-    }
+    <div class="date-filter">
+      <label for="reservation-date">Fecha consultada</label>
+      <input id="reservation-date" type="date" [(ngModel)]="selectedDate" (change)="onDateChanged()">
+      <span class="date-label">{{ displayDate(selectedDate) }}</span>
+    </div>
 
-    @if (isLoading && groups.length === 0) {
+    @if (hasAccessError) {
+      <section class="notice notice-error" role="alert">
+        <h2>Esta sección es solo para recepción, administración y gerencia.</h2>
+        <p>Tu cuenta no tiene permiso para consultar las reservas internas.</p>
+      </section>
+    } @else if (isLoading) {
       <div class="loading-card" role="status">
         <span class="loader" aria-hidden="true"></span>
-        <span>Cargando el tablero...</span>
+        <span>Cargando las reservas de {{ displayDate(selectedDate) }}...</span>
       </div>
-    } @else if (groups.length === 0) {
+    } @else if (errorMessage) {
+      <div class="notice notice-error" role="alert">
+        <p>{{ errorMessage }}</p>
+        <button class="refresh-button" type="button" (click)="loadReservations()">Reintentar</button>
+      </div>
+    } @else if (totalElements === 0) {
       <section class="empty-state">
         <span class="empty-icon" aria-hidden="true">🐾</span>
-        <h2>Un día tranquilo</h2>
-        <p>No hay perros con reserva para hoy.</p>
+        <h2>No hay reservas para esta fecha</h2>
+        <p>{{ displayDate(selectedDate) }}</p>
       </section>
     } @else {
-      <div class="summary-row">
-        <div class="summary-card">
-          <span class="summary-icon summary-icon-blue" aria-hidden="true">🐕</span>
-          <div><strong>{{ totalReservations }}</strong><span>perros hoy</span></div>
-        </div>
-        <div class="summary-card">
-          <span class="summary-icon summary-icon-green" aria-hidden="true">▦</span>
-          <div><strong>{{ groups.length }}</strong><span>grupos activos</span></div>
-        </div>
-      </div>
-
-      <div class="groups-list">
-        @for (group of groups; track group.id) {
-          <section class="group-section">
-            <header class="group-header">
-              <div class="group-title">
-                <span class="group-icon" aria-hidden="true">⌂</span>
-                <div>
-                  <h2>{{ group.label }}</h2>
-                  <span>{{ group.reservations.length }} {{ group.reservations.length === 1 ? 'perro' : 'perros' }}</span>
-                </div>
+      <p class="results-count">{{ totalElements }} {{ totalElements === 1 ? 'reserva' : 'reservas' }}</p>
+      <section class="reservation-list" aria-label="Reservas">
+        @for (reservation of reservations; track reservation.id) {
+          <article class="reservation-card" [class.cancelled]="reservation.status === 'CANCELADA'">
+            <div class="reservation-main">
+              <div class="dog-avatar" aria-hidden="true">🐶</div>
+              <div class="reservation-identity">
+                <h2>{{ reservation.dogName }}</h2>
+                <p>{{ reservation.tutorName || 'Tutor no asignado' }}</p>
               </div>
-              @if (group.occupancy; as occupancy) {
-                <div class="occupancy">
-                  <span class="occupancy-label">Ocupación</span>
-                  <strong>{{ occupancy.occupied }} <span>/ {{ occupancy.capacityMax }}</span></strong>
-                  <div class="occupancy-track" aria-hidden="true">
-                    <span [style.width.%]="getOccupancyPercentage(occupancy)"></span>
-                  </div>
-                </div>
-              } @else {
-                <span class="no-capacity">Aforo no asignado</span>
-              }
-            </header>
-
-            <div class="dog-grid">
-              @for (reservation of group.reservations; track reservation.id) {
-                <article class="dog-card">
-                  <div class="dog-card-heading">
-                    <span class="dog-avatar" aria-hidden="true">🐶</span>
-                    <div class="dog-heading-text">
-                      <h3>{{ reservation.dog.name }}</h3>
-                      <p>{{ reservation.dog.breed || 'Raza no especificada' }} <span>·</span> {{ reservation.dog.size | lowercase }}</p>
-                    </div>
-                    <span class="status-badge" [class.status-in-progress]="reservation.status === 'EN_CURSO'">
-                      {{ reservation.status === 'EN_CURSO' ? 'En estancia' : reservation.status === 'COMPLETADA' ? 'Finalizada' : reservation.status === 'CANCELADA' ? 'Cancelada' : 'Pendiente' }}
-                    </span>
-                  </div>
-
-                  @if (hasAlerts(reservation)) {
-                    <div class="alerts" aria-label="Alertas de la ficha">
-                      @if (reservation.dog.allergies.length > 0) {
-                        <span class="alert-badge alert-allergy" [title]="reservation.dog.allergies.length + ' alergias'">
-                          <span aria-hidden="true">!</span> Alergia · {{ reservation.dog.allergies.length }}
-                        </span>
-                      }
-                      @if (reservation.dog.medications.length > 0) {
-                        <span class="alert-badge alert-medication" [title]="reservation.dog.medications.length + ' medicamentos'">
-                          <span aria-hidden="true">＋</span> Medicación · {{ reservation.dog.medications.length }}
-                        </span>
-                      }
-                      @if (reservation.dog.incompatibilities.length > 0) {
-                        <span class="alert-badge alert-incompatibility" [title]="reservation.dog.incompatibilities.length + ' incompatibilidades'">
-                          <span aria-hidden="true">↔</span> Incompatibilidad · {{ reservation.dog.incompatibilities.length }}
-                        </span>
-                      }
-                    </div>
-                  } @else {
-                    <p class="no-alerts"><span aria-hidden="true">✓</span> Sin alertas en la ficha</p>
-                  }
-
-                  <div class="dog-actions">
-                    @if (reservation.status === 'EN_CURSO') {
-                      <button class="action-button action-checkout" type="button" [disabled]="isSaving" (click)="recordCheck(reservation, 'SALIDA')">
-                        <span aria-hidden="true">↗</span> Salida
-                      </button>
-                    } @else if (reservation.status !== 'COMPLETADA' && reservation.status !== 'CANCELADA') {
-                      <button class="action-button action-checkin" type="button" [disabled]="isSaving" (click)="recordCheck(reservation, 'ENTRADA')">
-                        <span aria-hidden="true">↘</span> Entrada
-                      </button>
-                    }
-                    <button class="action-button action-activity" type="button" [disabled]="isSaving" (click)="openForm(reservation.id, 'actividad')">
-                      <span aria-hidden="true">＋</span> Actividad
-                    </button>
-                    <button class="action-button action-incident" type="button" [disabled]="isSaving" (click)="openForm(reservation.id, 'incidencia')">
-                      <span aria-hidden="true">!</span> Incidencia
-                    </button>
-                  </div>
-
-                  @if (activeForm?.reservationId === reservation.id) {
-                    <form class="quick-form" (ngSubmit)="submitQuickAction(reservation)">
-                      @if (activeForm?.kind === 'actividad') {
-                        <label for="activity-{{ reservation.id }}">Actividad</label>
-                        <select id="activity-{{ reservation.id }}" name="activity-{{ reservation.id }}" [(ngModel)]="selectedActivity">
-                          @for (activity of activityTypes; track activity) {
-                            <option [value]="activity">{{ activity }}</option>
-                          }
-                        </select>
-                        <label for="notes-{{ reservation.id }}">Nota <span>(opcional)</span></label>
-                        <textarea id="notes-{{ reservation.id }}" name="notes-{{ reservation.id }}" rows="2" maxlength="2000"
-                          [(ngModel)]="activityNotes" placeholder="Añade un detalle..."></textarea>
-                      } @else {
-                        <label for="severity-{{ reservation.id }}">Gravedad</label>
-                        <select id="severity-{{ reservation.id }}" name="severity-{{ reservation.id }}" [(ngModel)]="selectedSeverity">
-                          @for (severity of incidentSeverities; track severity) {
-                            <option [value]="severity">{{ severity }}</option>
-                          }
-                        </select>
-                        <label for="description-{{ reservation.id }}">Descripción</label>
-                        <textarea id="description-{{ reservation.id }}" name="description-{{ reservation.id }}" rows="2"
-                          maxlength="2000" required [(ngModel)]="incidentDescription" placeholder="Describe lo ocurrido..."></textarea>
-                      }
-                      <div class="form-actions">
-                        <button class="cancel-button" type="button" (click)="closeForm()">Cancelar</button>
-                        <button class="save-button" type="submit" [disabled]="isSaving">
-                          {{ isSaving ? 'Guardando...' : 'Guardar' }}
-                        </button>
-                      </div>
-                    </form>
-                  }
-                </article>
-              }
+              <div class="reservation-badges">
+                <span class="modality-badge">{{ modalityLabel(reservation.modality) }}</span>
+                <span class="status-badge" [class.status-cancelled]="reservation.status === 'CANCELADA'">
+                  {{ statusLabel(reservation.status) }}
+                </span>
+              </div>
             </div>
-          </section>
+            <div class="reservation-footer">
+              <span class="presence" [class.presence-warning]="reservation.presenceStatus === 'REGISTRO_INCOHERENTE'">
+                {{ presenceLabel(reservation.presenceStatus) }}
+              </span>
+              <a class="detail-link" [routerLink]="['/tablero-diario/reservas', reservation.id]"
+                 [queryParams]="{ date: selectedDate }">
+                Ver detalle <span aria-hidden="true">→</span>
+              </a>
+            </div>
+          </article>
         }
-      </div>
+      </section>
+
+      @if (totalPages > 1) {
+        <nav class="pagination" aria-label="Páginas de reservas">
+          <button type="button" class="refresh-button" [disabled]="currentPage === 0"
+                  (click)="changePage(currentPage - 1)">Anterior</button>
+          <span>Página {{ currentPage + 1 }} de {{ totalPages }}</span>
+          <button type="button" class="refresh-button" [disabled]="currentPage + 1 >= totalPages"
+                  (click)="changePage(currentPage + 1)">Siguiente</button>
+        </nav>
+      }
     }
   </section>
 </main>

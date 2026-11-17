@@ -15,7 +15,108 @@ tags:
     description: Operaciones de gestion de usuarios.
   - name: Operativa diaria
     description: Consultas y registros diarios de reservas.
+  - name: Recepcion
+    description: Consultas de solo lectura de reservas para el centro del usuario autenticado.
 paths:
+  /api/recepcion/reservas:
+    get:
+      security:
+        - basicAuth: []
+      tags: [Recepcion]
+      summary: Lista reservas de una fecha para recepción
+      description: >
+        Solo Recepcionista, Admin y Gerente. El centro se obtiene del usuario autenticado;
+        no se admite seleccionar otro centro. Si se omite la fecha, se usa hoy en Europe/Madrid.
+        Incluye reservas canceladas y una situación de presencia calculada desde check_registro.
+      operationId: listReceptionReservations
+      parameters:
+        - in: query
+          name: date
+          required: false
+          description: Fecha consultada; por defecto, hoy en Europe/Madrid.
+          schema:
+            type: string
+            format: date
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+            example: '2026-11-17'
+        - in: query
+          name: page
+          required: false
+          description: Índice de página empezando en cero.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - in: query
+          name: size
+          required: false
+          description: Número de resultados por página.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: Página de reservas ordenada por nombre del perro e identificador.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceptionReservationPageDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/recepcion/reservas/{id}:
+    get:
+      security:
+        - basicAuth: []
+      tags: [Recepcion]
+      summary: Consulta el detalle de una reserva
+      description: >
+        Solo Recepcionista, Admin y Gerente. Una reserva inexistente o perteneciente
+        a otro centro responde igual para no revelar su existencia.
+      operationId: getReceptionReservation
+      parameters:
+        - in: path
+          name: id
+          required: true
+          description: Identificador de la reserva, incluido el valor cero si lo asigna la base de datos.
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+      responses:
+        '200':
+          description: Datos básicos de reserva, perro, contacto del tutor y presencia registrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceptionReservationDetailDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /api/reservas:
     get:
       security:
@@ -23,8 +124,8 @@ paths:
       tags: [Operativa diaria]
       summary: Lista las reservas de una fecha
       description: >
-        Devuelve solo reservas del centro asociado al email del usuario autenticado.
-        Si no se indica fecha, se usa la fecha actual.
+        Devuelve solo reservas del centro asociado al usuario autenticado.
+        Solo Recepcionista, Admin y Gerente. Si no se indica fecha, se usa la fecha actual.
       operationId: listDailyReservations
       parameters:
         - in: query
@@ -396,6 +497,136 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
   schemas:
+    ReceptionReservationPageDto:
+      type: object
+      required: [items, page, size, totalElements, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReceptionReservationDto'
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        totalElements:
+          type: integer
+          format: int64
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+    ReceptionReservationDto:
+      type: object
+      required: [id, date, modality, status, dogId, dogName, presenceStatus]
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 0
+        date:
+          type: string
+          format: date
+        modality:
+          type: string
+          enum: [DIA_COMPLETO, MEDIA_JORNADA]
+        status:
+          type: string
+          enum: [PENDIENTE, CONFIRMADA, EN_CURSO, COMPLETADA, CANCELADA]
+        dogId:
+          type: integer
+          format: int64
+          minimum: 0
+        dogName:
+          type: string
+          maxLength: 120
+        tutorName:
+          type: string
+          nullable: true
+        presenceStatus:
+          type: string
+          enum: [SIN_ENTRADA_REGISTRADA, EN_EL_CENTRO, SALIDA_REGISTRADA, REGISTRO_INCOHERENTE]
+    ReceptionReservationDetailDto:
+      type: object
+      required: [id, date, modality, status, dog, presence]
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 0
+        date:
+          type: string
+          format: date
+        modality:
+          type: string
+          enum: [DIA_COMPLETO, MEDIA_JORNADA]
+        status:
+          type: string
+          enum: [PENDIENTE, CONFIRMADA, EN_CURSO, COMPLETADA, CANCELADA]
+        dog:
+          $ref: '#/components/schemas/ReceptionDogDto'
+        tutor:
+          allOf:
+            - $ref: '#/components/schemas/ReceptionTutorDto'
+          nullable: true
+        presence:
+          $ref: '#/components/schemas/ReceptionPresenceDto'
+    ReceptionDogDto:
+      type: object
+      required: [id, name, size]
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 0
+        name:
+          type: string
+          maxLength: 120
+        breed:
+          type: string
+          maxLength: 120
+          nullable: true
+        size:
+          type: string
+          enum: [PEQUENO, MEDIANO, GRANDE]
+        birthDate:
+          type: string
+          format: date
+          nullable: true
+    ReceptionTutorDto:
+      type: object
+      required: [name, phone]
+      properties:
+        name:
+          type: string
+          maxLength: 281
+        phone:
+          type: string
+          maxLength: 30
+    ReceptionPresenceDto:
+      type: object
+      required: [status, inconsistent]
+      properties:
+        status:
+          type: string
+          enum: [SIN_ENTRADA_REGISTRADA, EN_EL_CENTRO, SALIDA_REGISTRADA, REGISTRO_INCOHERENTE]
+        lastEntryAt:
+          type: string
+          format: date-time
+          nullable: true
+        entryPetCondition:
+          type: string
+          maxLength: 500
+          nullable: true
+        lastExitAt:
+          type: string
+          format: date-time
+          nullable: true
+        inconsistent:
+          type: boolean
     ReservationDayDto:
       type: object
       required: [id, date, modality, status, dog]

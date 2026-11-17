@@ -5,7 +5,7 @@ import { AuthService } from './auth.service';
 /**
  * Guard mínimo para impedir acceso directo sin autenticación.
  */
-export const authGuard: CanActivateFn = () => {
+export const authGuard: CanActivateFn = (_route, state) => {
   const authService: AuthService = inject(AuthService);
   const router: Router = inject(Router);
 
@@ -13,5 +13,5 @@ export const authGuard: CanActivateFn = () => {
     return true;
   }
 
-  return router.createUrlTree(['/login']);
+  return router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url } });
 };

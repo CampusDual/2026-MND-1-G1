@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../core/auth.service';
 
 /**
@@ -23,7 +23,8 @@ export class LoginComponent {
   constructor(
     private readonly formBuilder: FormBuilder,
     private readonly authService: AuthService,
-    private readonly router: Router
+    private readonly router: Router,
+    private readonly route: ActivatedRoute
   ) {
     this.loginForm = this.formBuilder.nonNullable.group({
       username: ['', [Validators.required]],
@@ -45,7 +46,7 @@ export class LoginComponent {
     this.authService.login(username, password).subscribe({
       next: (isAuthenticated: boolean) => {
         if (isAuthenticated) {
-          this.router.navigate(['/tablero-diario']);
+          this.router.navigateByUrl(this.getSafeReturnUrl());
           return;
         }
 
@@ -58,5 +59,13 @@ export class LoginComponent {
         this.isLoading = false;
       }
     });
+  }
+
+  private getSafeReturnUrl(): string {
+    const returnUrl: string | null = this.route.snapshot.queryParamMap.get('returnUrl');
+    if (returnUrl && returnUrl.startsWith('/') && !returnUrl.startsWith('//') && !returnUrl.startsWith('/login')) {
+      return returnUrl;
+    }
+    return '/tablero-diario';
   }
 }

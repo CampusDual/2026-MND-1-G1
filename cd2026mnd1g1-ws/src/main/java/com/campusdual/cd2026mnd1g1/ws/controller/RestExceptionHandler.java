@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -65,13 +66,21 @@ public class RestExceptionHandler {
      * @param exception excepcion de validacion
      * @return respuesta HTTP 400
      */
-    @ExceptionHandler({IllegalArgumentException.class, MethodArgumentNotValidException.class, ConstraintViolationException.class})
+    @ExceptionHandler({
+            IllegalArgumentException.class,
+            MethodArgumentNotValidException.class,
+            ConstraintViolationException.class,
+            MethodArgumentTypeMismatchException.class
+    })
     public ResponseEntity<Map<String, Object>> handleBadRequest(Exception exception) {
         String message = exception.getMessage();
         if (exception instanceof MethodArgumentNotValidException methodArgumentNotValidException) {
             FieldError fieldError = methodArgumentNotValidException.getBindingResult().getFieldError();
             if (fieldError != null && fieldError.getDefaultMessage() != null) {
                 message = fieldError.getDefaultMessage();
+            }
+            if (exception instanceof MethodArgumentTypeMismatchException mismatchException) {
+                message = "El valor del parámetro " + mismatchException.getName() + " no tiene un formato válido";
             }
         }
         return buildErrorResponse(HttpStatus.BAD_REQUEST, message);

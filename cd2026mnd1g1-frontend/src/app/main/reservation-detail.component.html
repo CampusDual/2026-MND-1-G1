@@ -1,0 +1,84 @@
+<main class="detail-page">
+  <header class="topbar">
+    <a class="brand" routerLink="/tablero-diario" aria-label="PawCare, tablero de recepción">
+      <span class="brand-mark" aria-hidden="true">P</span>
+      <span>PawCare <span class="brand-divider">·</span> <strong>Tablero de recepción</strong></span>
+    </a>
+    <button class="logout-button" type="button" (click)="logout()">Cerrar sesión</button>
+  </header>
+
+  <section class="content">
+    <button class="back-button" type="button" (click)="backToList()">← Volver a las reservas</button>
+
+    @if (isLoading) {
+      <div class="state-card" role="status">Cargando el detalle de la reserva...</div>
+    } @else if (hasAccessError) {
+      <div class="state-card error" role="alert">
+        Tu cuenta no tiene permiso para consultar las reservas internas.
+      </div>
+    } @else if (errorMessage) {
+      <div class="state-card error" role="alert">{{ errorMessage }}</div>
+    } @else {
+      @if (reservation; as item) {
+        <p class="eyebrow">DETALLE DE RESERVA</p>
+        <h1>Reserva #{{ item.id }}</h1>
+        <p class="date">{{ formatDate(item.date) }}</p>
+
+          <section class="detail-card">
+            <h2>Reserva</h2>
+            <dl>
+              <div><dt>Referencia</dt><dd>#{{ item.id }}</dd></div>
+              <div><dt>Fecha</dt><dd>{{ formatDate(item.date) }}</dd></div>
+              <div><dt>Modalidad</dt><dd>{{ modalityLabel(item.modality) }}</dd></div>
+              <div><dt>Estado de la reserva</dt><dd>
+                <span class="status" [class.cancelled]="item.status === 'CANCELADA'">{{ statusLabel(item.status) }}</span>
+              </dd></div>
+            </dl>
+          </section>
+
+          <section class="detail-card">
+            <h2>Perro</h2>
+            <dl>
+              <div><dt>Nombre</dt><dd>{{ item.dog.name }}</dd></div>
+              @if (item.dog.breed) {
+                <div><dt>Raza</dt><dd>{{ item.dog.breed }}</dd></div>
+              }
+              <div><dt>Tamaño</dt><dd>{{ item.dog.size | lowercase }}</dd></div>
+              @if (item.dog.birthDate) {
+                <div><dt>Fecha de nacimiento</dt><dd>{{ formatDate(item.dog.birthDate) }}</dd></div>
+              }
+            </dl>
+          </section>
+
+          <section class="detail-card">
+            <h2>Tutor</h2>
+            @if (item.tutor) {
+              <dl>
+                <div><dt>Nombre</dt><dd>{{ item.tutor.name }}</dd></div>
+                <div><dt>Teléfono de contacto</dt><dd>{{ item.tutor.phone }}</dd></div>
+              </dl>
+            } @else {
+              <p>No hay tutor asociado a esta reserva.</p>
+            }
+          </section>
+
+          <section class="detail-card">
+            <h2>Entrada y salida</h2>
+            <p class="presence">{{ presenceLabel(item.presence.status) }}</p>
+            @if (item.presence.lastEntryAt) {
+              <p><strong>Última entrada:</strong> {{ formatDateTime(item.presence.lastEntryAt) }}</p>
+            }
+            @if (item.presence.entryPetCondition) {
+              <p><strong>Estado indicado en la entrada:</strong> {{ item.presence.entryPetCondition }}</p>
+            }
+            @if (item.presence.lastExitAt) {
+              <p><strong>Última salida:</strong> {{ formatDateTime(item.presence.lastExitAt) }}</p>
+            }
+            @if (item.presence.inconsistent) {
+              <p class="warning">Hay una salida sin una entrada previa. Revisa el registro.</p>
+            }
+        </section>
+      }
+    }
+  </section>
+</main>

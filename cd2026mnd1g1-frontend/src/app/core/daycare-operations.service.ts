@@ -1,11 +1,13 @@
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
   CheckRecordRequest,
   DailyRecordRequest,
   DailyReservation,
-  IncidentRequest
+  IncidentRequest,
+  ReceptionReservationDetail,
+  ReceptionReservationPage
 } from './operational.models';
 import { AuthService } from './auth.service';
 
@@ -15,6 +17,7 @@ import { AuthService } from './auth.service';
 @Injectable({ providedIn: 'root' })
 export class DaycareOperationsService {
   private readonly reservationsPath: string = '/api/reservas';
+  private readonly receptionReservationsPath: string = '/api/recepcion/reservas';
 
   constructor(
     private readonly http: HttpClient,
@@ -25,6 +28,24 @@ export class DaycareOperationsService {
     return this.http.get<DailyReservation[]>(this.reservationsPath, {
       headers: this.getAuthHeaders()
     });
+  }
+
+  getReceptionReservations(date: string, page: number, size: number): Observable<ReceptionReservationPage> {
+    const params: HttpParams = new HttpParams()
+      .set('date', date)
+      .set('page', page)
+      .set('size', size);
+    return this.http.get<ReceptionReservationPage>(this.receptionReservationsPath, {
+      headers: this.getAuthHeaders(),
+      params
+    });
+  }
+
+  getReceptionReservation(reservationId: number): Observable<ReceptionReservationDetail> {
+    return this.http.get<ReceptionReservationDetail>(
+      `${this.receptionReservationsPath}/${reservationId}`,
+      { headers: this.getAuthHeaders() }
+    );
   }
 
   createCheckRecord(reservationId: number, request: CheckRecordRequest): Observable<unknown> {
