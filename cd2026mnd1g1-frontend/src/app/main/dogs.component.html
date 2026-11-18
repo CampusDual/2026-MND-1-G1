@@ -1,0 +1,211 @@
+<main class="dogs-page">
+  <header class="topbar">
+    <a class="brand" routerLink="/tablero-diario" aria-label="PawCare, tablero diario">
+      <span class="brand-mark" aria-hidden="true">P</span>
+      <span>PawCare <span class="brand-divider">·</span> <strong>Recepción</strong></span>
+    </a>
+    <nav class="main-nav" aria-label="Navegación principal">
+      <a routerLink="/tablero-diario">Reservas</a>
+      <a routerLink="/tutores">Tutores</a>
+      <a routerLink="/perros" aria-current="page">Perros</a>
+    </nav>
+    <button class="logout-button" type="button" (click)="logout()">Cerrar sesión</button>
+  </header>
+
+  <section class="content">
+    @if (hasAccessError) {
+      <div class="notice error" role="alert">
+        Esta sección es solo para recepción, administración y gerencia.
+      </div>
+    } @else if (isLoading) {
+      <div class="state-card" role="status">Cargando...</div>
+    } @else if (errorMessage && !isCreate && !dog) {
+      <div class="notice error" role="alert">
+        <p>{{ errorMessage }}</p>
+        <button type="button" class="secondary-button" (click)="retry()">Reintentar</button>
+        <button type="button" class="secondary-button" (click)="backToList()">Volver al listado</button>
+      </div>
+    } @else if (isList) {
+      <div class="heading">
+        <div>
+          <p class="eyebrow">FICHAS DE ANIMALES</p>
+          <h1>Perros</h1>
+          <p class="subtitle">Busca una ficha o registra un perro asociado a un tutor.</p>
+        </div>
+        <a class="primary-button" routerLink="/perros/nuevo">Nuevo perro</a>
+      </div>
+
+      @if (errorMessage) {
+        <div class="notice error" role="alert">
+          <p>{{ errorMessage }}</p>
+          <button type="button" class="secondary-button" (click)="retry()">Reintentar</button>
+        </div>
+      }
+
+      <form class="search-panel" (ngSubmit)="searchDogs()">
+        <label for="dog-search">Buscar por nombre del perro o del tutor</label>
+        <div class="search-row">
+          <input id="dog-search" name="search" type="search" [(ngModel)]="search"
+                 placeholder="Escribe para buscar">
+          <button type="submit" class="secondary-button">Buscar</button>
+        </div>
+      </form>
+
+      @if (totalElements === 0) {
+        <section class="state-card">
+          <h2>{{ search ? 'No hay perros que coincidan' : 'Todavía no hay perros registrados' }}</h2>
+          @if (!search) {
+            <p>Registra un perro asociado a un tutor para consultar su ficha.</p>
+            <a class="primary-button" routerLink="/perros/nuevo">Nuevo perro</a>
+          }
+        </section>
+      } @else {
+        <p class="result-count">{{ totalElements }} {{ totalElements === 1 ? 'perro' : 'perros' }}</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Perro</th><th>Tutor</th><th>Raza</th><th>Tamaño</th><th>Acción</th></tr>
+            </thead>
+            <tbody>
+              @for (item of dogs; track item.id) {
+                <tr>
+                  <td>{{ item.name }}</td>
+                  <td>
+                    @if (item.tutorName) {
+                      {{ item.tutorName }} <span class="secondary-text">· {{ item.tutorNationalId }}</span>
+                    } @else {
+                      Tutor no asignado
+                    }
+                  </td>
+                  <td>{{ item.breed || '—' }}</td>
+                  <td>{{ sizeLabel(item.size) }}</td>
+                  <td>
+                    <a class="text-link" [routerLink]="['/perros', item.id]"
+                       [queryParams]="{ search: search, page: page }">Ver ficha</a>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (totalPages > 1) {
+          <nav class="pagination" aria-label="Páginas de perros">
+            <button type="button" class="secondary-button" [disabled]="page === 0"
+                    (click)="changePage(page - 1)">Anterior</button>
+            <span>Página {{ page + 1 }} de {{ totalPages }}</span>
+            <button type="button" class="secondary-button" [disabled]="page + 1 >= totalPages"
+                    (click)="changePage(page + 1)">Siguiente</button>
+          </nav>
+        }
+      }
+    } @else if (isDetail && dog) {
+      <button type="button" class="back-button" (click)="backToList()">← Volver al listado</button>
+      <div class="heading">
+        <div>
+          <p class="eyebrow">FICHA DEL PERRO</p>
+          <h1>{{ dog.name }}</h1>
+        </div>
+        <button type="button" class="primary-button" (click)="editDog()">Editar</button>
+      </div>
+      <section class="detail-card">
+        <dl>
+          <div><dt>Nombre</dt><dd>{{ dog.name }}</dd></div>
+          <div><dt>Tutor</dt><dd>{{ dog.tutorName || 'Sin tutor asignado' }}</dd></div>
+          @if (dog.tutorNationalId) {
+            <div><dt>DNI del tutor</dt><dd>{{ dog.tutorNationalId }}</dd></div>
+          }
+          <div><dt>Raza</dt><dd>{{ dog.breed || 'No indicada' }}</dd></div>
+          <div><dt>Tamaño</dt><dd>{{ sizeLabel(dog.size) }}</dd></div>
+          <div><dt>Fecha de nacimiento</dt><dd>{{ dog.birthDate || 'No indicada' }}</dd></div>
+        </dl>
+      </section>
+    } @else {
+      <button type="button" class="back-button" (click)="cancelForm()">← Cancelar y volver</button>
+      <div class="heading">
+        <div>
+          <p class="eyebrow">{{ isCreate ? 'NUEVO REGISTRO' : 'ACTUALIZACIÓN DE DATOS' }}</p>
+          <h1>{{ isCreate ? 'Nuevo perro' : 'Editar perro' }}</h1>
+          @if (isEdit && dog) {
+            <p class="subtitle">Estás editando la ficha de {{ dog.name }}.</p>
+          }
+        </div>
+      </div>
+
+      @if (errorMessage) {
+        <div class="notice error" role="alert">
+          <p>{{ errorMessage }}</p>
+          @if (isEdit && errorMessage.includes('cambiado')) {
+            <button type="button" class="secondary-button" (click)="reloadDog()">Recargar ficha</button>
+          }
+        </div>
+      }
+
+      <form class="dog-form" #dogForm="ngForm" (ngSubmit)="saveDog()">
+        @if (isCreate) {
+          <label for="tutor-search">Buscar tutor</label>
+          <div class="tutor-search-row">
+            <input id="tutor-search" name="tutorSearch" type="search" [(ngModel)]="tutorSearch"
+                   placeholder="Nombre, apellidos o DNI">
+            <button type="button" class="secondary-button" [disabled]="isTutorLoading"
+                    (click)="searchTutors()">{{ isTutorLoading ? 'Buscando...' : 'Buscar' }}</button>
+          </div>
+          @if (tutorErrorMessage) {
+            <div class="notice error tutor-notice" role="alert">
+              <p>{{ tutorErrorMessage }}</p>
+              <button type="button" class="secondary-button" (click)="searchTutors()">Reintentar</button>
+            </div>
+          }
+          <label for="tutor-id">Tutor <span>*</span></label>
+          <select id="tutor-id" name="tutorId" required [ngModel]="form.tutorId"
+                  (ngModelChange)="selectTutor($event)">
+            <option [ngValue]="null">Selecciona un tutor</option>
+            @for (tutor of tutorOptions(); track tutor.id) {
+              <option [ngValue]="tutor.id">
+                {{ tutor.firstName }} {{ tutor.lastName }} · DNI {{ tutor.nationalId }}
+              </option>
+            }
+          </select>
+          @if (tutors.length === 0 && !isTutorLoading && !tutorErrorMessage) {
+            <div class="tutor-empty">
+              <p>No se encontraron tutores. Puedes registrar uno en otra pestaña y volver a buscarlo.</p>
+              <a class="text-link" routerLink="/tutores/nuevo" target="_blank" rel="noopener">
+                Abrir alta de tutor
+              </a>
+            </div>
+          }
+        } @else if (dog) {
+          <span class="field-label">Tutor</span>
+          <p class="readonly-value">
+            {{ dog.tutorName || 'Sin tutor asignado' }}
+            @if (dog.tutorNationalId) { · DNI {{ dog.tutorNationalId }} }
+          </p>
+        }
+
+        <label for="dog-name">Nombre <span>*</span></label>
+        <input id="dog-name" name="name" required maxlength="120" [(ngModel)]="form.name">
+
+        <label for="dog-breed">Raza</label>
+        <input id="dog-breed" name="breed" maxlength="120" [(ngModel)]="form.breed">
+
+        <label for="dog-size">Tamaño <span>*</span></label>
+        <select id="dog-size" name="size" required [(ngModel)]="form.size">
+          <option [ngValue]="null">Selecciona un tamaño</option>
+          @for (size of sizes; track size.value) {
+            <option [ngValue]="size.value">{{ size.label }}</option>
+          }
+        </select>
+
+        <label for="dog-birth-date">Fecha de nacimiento</label>
+        <input id="dog-birth-date" name="birthDate" type="date" [max]="today"
+               [(ngModel)]="form.birthDate">
+
+        <div class="form-actions">
+          <button type="button" class="secondary-button" (click)="cancelForm()">Cancelar</button>
+          <button type="submit" class="primary-button" [disabled]="dogForm.invalid || isSubmitting">
+            {{ isSubmitting ? 'Guardando...' : 'Guardar' }}
+          </button>
+        </div>
+      </form>
+    }
+  </section>
+</main>

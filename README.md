@@ -138,7 +138,7 @@ La autenticación usa las tablas canónicas `USUARIOS` y `ROL`. Los permisos se 
 Las cuentas `admin`, `recepcionista` y `tutor` se crean por migraciones existentes. Para los casos `gerente` y `cliente-b2b`, el script reutiliza hashes BCrypt ya guardados; no contiene contraseñas en texto plano.
 
 1. Arranca la base local persistente y el backend con el perfil `p` (ver “Perfil p” arriba).
-2. Desde DBeaver, conéctate al HSQLDB local y ejecuta `scripts/dev/seed-reception-demo.sql` una vez. Está preparado para repetirse en la misma fecha sin duplicar tutores, perros, reservas ni registros de entrada/salida.
+2. Desde DBeaver, conéctate al HSQLDB local y ejecuta `scripts/dev/seed-reception-demo.sql`. Está preparado para repetirse en la misma fecha sin duplicar tutores, perros, reservas ni registros de entrada/salida; guarda claves de fixtures en la tabla auxiliar local `dev_fixture_registry`.
 3. El script es solo para desarrollo local: no lo ejecutes contra PostgreSQL compartido ni producción. No se carga automáticamente y no borra datos.
 4. Comprueba que `SELECT CURRENT_DATE` en HSQLDB coincide con la fecha de `Europe/Madrid`; esa fecha es D. El script crea reservas D−1, D y D+1.
 
@@ -175,6 +175,33 @@ FETCH FIRST 1 ROW ONLY;
 
 Los tests automatizados usan su propia base HSQLDB de pruebas y no dependen de este script ni de los datos manuales. En los tests, la presencia se comprueba desde `check_registro`; una salida sin entrada se muestra como registro incoherente.
 
+## Gestión de tutores para recepción
+- Plan aplicado (aprobado el 18/11/2026): conservar la tabla `tutor`, separar las fichas de tutor de las cuentas de `USUARIOS`, permitir consulta/alta/edición solo dentro del centro del usuario autenticado y no modificar el esquema.
+- Recepcionista, Admin y Gerente pueden buscar, crear, consultar y editar tutores de su centro. No se crean cuentas, no se vinculan usuarios y no se cambian perros, bonos ni reservas.
+- Nombre, apellidos, DNI, teléfono y email son obligatorios. Se recortan espacios exteriores; el DNI se guarda en mayúsculas y el email en minúsculas. El teléfono se trata como texto y no se limita a un país ni a un formato numérico concreto.
+- El DNI no se puede repetir dentro del mismo centro. No hay unicidad para teléfono o email: si se encuentra otro tutor con el mismo teléfono (ignorando espacios exteriores) o email (sin distinguir mayúsculas), la aplicación pregunta si se desea continuar. La confirmación no fusiona ni altera otras fichas.
+- La actualización usa `If-Match`/`ETag` calculado a partir de los datos de la ficha. Si desde que se abrió otra persona guardó cambios, se avisa y no se sobreescribe esa versión. Es una detección sencilla, no un bloqueo transaccional: dos guardados exactamente simultáneos podrían superar la comprobación; no se añadió una columna de versión.
+- El API se encuentra bajo `/api/recepcion/tutores`: listado/búsqueda paginada, alta, ficha y edición. El centro no se recibe desde el navegador. Los errores para fichas ajenas e inexistentes no revelan información del otro centro.
+
+### Datos de demostración y comprobación manual
+1. En la base local `p`, ejecuta manualmente `scripts/dev/seed-tutors-demo.sql`. No se carga al arrancar, no borra datos y puede repetirse sin duplicar tutores ni el perro de prueba. No lo ejecutes en producción ni en una base compartida.
+2. Inicia sesión con `recepcionista` / `admin1234` y abre **Tutores** desde el tablero. Los datos se localizan por DNI, no por identificadores numéricos.
+3. Prueba buscar `Alex Martín`: deben aparecer dos fichas diferentes. `DEMO-TUTOR-COMPARTIDO` comparte contacto con `DEMO-TUTOR-ANA` y debe mostrar una confirmación antes de guardar coincidencias nuevas.
+4. `DEMO-TUTOR-PERRO` ya tiene un perro asociado; editar sus datos debe conservar esa relación. `DEMO-TUTOR-EDITAR` es la ficha manual de prueba: valores iniciales `Elena Prueba de edición`, `+1 202 555 0107`, `elena.inicial@example.com`; se puede cambiar, por ejemplo, el teléfono a `+1 202 555 0198` y el email a `elena.actualizada@example.com`.
+5. Para comprobar un alta que no forma parte del fixture, puedes usar `Noa`, `Prueba Interfaz`, `DEMO-ALTA-NOA-2026-11-18`, `+1 202 555 0199`, `noa.prueba.20261118@example.com`. Si repites la prueba, comprueba primero que ese DNI siga libre en el centro.
+6. La cuenta `tutor` no puede entrar a estos endpoints. Las fichas de centros ajenos responden como no encontradas. La tabla de HSQLDB y los tests automatizados son independientes de las modificaciones manuales.
+
+| Ficha de prueba | Datos principales | Comprobación esperada |
+|---|---|---|
+| `DEMO-TUTOR-ANA` | Ana García López; email y teléfono | Búsqueda, ficha y coincidencia de contacto. |
+| `DEMO-TUTOR-INAKI` | Iñaki Muñoz; contacto ficticio | Búsqueda de caracteres con tilde; email obligatorio. |
+| `DEMO-TUTOR-MARIA` | María del Mar O'Neill | Nombre compuesto y apóstrofo. |
+| `DEMO-TUTOR-ALEX-1` y `DEMO-TUTOR-ALEX-2` | Alex Martín; teléfonos distintos | Dos personas con el mismo nombre no se confunden. |
+| `DEMO-TUTOR-COMPARTIDO` | Comparte email y teléfono con Ana | Confirmación explícita de coincidencia. |
+| `DEMO-TUTOR-PERRO` | Tutor con perro ya relacionado | La edición no altera la relación existente. |
+| `DEMO-TUTOR-EDITAR` | Elena Prueba de edición | Cambiar contacto, guardar y recargar conserva los cambios. |
+
+El email es obligatorio según el esquema actual y la decisión aprobada; por eso Iñaki también tiene un email ficticio `example.com`. El fixture no crea cuentas en `USUARIOS`. La edición puede comprobar cambios simultáneos abriendo la misma ficha en dos sesiones: guardar desde la primera y luego intentar guardar desde la segunda debe mostrar un aviso de versión desactualizada.
 
 1. Arranca backend en modo `v`.
 2. Arranca frontend (`npm start`).
@@ -201,3 +228,26 @@ Ahí se define, entre otras cosas:
 - convenciones de código/documentación
 - cómo mantener los ficheros de openapi
 - reglas de ejecución en terminal para el equipo
+
+## Gestión básica de perros para recepción
+- Plan aplicado (decisiones aprobadas por el usuario): reutilizar el modelo existente, asociar el perro al centro del usuario autenticado y exigir un tutor del mismo centro solo en el flujo interno. No se modifican migraciones ni tablas de la aplicación; los scripts locales crean únicamente la tabla auxiliar `dev_fixture_registry`.
+- Recepcionista, Admin y Gerente pueden buscar, registrar, consultar y editar perros de su centro. Tutor y usuarios B2B no acceden a esta API.
+- El nombre es obligatorio; raza y fecha de nacimiento son opcionales; tamaño es obligatorio según el esquema y admite `PEQUENO`, `MEDIANO` o `GRANDE`. No existe una columna de peso.
+- El formulario no modifica centro, tutor, estado, fecha de creación, temperamento, pautas de alimentación ni foto. En edición, tutor se muestra como solo lectura y las reservas y demás relaciones se conservan.
+- La búsqueda admite nombre del perro y nombre/apellidos del tutor; está paginada y ordenada por nombre e identificador. El selector de tutor reutiliza la búsqueda ya existente de tutores.
+- Si otro perro del mismo tutor y centro tiene el mismo nombre, se solicita confirmación. No hay unicidad ni fusión automática. La confirmación no evita dobles envíos simultáneos.
+- La edición utiliza `If-Match`/`ETag` para avisar si la ficha cambió desde que se abrió. Es detección sencilla, no bloqueo transaccional; dos escrituras exactamente simultáneas aún podrían competir. La raza y fecha omitidas en un PUT se conservan; para vaciarlas se envía `clearBreed` o `clearBirthDate`.
+- El API está bajo `/api/recepcion/perros`: listado, alta, detalle y edición. El centro no se recibe desde el navegador; el tutor elegido se valida en backend contra el mismo centro. No se acepta modificar tutor o centro en la edición.
+- El cambio de tutor queda pendiente para una entrega futura. La siguiente entrega de cuidados (alergias, pautas de medicación, observaciones relevantes y consulta de contactos/autorizaciones) también queda pendiente; registrar una pauta no significa administrar una dosis.
+- La entrega 2B de peluquería, incluidos los flujos B2B, queda fuera del MVP y no se implementa en esta entrega.
+
+### Datos y recorrido manual
+1. En desarrollo local, ejecuta `scripts/dev/seed-reception-demo.sql` y `scripts/dev/seed-tutors-demo.sql` si sus datos aún no están cargados. No se ejecutan al arrancar, no deben usarse en producción y no borran datos. Usa el perfil local `p` descrito al principio de esta guía.
+2. Inicia sesión como `recepcionista` / `admin1234` y abre **Perros** desde el tablero. Los fixtures existentes incluyen dos perros llamados Luna de `DEMO-REC-01` (Ana Núñez), otra Luna de `DEMO-REC-04` (Inés Peña), Bruno y un perro de `DEMO-TUTOR-PERRO`.
+3. Para comprobar alta con nombre acentuado, busca primero `Bóreas Prueba 20261118`; si no existe, registra ese nombre con el tutor `DEMO-TUTOR-INAKI`, sin raza ni fecha de nacimiento, y tamaño `MEDIANO`. Al repetir, abre la ficha existente en lugar de crear otro registro.
+4. Para probar la advertencia de coincidencia, intenta registrar un tercer perro llamado `Luna` para `DEMO-REC-01`, revisa el aviso y confirma solo si se trata de un perro distinto. En el listado, distingue los dos perros existentes por raza y tamaño. No se fusionan fichas.
+5. Para comprobar edición y persistencia, abre `Perro de prueba de tutor` de `DEMO-TUTOR-PERRO`, cambia raza o fecha, guarda y recarga. Para comprobar conservación de una reserva, edita `Bruno` de `DEMO-REC-01` en la base local de desarrollo y verifica que su reserva sigue asociada; no uses datos reales.
+6. La edición simultánea se puede comprobar en dos pestañas: abre la misma ficha en ambas, guarda un cambio en la primera e intenta guardar desde la segunda. Debe avisar que la ficha está desactualizada y ofrecer recargarla.
+7. El enlace **Abrir alta de tutor** se abre en otra pestaña para no perder el formulario de perro; al volver, busca el nuevo tutor en el selector.
+
+Los scripts usan `dev_fixture_registry`, una tabla auxiliar exclusiva de las bases locales de desarrollo; no forma parte del modelo de aplicación ni de las migraciones. Sus claves relacionan fixtures con sus IDs generados, por lo que cambiar el nombre de un perro después de registrarlo no provoca que se vuelva a crear ni que se restablezcan ediciones. En una base que ya tenía estos datos, la primera ejecución asocia los perros con su nombre inicial; si ya se habían renombrado antes de esa primera ejecución, revisa y resuelve esas filas manualmente antes de volver a sembrar. Los tests de integración crean sus propios tutores, perros y reserva dentro de la base de pruebas; no dependen de estos fixtures. Las pruebas manuales anteriores son pasos reproducibles, no ejecuciones realizadas durante la implementación.

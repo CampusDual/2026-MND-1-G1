@@ -17,7 +17,349 @@ tags:
     description: Consultas y registros diarios de reservas.
   - name: Recepcion
     description: Consultas de solo lectura de reservas para el centro del usuario autenticado.
+  - name: Tutores
+    description: Búsqueda y mantenimiento de fichas de tutores del centro autorizado.
+  - name: Perros
+    description: Búsqueda y mantenimiento de fichas básicas de perros del centro autorizado.
 paths:
+  /api/recepcion/tutores:
+    get:
+      security:
+        - basicAuth: []
+      tags: [Tutores]
+      summary: Busca tutores del centro autorizado
+      description: >
+        Recepcionista, Admin y Gerente pueden consultar únicamente los tutores
+        de su centro. La búsqueda contempla nombre, apellidos, DNI, teléfono y email.
+      operationId: listReceptionTutors
+      parameters:
+        - in: query
+          name: search
+          required: false
+          description: Texto de búsqueda opcional.
+          schema:
+            type: string
+            maxLength: 254
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - in: query
+          name: size
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: Página de tutores ordenada por nombre, apellidos e identificador.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TutorPageDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      security:
+        - basicAuth: []
+      tags: [Tutores]
+      summary: Registra un tutor en el centro autorizado
+      description: No crea cuentas de usuario ni modifica otras relaciones.
+      operationId: createReceptionTutor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TutorCreateRequestDto'
+      responses:
+        '201':
+          description: Tutor creado.
+          headers:
+            Location:
+              description: Ruta de la ficha creada.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TutorDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/recepcion/tutores/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        description: Identificador del tutor dentro del centro autorizado.
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+    get:
+      security:
+        - basicAuth: []
+      tags: [Tutores]
+      summary: Consulta la ficha de un tutor
+      description: Una ficha de otro centro se responde como no encontrada.
+      operationId: getReceptionTutor
+      responses:
+        '200':
+          description: Ficha del tutor. ETag permite detectar cambios desde la lectura.
+          headers:
+            ETag:
+              description: Versión calculada con los datos actuales de la ficha.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TutorDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    put:
+      security:
+        - basicAuth: []
+      tags: [Tutores]
+      summary: Actualiza los datos permitidos de un tutor
+      description: Requiere el ETag obtenido al consultar la ficha. Las coincidencias de contacto pueden confirmarse explícitamente.
+      operationId: updateReceptionTutor
+      parameters:
+        - in: header
+          name: If-Match
+          required: true
+          description: ETag de la ficha leída antes de editar.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TutorUpdateRequestDto'
+      responses:
+        '200':
+          description: Tutor actualizado. Devuelve el nuevo ETag.
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TutorDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/recepcion/perros:
+    get:
+      security:
+        - basicAuth: []
+      tags: [Perros]
+      summary: Busca perros del centro autorizado
+      description: >
+        Recepcionista, Admin y Gerente pueden buscar por nombre del perro o del tutor.
+        La respuesta incluye el tutor solo cuando pertenece al mismo centro del perro.
+      operationId: listReceptionDogs
+      parameters:
+        - in: query
+          name: search
+          required: false
+          description: Texto opcional para buscar por perro o tutor.
+          schema:
+            type: string
+            maxLength: 254
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - in: query
+          name: size
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: Página ordenada por nombre e identificador.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DogPageDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      security:
+        - basicAuth: []
+      tags: [Perros]
+      summary: Registra un perro asociado a un tutor existente
+      description: >
+        El centro se obtiene de la sesión. El tutor debe pertenecer a ese centro.
+        Una coincidencia de nombre y tutor requiere confirmación explícita. No se
+        crean tutores ni se modifican datos de cuidados.
+      operationId: createReceptionDog
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DogCreateRequestDto'
+      responses:
+        '201':
+          description: Perro creado.
+          headers:
+            Location:
+              description: Ruta de la ficha creada.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DogDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/recepcion/perros/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        description: Identificador del perro dentro del centro autorizado.
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+    get:
+      security:
+        - basicAuth: []
+      tags: [Perros]
+      summary: Consulta la ficha de un perro
+      description: Una ficha de otro centro se responde como no encontrada.
+      operationId: getReceptionDog
+      responses:
+        '200':
+          description: Ficha del perro y ETag para detectar cambios desde la lectura.
+          headers:
+            ETag:
+              description: Versión calculada con los datos básicos editables y su tutor.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DogDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    put:
+      security:
+        - basicAuth: []
+      tags: [Perros]
+      summary: Actualiza los datos básicos permitidos de un perro
+      description: >
+        Requiere el ETag obtenido al consultar la ficha. Tutor y centro no son
+        editables. Los campos opcionales omitidos se conservan; para vaciarlos,
+        usa clearBreed o clearBirthDate. Los demás campos de la entidad permanecen intactos.
+      operationId: updateReceptionDog
+      parameters:
+        - in: header
+          name: If-Match
+          required: true
+          description: ETag de la ficha leída antes de editar.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DogUpdateRequestDto'
+      responses:
+        '200':
+          description: Perro actualizado. Devuelve el nuevo ETag.
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DogDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /api/recepcion/reservas:
     get:
       security:
@@ -497,6 +839,218 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
   schemas:
+    DogDto:
+      type: object
+      required: [id, name, size, tutorId, tutorName, tutorNationalId]
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 0
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        breed:
+          type: string
+          nullable: true
+          maxLength: 120
+        size:
+          type: string
+          enum: [PEQUENO, MEDIANO, GRANDE]
+        birthDate:
+          type: string
+          format: date
+          nullable: true
+        tutorId:
+          type: integer
+          format: int64
+          nullable: true
+          minimum: 0
+        tutorName:
+          type: string
+          nullable: true
+        tutorNationalId:
+          type: string
+          nullable: true
+    DogPageDto:
+      type: object
+      required: [items, page, size, totalElements, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DogDto'
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        totalElements:
+          type: integer
+          format: int64
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+    DogCreateRequestDto:
+      type: object
+      required: [tutorId, name, size]
+      properties:
+        tutorId:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Debe identificar un tutor del centro autenticado.
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        breed:
+          type: string
+          nullable: true
+          maxLength: 120
+        size:
+          type: string
+          enum: [PEQUENO, MEDIANO, GRANDE]
+        birthDate:
+          type: string
+          format: date
+          nullable: true
+          description: No puede ser una fecha futura.
+        confirmMatches:
+          type: boolean
+          default: false
+          description: Confirma continuar si el tutor ya tiene un perro con el mismo nombre.
+    DogUpdateRequestDto:
+      type: object
+      required: [name, size]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        breed:
+          type: string
+          nullable: true
+          maxLength: 120
+          description: Si se omite, conserva la raza actual; null también se interpreta como conservar.
+        size:
+          type: string
+          enum: [PEQUENO, MEDIANO, GRANDE]
+        birthDate:
+          type: string
+          format: date
+          nullable: true
+          description: Si se omite, conserva la fecha actual; null también se interpreta como conservar.
+        clearBreed:
+          type: boolean
+          default: false
+          description: Si es true, vacía la raza; no puede combinarse con una raza no vacía.
+        clearBirthDate:
+          type: boolean
+          default: false
+          description: Si es true, vacía la fecha de nacimiento; no puede combinarse con una fecha.
+        confirmMatches:
+          type: boolean
+          default: false
+          description: Confirma continuar si hay otro perro con el mismo nombre y tutor.
+    TutorDto:
+      type: object
+      required: [id, firstName, lastName, nationalId, phone, email]
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 0
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 120
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 160
+        nationalId:
+          type: string
+          minLength: 1
+          maxLength: 20
+        phone:
+          type: string
+          minLength: 1
+          maxLength: 30
+        email:
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 254
+    TutorPageDto:
+      type: object
+      required: [items, page, size, totalElements, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TutorDto'
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        totalElements:
+          type: integer
+          format: int64
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+    TutorCreateRequestDto:
+      allOf:
+        - $ref: '#/components/schemas/TutorFieldsRequestDto'
+        - type: object
+          required: [confirmMatches]
+          properties:
+            confirmMatches:
+              type: boolean
+              description: Confirma continuar si hay otro tutor con el mismo teléfono o email.
+    TutorUpdateRequestDto:
+      allOf:
+        - $ref: '#/components/schemas/TutorFieldsRequestDto'
+        - type: object
+          required: [confirmMatches]
+          properties:
+            confirmMatches:
+              type: boolean
+              description: Confirma continuar si hay otro tutor con el mismo teléfono o email.
+    TutorFieldsRequestDto:
+      type: object
+      required: [firstName, lastName, nationalId, phone, email]
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 120
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 160
+        nationalId:
+          type: string
+          minLength: 1
+          maxLength: 20
+        phone:
+          type: string
+          minLength: 1
+          maxLength: 30
+        email:
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 254
     ReceptionReservationPageDto:
       type: object
       required: [items, page, size, totalElements, totalPages]

@@ -125,3 +125,79 @@ export interface ReceptionReservationDetail {
   tutor: ReceptionTutor | null;
   presence: ReceptionPresence;
 }
+
+export interface Tutor {
+  id: number;
+  firstName: string;
+  lastName: string;
+  nationalId: string;
+  phone: string;
+  email: string;
+}
+
+export interface TutorPage {
+  items: Tutor[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export interface TutorRequest {
+  firstName: string;
+  lastName: string;
+  nationalId: string;
+  phone: string;
+  email: string;
+  confirmMatches: boolean;
+}
+
+export interface TutorVersionedResponse {
+  tutor: Tutor;
+  etag: string;
+}
+
+export type DogSize = 'PEQUENO' | 'MEDIANO' | 'GRANDE';
+
+export interface Dog {
+  id: number;
+  name: string;
+  breed: string | null;
+  size: DogSize;
+  birthDate: string | null;
+  tutorId: number | null;
+  tutorName: string | null;
+  tutorNationalId: string | null;
+}
+
+export interface DogPage {
+  items: Dog[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export interface DogCreateRequest {
+  tutorId: number;
+  name: string;
+  breed: string | null;
+  size: DogSize;
+  birthDate: string | null;
+  confirmMatches: boolean;
+}
+
+export interface DogUpdateRequest {
+  name: string;
+  breed: string | null;
+  size: DogSize;
+  birthDate: string | null;
+  clearBreed: boolean;
+  clearBirthDate: boolean;
+  confirmMatches: boolean;
+}
+
+export interface DogVersionedResponse {
+  dog: Dog;
+  etag: string;
+}

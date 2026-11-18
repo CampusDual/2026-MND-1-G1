@@ -5,6 +5,7 @@ import com.campusdual.cd2026mnd1g1.model.exception.ResourceNotFoundException;
 import com.campusdual.cd2026mnd1g1.model.exception.OperationalUserNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -69,19 +70,21 @@ public class RestExceptionHandler {
     @ExceptionHandler({
             IllegalArgumentException.class,
             MethodArgumentNotValidException.class,
+            HttpMessageNotReadableException.class,
             ConstraintViolationException.class,
             MethodArgumentTypeMismatchException.class
     })
     public ResponseEntity<Map<String, Object>> handleBadRequest(Exception exception) {
         String message = exception.getMessage();
-        if (exception instanceof MethodArgumentNotValidException methodArgumentNotValidException) {
+        if (exception instanceof HttpMessageNotReadableException) {
+            message = "El cuerpo de la petición no tiene un formato válido";
+        } else if (exception instanceof MethodArgumentNotValidException methodArgumentNotValidException) {
             FieldError fieldError = methodArgumentNotValidException.getBindingResult().getFieldError();
             if (fieldError != null && fieldError.getDefaultMessage() != null) {
                 message = fieldError.getDefaultMessage();
             }
-            if (exception instanceof MethodArgumentTypeMismatchException mismatchException) {
-                message = "El valor del parámetro " + mismatchException.getName() + " no tiene un formato válido";
-            }
+        } else if (exception instanceof MethodArgumentTypeMismatchException mismatchException) {
+            message = "El valor del parámetro " + mismatchException.getName() + " no tiene un formato válido";
         }
         return buildErrorResponse(HttpStatus.BAD_REQUEST, message);
     }

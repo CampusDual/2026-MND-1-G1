@@ -1,0 +1,157 @@
+<main class="tutors-page">
+  <header class="topbar">
+    <a class="brand" routerLink="/tablero-diario" aria-label="PawCare, tablero diario">
+      <span class="brand-mark" aria-hidden="true">P</span>
+      <span>PawCare <span class="brand-divider">·</span> <strong>Recepción</strong></span>
+    </a>
+    <nav class="main-nav" aria-label="Navegación principal">
+      <a routerLink="/tablero-diario">Reservas</a>
+      <a routerLink="/tutores" aria-current="page">Tutores</a>
+      <a routerLink="/perros">Perros</a>
+    </nav>
+    <button class="logout-button" type="button" (click)="logout()">Cerrar sesión</button>
+  </header>
+
+  <section class="content">
+    @if (hasAccessError) {
+      <div class="notice error" role="alert">
+        Esta sección es solo para recepción, administración y gerencia.
+      </div>
+    } @else if (isLoading) {
+      <div class="state-card" role="status">Cargando...</div>
+    } @else if (errorMessage && !isCreate && !isEdit) {
+      <div class="notice error" role="alert">
+        <p>{{ errorMessage }}</p>
+        <button type="button" class="secondary-button" (click)="retry()">Reintentar</button>
+        <button type="button" class="secondary-button" (click)="backToList()">Volver al listado</button>
+      </div>
+    } @else if (isList) {
+      <div class="heading">
+        <div>
+          <p class="eyebrow">GESTIÓN DE CONTACTOS</p>
+          <h1>Tutores</h1>
+          <p class="subtitle">Busca una ficha existente o registra un nuevo tutor.</p>
+        </div>
+        <a class="primary-button" routerLink="/tutores/nuevo">Nuevo tutor</a>
+      </div>
+
+      @if (errorMessage) {
+        <div class="notice error" role="alert">
+          <p>{{ errorMessage }}</p>
+          <button type="button" class="secondary-button" (click)="retry()">Reintentar</button>
+        </div>
+      }
+
+      <form class="search-panel" (ngSubmit)="searchTutors()">
+        <label for="tutor-search">Buscar por nombre, DNI, teléfono o email</label>
+        <div class="search-row">
+          <input id="tutor-search" name="search" type="search" [(ngModel)]="search"
+                 placeholder="Escribe para buscar">
+          <button type="submit" class="secondary-button">Buscar</button>
+        </div>
+      </form>
+
+      @if (totalElements === 0) {
+        <section class="state-card">
+          <h2>{{ search ? 'No hay tutores que coincidan' : 'Todavía no hay tutores registrados' }}</h2>
+          @if (!search) {
+            <p>Registra un tutor para poder consultar su ficha.</p>
+            <a class="primary-button" routerLink="/tutores/nuevo">Nuevo tutor</a>
+          }
+        </section>
+      } @else {
+        <p class="result-count">{{ totalElements }} {{ totalElements === 1 ? 'tutor' : 'tutores' }}</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Nombre</th><th>DNI</th><th>Teléfono</th><th>Email</th><th>Acción</th></tr>
+            </thead>
+            <tbody>
+              @for (item of tutors; track item.id) {
+                <tr>
+                  <td>{{ item.firstName }} {{ item.lastName }}</td>
+                  <td>{{ item.nationalId }}</td>
+                  <td>{{ item.phone }}</td>
+                  <td>{{ item.email }}</td>
+                  <td>
+                    <a class="text-link" [routerLink]="['/tutores', item.id]"
+                       [queryParams]="{ search: search, page: page }">Consultar ficha</a>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (totalPages > 1) {
+          <nav class="pagination" aria-label="Páginas de tutores">
+            <button type="button" class="secondary-button" [disabled]="page === 0"
+                    (click)="changePage(page - 1)">Anterior</button>
+            <span>Página {{ page + 1 }} de {{ totalPages }}</span>
+            <button type="button" class="secondary-button" [disabled]="page + 1 >= totalPages"
+                    (click)="changePage(page + 1)">Siguiente</button>
+          </nav>
+        }
+      }
+    } @else if (isDetail && tutor) {
+      <button type="button" class="back-button" (click)="backToList()">← Volver al listado</button>
+      <div class="heading">
+        <div>
+          <p class="eyebrow">FICHA DEL TUTOR</p>
+          <h1>{{ tutor.firstName }} {{ tutor.lastName }}</h1>
+        </div>
+        <button type="button" class="primary-button" (click)="editTutor()">Editar</button>
+      </div>
+      <section class="detail-card">
+        <dl>
+          <div><dt>Nombre</dt><dd>{{ tutor.firstName }}</dd></div>
+          <div><dt>Apellidos</dt><dd>{{ tutor.lastName }}</dd></div>
+          <div><dt>DNI</dt><dd>{{ tutor.nationalId }}</dd></div>
+          <div><dt>Teléfono</dt><dd>{{ tutor.phone }}</dd></div>
+          <div><dt>Email</dt><dd>{{ tutor.email }}</dd></div>
+        </dl>
+      </section>
+    } @else {
+      <button type="button" class="back-button" (click)="cancelForm()">← Cancelar y volver</button>
+      <div class="heading">
+        <div>
+          <p class="eyebrow">{{ isCreate ? 'NUEVO REGISTRO' : 'ACTUALIZACIÓN DE DATOS' }}</p>
+          <h1>{{ isCreate ? 'Nuevo tutor' : 'Editar tutor' }}</h1>
+          @if (isEdit && tutor) {
+            <p class="subtitle">Estás editando la ficha de {{ tutor.firstName }} {{ tutor.lastName }}.</p>
+          }
+        </div>
+      </div>
+      @if (errorMessage) {
+        <div class="notice error" role="alert">
+          <p>{{ errorMessage }}</p>
+          @if (isEdit && errorMessage.includes('cambiado')) {
+            <button type="button" class="secondary-button" (click)="reloadTutor()">Recargar ficha</button>
+          }
+        </div>
+      }
+      <form class="tutor-form" #tutorForm="ngForm" (ngSubmit)="saveTutor()">
+        <label for="first-name">Nombre <span>*</span></label>
+        <input id="first-name" name="firstName" required maxlength="120" [(ngModel)]="form.firstName">
+
+        <label for="last-name">Apellidos <span>*</span></label>
+        <input id="last-name" name="lastName" required maxlength="160" [(ngModel)]="form.lastName">
+
+        <label for="national-id">DNI <span>*</span></label>
+        <input id="national-id" name="nationalId" required maxlength="20" [(ngModel)]="form.nationalId">
+
+        <label for="phone">Teléfono <span>*</span></label>
+        <input id="phone" name="phone" type="tel" required maxlength="30" [(ngModel)]="form.phone">
+
+        <label for="email">Email <span>*</span></label>
+        <input id="email" name="email" type="email" required maxlength="254" [(ngModel)]="form.email">
+
+        <div class="form-actions">
+          <button type="button" class="secondary-button" (click)="cancelForm()">Cancelar</button>
+          <button type="submit" class="primary-button" [disabled]="tutorForm.invalid || isSubmitting">
+            {{ isSubmitting ? 'Guardando...' : 'Guardar' }}
+          </button>
+        </div>
+      </form>
+    }
+  </section>
+</main>
