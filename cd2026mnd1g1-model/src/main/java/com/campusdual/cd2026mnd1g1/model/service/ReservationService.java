@@ -1,10 +1,14 @@
 package com.campusdual.cd2026mnd1g1.model.service;
 
 import com.campusdual.cd2026mnd1g1.model.entity.DaycareGroupEntity;
+import com.campusdual.cd2026mnd1g1.model.entity.DogEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.ReservationEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.ReservationStatus;
 import com.campusdual.cd2026mnd1g1.model.entity.VoucherEntity;
+import com.campusdual.cd2026mnd1g1.model.exception.CapacityConfigurationMissingException;
+import com.campusdual.cd2026mnd1g1.model.exception.ResourceNotFoundException;
 import com.campusdual.cd2026mnd1g1.model.repository.DaycareGroupRepository;
+import com.campusdual.cd2026mnd1g1.model.repository.DogRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.ReservationRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.VoucherRepository;
 import org.springframework.stereotype.Service;
@@ -21,19 +25,25 @@ public class ReservationService {
 
     private final ReservationRepository reservationRepository;
     private final DaycareGroupRepository groupRepository;
+    private final DogRepository dogRepository;
     private final VoucherRepository voucherRepository;
     private final IncompatibilityService incompatibilityService;
+    private final ReservationCapacityService capacityService;
 
     public ReservationService(
             ReservationRepository reservationRepository,
             DaycareGroupRepository groupRepository,
+            DogRepository dogRepository,
             VoucherRepository voucherRepository,
-            IncompatibilityService incompatibilityService
+            IncompatibilityService incompatibilityService,
+            ReservationCapacityService capacityService
     ) {
         this.reservationRepository = reservationRepository;
         this.groupRepository = groupRepository;
+        this.dogRepository = dogRepository;
         this.voucherRepository = voucherRepository;
         this.incompatibilityService = incompatibilityService;
+        this.capacityService = capacityService;
     }
 
     /**
@@ -66,15 +76,33 @@ public class ReservationService {
      */
     public List<String> assignGroup(Long reservationId, Long groupId) {
         ReservationEntity reservation = findReservation(reservationId);
-        DaycareGroupEntity group = this.groupRepository.findById(validateId(groupId, "grupo"))
-                .orElseThrow(() -> new IllegalArgumentException("No existe el grupo indicado"));
+        Long centerId = reservation.getDog().getCenter().getId();
+        DogEntity dog = this.dogRepository.findByIdAndCenterIdForUpdate(
+                        reservation.getDog().getId(),
+                        centerId
+                )
+                .orElseThrow(() -> new ResourceNotFoundException("No existe el perro de la reserva"));
+        DaycareGroupEntity group = this.groupRepository.findByIdAndCenterIdForUpdate(
+                        validateId(groupId, "grupo"),
+                        centerId
+                )
+                .orElseThrow(() -> new ResourceNotFoundException("No existe el grupo indicado en el centro"));
+        if (reservation.getStatus() != ReservationStatus.CANCELADA) {
+            this.capacityService.requireAvailability(
+                    group,
+                    reservation.getDate(),
+                    reservation.getModality(),
+                    reservation.getId()
+            );
+        }
 
         List<Long> incompatibleDogIds = this.incompatibilityService.findConflictingDogIds(
-                reservation.getDog().getId(),
+                dog.getId(),
                 group.getId(),
                 reservation.getDate()
         );
 
+        reservation.setDog(dog);
         reservation.setGroup(group);
         this.reservationRepository.save(reservation);
 
@@ -112,18 +140,27 @@ public class ReservationService {
     }
 
     private void validateCapacity(ReservationEntity reservation) {
-        DaycareGroupEntity group = reservation.getGroup();
-        if (group == null) {
-            return;
+        DaycareGroupEntity assignedGroup = reservation.getGroup();
+        if (assignedGroup == null) {
+            throw new CapacityConfigurationMissingException(
+                    "La reserva necesita un grupo con capacidad configurada para confirmarse."
+            );
         }
-        long activeReservations = this.reservationRepository.countByGroup_IdAndDateAndStatusNot(
-                group.getId(),
+        Long centerId = reservation.getDog().getCenter().getId();
+        DaycareGroupEntity group = this.groupRepository.findByIdAndCenterIdForUpdate(
+                        assignedGroup.getId(),
+                        centerId
+                )
+                .orElseThrow(() -> new CapacityConfigurationMissingException(
+                        "La reserva necesita un grupo con capacidad configurada para confirmarse."
+                ));
+        reservation.setGroup(group);
+        this.capacityService.requireAvailability(
+                group,
                 reservation.getDate(),
-                ReservationStatus.CANCELADA
+                reservation.getModality(),
+                reservation.getId()
         );
-        if (activeReservations >= group.getMaxCapacity()) {
-            throw new IllegalStateException("El grupo no tiene aforo disponible para esa fecha");
-        }
     }
 
     private void consumeVoucherDay(VoucherEntity voucher) {

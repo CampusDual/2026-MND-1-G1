@@ -1,6 +1,8 @@
 export type CheckRecordType = 'ENTRADA' | 'SALIDA';
 export type DailyRecordType = 'COMIDA' | 'PASEO' | 'JUEGO' | 'DESCANSO' | 'OTRO';
 export type IncidentSeverity = 'LEVE' | 'MODERADA' | 'GRAVE';
+export type ReservationModality = 'DIA_COMPLETO' | 'MEDIA_JORNADA' | 'MANANA' | 'TARDE';
+export type ReservationBookingModality = 'DIA_COMPLETO' | 'MANANA' | 'TARDE';
 
 export interface Allergy {
   id: number;
@@ -41,7 +43,7 @@ export interface GroupOccupancy {
 export interface DailyReservation {
   id: number;
   date: string;
-  modality: 'DIA_COMPLETO' | 'MEDIA_JORNADA';
+  modality: ReservationModality;
   status: 'PENDIENTE' | 'CONFIRMADA' | 'EN_CURSO' | 'COMPLETADA' | 'CANCELADA';
   dog: DailyDog;
   groupOccupancy: GroupOccupancy | null;
@@ -79,7 +81,7 @@ export type ReceptionPresenceStatus =
 export interface ReceptionReservation {
   id: number;
   date: string;
-  modality: 'DIA_COMPLETO' | 'MEDIA_JORNADA';
+  modality: ReservationModality;
   status: 'PENDIENTE' | 'CONFIRMADA' | 'EN_CURSO' | 'COMPLETADA' | 'CANCELADA';
   dogId: number;
   dogName: string;
@@ -119,11 +121,46 @@ export interface ReceptionPresence {
 export interface ReceptionReservationDetail {
   id: number;
   date: string;
-  modality: 'DIA_COMPLETO' | 'MEDIA_JORNADA';
+  modality: ReservationModality;
   status: 'PENDIENTE' | 'CONFIRMADA' | 'EN_CURSO' | 'COMPLETADA' | 'CANCELADA';
   dog: ReceptionDog;
   tutor: ReceptionTutor | null;
   presence: ReceptionPresence;
+}
+
+export interface ReceptionGroupOption {
+  id: number;
+  name: string;
+  capacityPerSlot: number;
+}
+
+export interface ReceptionAvailability {
+  date: string;
+  groupId: number;
+  groupName: string;
+  capacityPerSlot: number;
+  morningOccupied: number;
+  morningRemaining: number;
+  afternoonOccupied: number;
+  afternoonRemaining: number;
+}
+
+export interface ReceptionReservationCreateRequest {
+  dogId: number;
+  groupId: number;
+  date: string;
+  modality: ReservationBookingModality;
+}
+
+export interface ReceptionReservationCreated {
+  id: number;
+  date: string;
+  modality: ReservationBookingModality;
+  status: 'CONFIRMADA';
+  dogId: number;
+  dogName: string;
+  groupId: number;
+  groupName: string;
 }
 
 export interface Tutor {

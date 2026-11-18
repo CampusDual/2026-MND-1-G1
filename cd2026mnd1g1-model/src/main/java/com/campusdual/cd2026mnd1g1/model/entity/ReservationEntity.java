@@ -11,14 +11,12 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "reserva", uniqueConstraints = @UniqueConstraint(
-        name = "uq_reserva_perro_fecha", columnNames = {"perro_id", "fecha"}))
+@Table(name = "reserva")
 public class ReservationEntity {
 
     @Id

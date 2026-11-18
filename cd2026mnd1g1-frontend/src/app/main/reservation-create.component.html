@@ -1,0 +1,158 @@
+<main class="booking-page">
+  <header class="topbar">
+    <a class="brand" routerLink="/tablero-diario" aria-label="PawCare, tablero diario">
+      <span class="brand-mark" aria-hidden="true">P</span>
+      <span>PawCare <span class="brand-divider">·</span> <strong>Recepción</strong></span>
+    </a>
+    <nav class="main-nav" aria-label="Navegación principal">
+      <a routerLink="/tablero-diario" aria-current="page">Reservas</a>
+      <a routerLink="/tutores">Tutores</a>
+      <a routerLink="/perros">Perros</a>
+    </nav>
+    <button class="logout-button" type="button" (click)="logout()">Cerrar sesión</button>
+  </header>
+
+  <section class="content">
+    <a class="back-button" [routerLink]="['/tablero-diario']" [queryParams]="{ date: selectedDate }">
+      ← Volver al tablero de {{ selectedDate }}
+    </a>
+    <div class="heading">
+      <div>
+        <p class="eyebrow">NUEVA RESERVA</p>
+        <h1>Reservar una plaza</h1>
+        <p class="subtitle">La disponibilidad es informativa; se comprobará de nuevo al guardar.</p>
+      </div>
+    </div>
+
+    @if (hasAccessError) {
+      <div class="notice error" role="alert">
+        Esta sección es solo para recepción, administración y gerencia.
+      </div>
+    } @else {
+      @if (pageError) {
+        <div class="notice error" role="alert">{{ pageError }}</div>
+      }
+
+      <form class="booking-form" (ngSubmit)="saveReservation()">
+        <fieldset [disabled]="isSubmitting">
+          <legend>Datos de la reserva</legend>
+
+          <div class="field">
+            <label for="dog-search">Buscar perro por nombre o tutor</label>
+            <div class="search-row">
+              <input id="dog-search" name="search" type="search" [(ngModel)]="search"
+                     placeholder="Nombre del perro o tutor">
+              <button class="secondary-button" type="button" (click)="searchDogs()">Buscar</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="booking-dog">Perro</label>
+            @if (isLoadingDogs) {
+              <p class="field-hint" role="status">Buscando perros...</p>
+            } @else if (dogs.length === 0) {
+              <p class="field-hint">No hay perros reservables que coincidan.</p>
+              <a class="text-link" routerLink="/perros/nuevo">Ir al alta de perros</a>
+            } @else {
+              <select id="booking-dog" name="dogId" [ngModel]="selectedDogId"
+                      (ngModelChange)="selectDog($event)">
+                <option [ngValue]="null">Selecciona un perro</option>
+                @for (dog of dogs; track dog.id) {
+                  <option [ngValue]="dog.id">{{ dog.name }} — {{ dog.tutorName }}</option>
+                }
+              </select>
+              @if (dogTotalPages > 1) {
+                <div class="pagination">
+                  <button type="button" class="secondary-button" [disabled]="dogPage === 0"
+                          (click)="changeDogPage(dogPage - 1)">Anterior</button>
+                  <span>Página {{ dogPage + 1 }} de {{ dogTotalPages }}</span>
+                  <button type="button" class="secondary-button" [disabled]="dogPage + 1 >= dogTotalPages"
+                          (click)="changeDogPage(dogPage + 1)">Siguiente</button>
+                </div>
+              }
+            }
+          </div>
+
+          @if (selectedDog) {
+            <div class="selected-dog" aria-live="polite">
+              <strong>{{ selectedDog.name }}</strong>
+              <span>Tutor: {{ selectedDog.tutorName }}</span>
+            </div>
+          }
+
+          <div class="field">
+            <label for="booking-group">Grupo</label>
+            @if (isLoadingGroups) {
+              <p class="field-hint" role="status">Cargando grupos...</p>
+            } @else if (groups.length === 0) {
+              <p class="field-hint">El centro no tiene grupos con capacidad configurada.</p>
+            } @else {
+              <select id="booking-group" name="groupId" [(ngModel)]="selectedGroupId"
+                      (ngModelChange)="onBookingCriteriaChanged()">
+                <option [ngValue]="null">Selecciona un grupo</option>
+                @for (group of groups; track group.id) {
+                  <option [ngValue]="group.id">
+                    {{ group.name }} · {{ group.capacityPerSlot }} plazas por franja
+                  </option>
+                }
+              </select>
+            }
+          </div>
+
+          <div class="field">
+            <label for="booking-date">Fecha</label>
+            <input id="booking-date" name="date" type="date" [min]="today" [(ngModel)]="selectedDate"
+                   (ngModelChange)="onBookingCriteriaChanged()">
+            <span class="field-hint">{{ displayDate(selectedDate) }} · Abierto de lunes a sábado</span>
+          </div>
+
+          <div class="field">
+            <label for="booking-modality">Modalidad</label>
+            <select id="booking-modality" name="modality" [(ngModel)]="selectedModality"
+                    (ngModelChange)="onBookingCriteriaChanged()">
+              @for (modality of modalities; track modality.value) {
+                <option [ngValue]="modality.value">{{ modality.label }}</option>
+              }
+            </select>
+          </div>
+        </fieldset>
+
+        <section class="availability" aria-live="polite" aria-label="Disponibilidad">
+          <h2>Disponibilidad</h2>
+          @if (isLoadingAvailability) {
+            <p role="status">Consultando plazas para {{ displayDate(selectedDate) }}...</p>
+          } @else if (availabilityError) {
+            <p class="notice error" role="alert">{{ availabilityError }}</p>
+          } @else if (availability) {
+            <p class="field-hint">
+              {{ displayDate(availability.date) }} · {{ availability.groupName }}.
+              Se volverá a comprobar al confirmar.
+            </p>
+            <div class="slot-list">
+              <p>Mañana: <strong>{{ availability.morningRemaining }}</strong> de
+                {{ availability.capacityPerSlot }} plazas restantes</p>
+              <p>Tarde: <strong>{{ availability.afternoonRemaining }}</strong> de
+                {{ availability.capacityPerSlot }} plazas restantes</p>
+            </div>
+            @if (!availableForSelection()) {
+              <p class="field-hint">No hay plazas para la modalidad seleccionada.</p>
+            }
+          } @else {
+            <p class="field-hint">Selecciona fecha y grupo para consultar las plazas.</p>
+          }
+        </section>
+
+        @if (bookingError) {
+          <div class="notice error" role="alert">{{ bookingError }}</div>
+        }
+
+        <div class="form-actions">
+          <button type="button" class="secondary-button" (click)="cancel()">Cancelar</button>
+          <button type="submit" class="primary-button" [disabled]="!canSubmit()">
+            {{ isSubmitting ? 'Guardando...' : 'Confirmar reserva' }}
+          </button>
+        </div>
+      </form>
+    }
+  </section>
+</main>

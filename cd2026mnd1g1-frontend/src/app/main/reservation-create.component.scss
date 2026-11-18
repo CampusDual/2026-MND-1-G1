@@ -1,0 +1,29 @@
+:host{display:block;min-height:100vh;color:#19384a;background:#f5f8fa}
+.topbar{min-height:68px;display:flex;align-items:center;gap:2rem;padding:0 5%;background:#fff;border-bottom:1px solid #e5edef}
+.brand{display:flex;align-items:center;gap:.6rem;color:#153449;font-weight:700;text-decoration:none}
+.brand-mark{display:grid;place-items:center;width:36px;height:36px;border-radius:12px;color:#fff;background:#159b8a;font-size:1.2rem}
+.brand-divider{color:#9cabb4;font-weight:400}.brand strong{color:#527080;font-size:.92rem}
+.main-nav{display:flex;gap:1rem;flex:1}.main-nav a{color:#5d7380;font-size:.85rem;text-decoration:none}.main-nav a[aria-current=page]{color:#168d80;font-weight:700}
+.logout-button,.secondary-button,.primary-button{padding:.62rem .9rem;border:1px solid #dce6e9;border-radius:8px;font:inherit;font-size:.84rem;font-weight:650;cursor:pointer}
+.logout-button,.secondary-button{color:#3c5867;background:#fff}.primary-button{display:inline-block;border-color:#159b8a;color:#fff;background:#159b8a;text-align:center;text-decoration:none}
+.primary-button:disabled,.secondary-button:disabled{opacity:.55;cursor:not-allowed}
+.content{width:min(850px,90%);margin:auto;padding:2rem 0 4rem}
+.heading{margin:1rem 0 1.4rem}.eyebrow{margin:0 0 .45rem;color:#168d80;font-size:.7rem;font-weight:800;letter-spacing:.12em}
+h1{margin:0;font-size:clamp(1.8rem,3vw,2.4rem);letter-spacing:-.04em}.subtitle{margin:.5rem 0 0;color:#758794}
+.back-button{color:#167d72;font-size:.86rem;font-weight:700;text-decoration:none}
+.booking-form,.availability{padding:1.2rem;border:1px solid #e4ecef;border-radius:12px;background:#fff}
+fieldset{display:grid;grid-template-columns:1fr 1fr;gap:1rem 1.2rem;margin:0;padding:0;border:0}
+legend{grid-column:1/-1;margin-bottom:.3rem;color:#294453;font-size:1.1rem;font-weight:750}
+.field{min-width:0}.field label{display:block;margin-bottom:.45rem;color:#496574;font-size:.82rem;font-weight:700}
+.field input,.field select{width:100%;padding:.68rem;border:1px solid #dce6e9;border-radius:7px;color:#294453;background:#fff;font:inherit}
+.search-row{display:flex;gap:.5rem}.search-row input{min-width:0}
+.field-hint{margin:.45rem 0 0;color:#71838e;font-size:.82rem}
+.text-link{color:#167d72;font-size:.84rem;font-weight:700}
+.selected-dog{display:grid;gap:.2rem;grid-column:1/-1;padding:.8rem;border-radius:8px;color:#405f6e;background:#f3f8f7;font-size:.84rem}
+.pagination{display:flex;align-items:center;justify-content:center;gap:.8rem;margin-top:.7rem}.pagination span{color:#657987;font-size:.8rem}
+.availability{margin-top:1rem}.availability h2{margin:0 0 .6rem;color:#294453;font-size:1rem}.availability p{margin:.4rem 0;color:#607784;font-size:.86rem}
+.slot-list{display:flex;flex-wrap:wrap;gap:.5rem 2rem}.slot-list p{padding:.6rem .8rem;border-radius:8px;background:#f5f8fa}
+.notice{margin:1rem 0;padding:.9rem 1rem;border-radius:9px;font-size:.86rem}.error{color:#9e3f36;background:#fff0ed}
+.form-actions{display:flex;justify-content:flex-end;gap:.7rem;margin-top:1rem}
+.primary-button:disabled{opacity:.55;cursor:not-allowed}
+@media(max-width:700px){.topbar{flex-wrap:wrap;gap:.9rem;padding:1rem 4%}.main-nav{order:3;flex-basis:100%}.content{width:92%;padding-top:1.5rem}fieldset{grid-template-columns:1fr}.selected-dog,.field,.pagination{grid-column:1}.form-actions{flex-wrap:wrap}.slot-list{display:block}}

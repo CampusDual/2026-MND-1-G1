@@ -19,6 +19,8 @@
       <button class="refresh-button" type="button" [disabled]="isLoading" (click)="loadReservations()">
         <span aria-hidden="true">↻</span> Actualizar
       </button>
+      <a class="refresh-button" [routerLink]="['/reservas/nueva']"
+         [queryParams]="{ date: selectedDate }">Nueva reserva</a>
     </div>
 
     <div class="date-filter">

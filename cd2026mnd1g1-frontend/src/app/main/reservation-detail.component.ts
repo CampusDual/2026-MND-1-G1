@@ -60,7 +60,13 @@ export class ReservationDetailComponent implements OnInit {
   }
 
   modalityLabel(modality: ReceptionReservationDetail['modality']): string {
-    return modality === 'DIA_COMPLETO' ? 'Día completo' : 'Media jornada';
+    const labels: Record<ReceptionReservationDetail['modality'], string> = {
+      DIA_COMPLETO: 'Día completo',
+      MEDIA_JORNADA: 'Media jornada (franja histórica desconocida)',
+      MANANA: 'Mañana',
+      TARDE: 'Tarde'
+    };
+    return labels[modality];
   }
 
   presenceLabel(status: ReceptionReservationDetail['presence']['status']): string {

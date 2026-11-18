@@ -103,6 +103,14 @@ public class DaycareOperationsServiceImpl implements DaycareOperationsService {
         LocalDateTime occurredAt = LocalDateTime.now();
 
         CheckRecordType type = CheckRecordType.valueOf(request.getType().name());
+        if (type == CheckRecordType.ENTRADA
+                && reservation.getStatus() != ReservationStatus.CONFIRMADA) {
+            throw new IllegalStateException("Solo se puede registrar la entrada de una reserva confirmada");
+        }
+        if (type == CheckRecordType.SALIDA
+                && reservation.getStatus() != ReservationStatus.EN_CURSO) {
+            throw new IllegalStateException("Solo se puede registrar la salida de una reserva en curso");
+        }
         reservation.setStatus(type == CheckRecordType.ENTRADA
                 ? ReservationStatus.EN_CURSO
                 : ReservationStatus.COMPLETADA);

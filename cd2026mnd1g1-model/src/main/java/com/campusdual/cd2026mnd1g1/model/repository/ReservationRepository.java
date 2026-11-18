@@ -1,6 +1,7 @@
 package com.campusdual.cd2026mnd1g1.model.repository;
 
 import com.campusdual.cd2026mnd1g1.model.entity.ReservationEntity;
+import com.campusdual.cd2026mnd1g1.model.entity.ReservationModality;
 import com.campusdual.cd2026mnd1g1.model.entity.ReservationStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -16,6 +17,23 @@ import java.util.Optional;
 public interface ReservationRepository extends JpaRepository<ReservationEntity, Long> {
 
     long countByGroup_IdAndDateAndStatusNot(Long groupId, LocalDate date, ReservationStatus status);
+
+    long countByGroup_IdAndDateAndStatusNotAndModalityIn(
+            Long groupId,
+            LocalDate date,
+            ReservationStatus status,
+            List<ReservationModality> modalities
+    );
+
+    long countByGroup_IdAndDateAndStatusNotAndModalityInAndIdNot(
+            Long groupId,
+            LocalDate date,
+            ReservationStatus status,
+            List<ReservationModality> modalities,
+            Long excludedReservationId
+    );
+
+    boolean existsByDog_IdAndDateAndStatusNot(Long dogId, LocalDate date, ReservationStatus status);
 
     List<ReservationEntity> findByDateAndGroup_IdAndStatusNot(
             LocalDate date,

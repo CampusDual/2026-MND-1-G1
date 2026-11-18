@@ -119,7 +119,13 @@ export class ItWorksComponent implements OnInit, OnDestroy {
   }
 
   modalityLabel(modality: ReceptionReservation['modality']): string {
-    return modality === 'DIA_COMPLETO' ? 'Día completo' : 'Media jornada';
+    const labels: Record<ReceptionReservation['modality'], string> = {
+      DIA_COMPLETO: 'Día completo',
+      MEDIA_JORNADA: 'Media jornada (franja histórica desconocida)',
+      MANANA: 'Mañana',
+      TARDE: 'Tarde'
+    };
+    return labels[modality];
   }
 
   presenceLabel(status: ReceptionPresenceStatus): string {

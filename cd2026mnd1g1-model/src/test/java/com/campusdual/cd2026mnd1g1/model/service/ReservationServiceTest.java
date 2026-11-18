@@ -1,11 +1,14 @@
 package com.campusdual.cd2026mnd1g1.model.service;
 
 import com.campusdual.cd2026mnd1g1.model.entity.DaycareGroupEntity;
+import com.campusdual.cd2026mnd1g1.model.entity.CenterEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.DogEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.ReservationEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.ReservationStatus;
 import com.campusdual.cd2026mnd1g1.model.entity.VoucherEntity;
+import com.campusdual.cd2026mnd1g1.model.exception.CapacityExceededException;
 import com.campusdual.cd2026mnd1g1.model.repository.DaycareGroupRepository;
+import com.campusdual.cd2026mnd1g1.model.repository.DogRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.ReservationRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.VoucherRepository;
 import org.junit.jupiter.api.Test;
@@ -22,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -35,10 +39,16 @@ class ReservationServiceTest {
     private DaycareGroupRepository groupRepository;
 
     @Mock
+    private DogRepository dogRepository;
+
+    @Mock
     private VoucherRepository voucherRepository;
 
     @Mock
     private IncompatibilityService incompatibilityService;
+
+    @Mock
+    private ReservationCapacityService capacityService;
 
     @InjectMocks
     private ReservationService reservationService;
@@ -47,11 +57,11 @@ class ReservationServiceTest {
     void confirmRejectsReservationWhenGroupCapacityIsReached() {
         ReservationEntity reservation = reservationWithGroup(5, 2);
         when(this.reservationRepository.findById(1L)).thenReturn(Optional.of(reservation));
-        when(this.reservationRepository.countByGroup_IdAndDateAndStatusNot(
-                5L, reservation.getDate(), ReservationStatus.CANCELADA
-        )).thenReturn(2L);
+        whenLockedGroup(reservation);
+        doThrow(new CapacityExceededException("aforo completo")).when(this.capacityService)
+                .requireAvailability(reservation.getGroup(), reservation.getDate(), reservation.getModality(), 1L);
 
-        assertThrows(IllegalStateException.class, () -> this.reservationService.confirm(1L));
+        assertThrows(CapacityExceededException.class, () -> this.reservationService.confirm(1L));
 
         verify(this.reservationRepository, never()).save(any());
     }
@@ -62,9 +72,7 @@ class ReservationServiceTest {
         VoucherEntity voucher = voucher(3, LocalDate.now().plusDays(1));
         reservation.setVoucher(voucher);
         when(this.reservationRepository.findById(1L)).thenReturn(Optional.of(reservation));
-        when(this.reservationRepository.countByGroup_IdAndDateAndStatusNot(
-                5L, reservation.getDate(), ReservationStatus.CANCELADA
-        )).thenReturn(2L);
+        whenLockedGroup(reservation);
         when(this.reservationRepository.save(reservation)).thenReturn(reservation);
         when(this.voucherRepository.save(voucher)).thenReturn(voucher);
 
@@ -74,6 +82,7 @@ class ReservationServiceTest {
         assertEquals(2, voucher.getRemainingDays());
         assertEquals(ReservationStatus.CONFIRMADA, reservation.getStatus());
         verify(this.voucherRepository).save(voucher);
+        verify(this.groupRepository).findByIdAndCenterIdForUpdate(5L, 1L);
     }
 
     @Test
@@ -81,10 +90,7 @@ class ReservationServiceTest {
         ReservationEntity reservation = reservationWithGroup(5, 5);
         reservation.setVoucher(voucher(2, LocalDate.now().minusDays(1)));
         when(this.reservationRepository.findById(1L)).thenReturn(Optional.of(reservation));
-        when(this.reservationRepository.countByGroup_IdAndDateAndStatusNot(
-                5L, reservation.getDate(), ReservationStatus.CANCELADA
-        )).thenReturn(0L);
-
+        whenLockedGroup(reservation);
         assertThrows(IllegalStateException.class, () -> this.reservationService.confirm(1L));
     }
 
@@ -93,10 +99,7 @@ class ReservationServiceTest {
         ReservationEntity reservation = reservationWithGroup(5, 5);
         reservation.setVoucher(voucher(0, null));
         when(this.reservationRepository.findById(1L)).thenReturn(Optional.of(reservation));
-        when(this.reservationRepository.countByGroup_IdAndDateAndStatusNot(
-                5L, reservation.getDate(), ReservationStatus.CANCELADA
-        )).thenReturn(0L);
-
+        whenLockedGroup(reservation);
         assertThrows(IllegalStateException.class, () -> this.reservationService.confirm(1L));
     }
 
@@ -122,10 +125,13 @@ class ReservationServiceTest {
     void assignGroupReturnsWarningButPersistsAssignment() {
         ReservationEntity reservation = reservationWithGroup(5, 5);
         reservation.setGroup(null);
+        DogEntity dog = reservation.getDog();
         DaycareGroupEntity group = new DaycareGroupEntity();
         group.setId(5L);
+        group.setCenter(dog.getCenter());
         when(this.reservationRepository.findById(1L)).thenReturn(Optional.of(reservation));
-        when(this.groupRepository.findById(5L)).thenReturn(Optional.of(group));
+        when(this.dogRepository.findByIdAndCenterIdForUpdate(10L, 1L)).thenReturn(Optional.of(dog));
+        when(this.groupRepository.findByIdAndCenterIdForUpdate(5L, 1L)).thenReturn(Optional.of(group));
         when(this.incompatibilityService.findConflictingDogIds(
                 10L, 5L, reservation.getDate()
         )).thenReturn(List.of(12L));
@@ -142,8 +148,12 @@ class ReservationServiceTest {
         DaycareGroupEntity group = new DaycareGroupEntity();
         group.setId(groupId);
         group.setMaxCapacity(capacity);
+        CenterEntity center = new CenterEntity();
+        center.setId(1L);
+        group.setCenter(center);
         DogEntity dog = new DogEntity();
         dog.setId(10L);
+        dog.setCenter(center);
 
         ReservationEntity reservation = new ReservationEntity();
         reservation.setId(1L);
@@ -161,5 +171,12 @@ class ReservationServiceTest {
         voucher.setRemainingDays(remainingDays);
         voucher.setExpirationDate(expirationDate);
         return voucher;
+    }
+
+    private void whenLockedGroup(ReservationEntity reservation) {
+        when(this.groupRepository.findByIdAndCenterIdForUpdate(
+                reservation.getGroup().getId(),
+                reservation.getDog().getCenter().getId()
+        )).thenReturn(Optional.of(reservation.getGroup()));
     }
 }

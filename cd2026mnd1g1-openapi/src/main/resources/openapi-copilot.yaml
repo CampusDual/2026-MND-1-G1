@@ -16,7 +16,7 @@ tags:
   - name: Operativa diaria
     description: Consultas y registros diarios de reservas.
   - name: Recepcion
-    description: Consultas de solo lectura de reservas para el centro del usuario autenticado.
+    description: Consultas, disponibilidad y reservas del centro del usuario autenticado.
   - name: Tutores
     description: Búsqueda y mantenimiento de fichas de tutores del centro autorizado.
   - name: Perros
@@ -218,6 +218,13 @@ paths:
             minimum: 1
             maximum: 100
             default: 50
+        - in: query
+          name: reservationCandidates
+          required: false
+          description: Limita la búsqueda a perros activos con tutor del mismo centro.
+          schema:
+            type: boolean
+            default: false
       responses:
         '200':
           description: Página ordenada por nombre e identificador.
@@ -360,6 +367,88 @@ paths:
           $ref: '#/components/responses/UnprocessableEntity'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /api/recepcion/grupos:
+    get:
+      security:
+        - basicAuth: []
+      tags: [Recepcion]
+      summary: Lista los grupos disponibles para reserva
+      description: >
+        Recepcionista, Admin y Gerente pueden consultar grupos de su centro.
+        No hay asignación automática; el grupo debe elegirse en el alta.
+      operationId: listReceptionGroups
+      responses:
+        '200':
+          description: Grupos ordenados por nombre, con su capacidad por franja.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReceptionGroupOptionDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/recepcion/disponibilidad:
+    get:
+      security:
+        - basicAuth: []
+      tags: [Recepcion]
+      summary: Consulta disponibilidad informativa de un grupo
+      description: >
+        Devuelve plazas restantes por franja. El alta vuelve a comprobar el aforo
+        de forma transaccional. Solo permite hoy o fechas futuras de lunes a sábado.
+      operationId: getReceptionAvailability
+      parameters:
+        - in: query
+          name: date
+          required: true
+          description: Fecha consultada en la zona horaria Europe/Madrid.
+          schema:
+            type: string
+            format: date
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+            example: '2026-11-18'
+        - in: query
+          name: groupId
+          required: true
+          description: Grupo del centro autorizado seleccionado por recepción.
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+      responses:
+        '200':
+          description: Capacidad, ocupación y plazas restantes por franja.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceptionAvailabilityDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /api/recepcion/reservas:
     get:
       security:
@@ -405,6 +494,50 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReceptionReservationPageDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      security:
+        - basicAuth: []
+      tags: [Recepcion]
+      summary: Crea una reserva confirmada
+      description: >
+        Solo Recepcionista, Admin y Gerente. El centro y tutor se derivan del usuario
+        y perro autenticados. Requiere un perro activo con tutor del centro y un grupo
+        elegido expresamente. No acepta estado, bono, centro ni ocupación.
+        La unicidad activa por perro/fecha y el aforo se validan dentro de una transacción.
+      operationId: createReceptionReservation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReceptionReservationRequestDto'
+      responses:
+        '201':
+          description: Reserva confirmada y persistida.
+          headers:
+            Location:
+              description: Ruta del detalle de la reserva creada.
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceptionBookingCreatedDto'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -1086,7 +1219,7 @@ components:
           format: date
         modality:
           type: string
-          enum: [DIA_COMPLETO, MEDIA_JORNADA]
+          enum: [DIA_COMPLETO, MEDIA_JORNADA, MANANA, TARDE]
         status:
           type: string
           enum: [PENDIENTE, CONFIRMADA, EN_CURSO, COMPLETADA, CANCELADA]
@@ -1116,7 +1249,7 @@ components:
           format: date
         modality:
           type: string
-          enum: [DIA_COMPLETO, MEDIA_JORNADA]
+          enum: [DIA_COMPLETO, MEDIA_JORNADA, MANANA, TARDE]
         status:
           type: string
           enum: [PENDIENTE, CONFIRMADA, EN_CURSO, COMPLETADA, CANCELADA]
@@ -1128,6 +1261,113 @@ components:
           nullable: true
         presence:
           $ref: '#/components/schemas/ReceptionPresenceDto'
+    CreateReceptionReservationRequestDto:
+      type: object
+      required: [dogId, groupId, date, modality]
+      additionalProperties: false
+      properties:
+        dogId:
+          type: integer
+          format: int64
+          minimum: 0
+        groupId:
+          type: integer
+          format: int64
+          minimum: 0
+        date:
+          type: string
+          format: date
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+          description: Hoy o fecha futura de lunes a sábado, según Europe/Madrid.
+        modality:
+          type: string
+          enum: [DIA_COMPLETO, MANANA, TARDE]
+    ReceptionGroupOptionDto:
+      type: object
+      required: [id, name, capacityPerSlot]
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 0
+        name:
+          type: string
+          maxLength: 120
+        capacityPerSlot:
+          type: integer
+          minimum: 1
+    ReceptionAvailabilityDto:
+      type: object
+      required:
+        - date
+        - groupId
+        - groupName
+        - capacityPerSlot
+        - morningOccupied
+        - morningRemaining
+        - afternoonOccupied
+        - afternoonRemaining
+      properties:
+        date:
+          type: string
+          format: date
+        groupId:
+          type: integer
+          format: int64
+          minimum: 0
+        groupName:
+          type: string
+          maxLength: 120
+        capacityPerSlot:
+          type: integer
+          minimum: 1
+        morningOccupied:
+          type: integer
+          format: int64
+          minimum: 0
+        morningRemaining:
+          type: integer
+          format: int64
+          minimum: 0
+        afternoonOccupied:
+          type: integer
+          format: int64
+          minimum: 0
+        afternoonRemaining:
+          type: integer
+          format: int64
+          minimum: 0
+    ReceptionBookingCreatedDto:
+      type: object
+      required: [id, date, modality, status, dogId, dogName, groupId, groupName]
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 0
+        date:
+          type: string
+          format: date
+        modality:
+          type: string
+          enum: [DIA_COMPLETO, MANANA, TARDE]
+        status:
+          type: string
+          enum: [CONFIRMADA]
+        dogId:
+          type: integer
+          format: int64
+          minimum: 0
+        dogName:
+          type: string
+          maxLength: 120
+        groupId:
+          type: integer
+          format: int64
+          minimum: 0
+        groupName:
+          type: string
+          maxLength: 120
     ReceptionDogDto:
       type: object
       required: [id, name, size]
@@ -1194,7 +1434,7 @@ components:
           format: date
         modality:
           type: string
-          enum: [DIA_COMPLETO, MEDIA_JORNADA]
+          enum: [DIA_COMPLETO, MEDIA_JORNADA, MANANA, TARDE]
         status:
           type: string
           enum: [PENDIENTE, CONFIRMADA, EN_CURSO, COMPLETADA, CANCELADA]
@@ -1278,7 +1518,7 @@ components:
         incompatibleDogId:
           type: integer
           format: int64
-          minimum: 1
+          minimum: 0
         incompatibleDogName:
           type: string
           maxLength: 120
@@ -1293,7 +1533,7 @@ components:
         groupId:
           type: integer
           format: int64
-          minimum: 1
+          minimum: 0
         occupied:
           type: integer
           format: int64
@@ -1538,6 +1778,11 @@ components:
         message:
           type: string
           example: El id debe ser mayor que cero
+        code:
+          type: string
+          nullable: true
+          description: Código funcional opcional para conflictos de reserva.
+          enum: [DUPLICATE_RESERVATION, CAPACITY_FULL, CAPACITY_NOT_CONFIGURED, DATE_NOT_ALLOWED]
         errors:
           type: array
           description: Detalle opcional de errores de validacion por campo.

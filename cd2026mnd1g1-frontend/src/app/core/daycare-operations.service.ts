@@ -11,6 +11,10 @@ import {
   DogUpdateRequest,
   DogVersionedResponse,
   IncidentRequest,
+  ReceptionAvailability,
+  ReceptionGroupOption,
+  ReceptionReservationCreateRequest,
+  ReceptionReservationCreated,
   ReceptionReservationDetail,
   ReceptionReservationPage,
   Tutor,
@@ -27,6 +31,7 @@ import { AuthService } from './auth.service';
 export class DaycareOperationsService {
   private readonly reservationsPath: string = '/api/reservas';
   private readonly receptionReservationsPath: string = '/api/recepcion/reservas';
+  private readonly receptionPath: string = '/api/recepcion';
   private readonly tutorsPath: string = '/api/recepcion/tutores';
   private readonly dogsPath: string = '/api/recepcion/perros';
 
@@ -99,6 +104,46 @@ export class DaycareOperationsService {
       headers: this.getAuthHeaders(),
       params
     });
+  }
+
+  getReservationDogs(search: string, page: number, size: number): Observable<DogPage> {
+    let params: HttpParams = new HttpParams()
+      .set('page', page)
+      .set('size', size)
+      .set('reservationCandidates', true);
+    if (search.trim()) {
+      params = params.set('search', search.trim());
+    }
+    return this.http.get<DogPage>(this.dogsPath, {
+      headers: this.getAuthHeaders(),
+      params
+    });
+  }
+
+  getReceptionGroups(): Observable<ReceptionGroupOption[]> {
+    return this.http.get<ReceptionGroupOption[]>(`${this.receptionPath}/grupos`, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  getReceptionAvailability(date: string, groupId: number): Observable<ReceptionAvailability> {
+    const params: HttpParams = new HttpParams()
+      .set('date', date)
+      .set('groupId', groupId);
+    return this.http.get<ReceptionAvailability>(`${this.receptionPath}/disponibilidad`, {
+      headers: this.getAuthHeaders(),
+      params
+    });
+  }
+
+  createReceptionReservation(
+    request: ReceptionReservationCreateRequest
+  ): Observable<ReceptionReservationCreated> {
+    return this.http.post<ReceptionReservationCreated>(
+      this.receptionReservationsPath,
+      request,
+      { headers: this.getAuthHeaders() }
+    );
   }
 
   getDog(dogId: number): Observable<DogVersionedResponse> {

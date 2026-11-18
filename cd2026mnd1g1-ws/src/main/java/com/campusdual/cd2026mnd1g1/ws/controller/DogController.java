@@ -56,9 +56,13 @@ public class DogController {
             @RequestParam(required = false) @Size(max = 254) String search,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "50") @Min(1) @Max(100) int size,
+            @RequestParam(defaultValue = "false") boolean reservationCandidates,
             Principal principal
     ) {
-        return ResponseEntity.ok(this.dogService.findDogs(search, page, size, principal.getName()));
+        DogPageDto dogs = reservationCandidates
+                ? this.dogService.findReservationCandidates(search, page, size, principal.getName())
+                : this.dogService.findDogs(search, page, size, principal.getName());
+        return ResponseEntity.ok(dogs);
     }
 
     /**

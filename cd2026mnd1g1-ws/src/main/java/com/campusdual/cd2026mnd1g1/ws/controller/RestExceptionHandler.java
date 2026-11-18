@@ -1,8 +1,12 @@
 package com.campusdual.cd2026mnd1g1.ws.controller;
 
 import com.campusdual.cd2026mnd1g1.model.exception.UserNotFoundException;
+import com.campusdual.cd2026mnd1g1.model.exception.CapacityConfigurationMissingException;
+import com.campusdual.cd2026mnd1g1.model.exception.CapacityExceededException;
+import com.campusdual.cd2026mnd1g1.model.exception.DuplicateReservationException;
 import com.campusdual.cd2026mnd1g1.model.exception.ResourceNotFoundException;
 import com.campusdual.cd2026mnd1g1.model.exception.OperationalUserNotFoundException;
+import com.campusdual.cd2026mnd1g1.model.exception.ReservationDateNotAllowedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -101,6 +105,60 @@ public class RestExceptionHandler {
     }
 
     /**
+     * Mapea conflictos específicos de reserva para que el cliente pueda actuar.
+     *
+     * @param exception conflicto de reserva
+     * @return respuesta HTTP 409 con código funcional
+     */
+    @ExceptionHandler(DuplicateReservationException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicateReservation(
+            DuplicateReservationException exception
+    ) {
+        return buildErrorResponse(HttpStatus.CONFLICT, "DUPLICATE_RESERVATION", exception.getMessage());
+    }
+
+    /**
+     * Mapea el agotamiento de una franja concreta.
+     *
+     * @param exception error de aforo
+     * @return respuesta HTTP 409 con código funcional
+     */
+    @ExceptionHandler(CapacityExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleCapacityExceeded(CapacityExceededException exception) {
+        return buildErrorResponse(HttpStatus.CONFLICT, "CAPACITY_FULL", exception.getMessage());
+    }
+
+    /**
+     * Mapea la falta de grupos configurados para el centro.
+     *
+     * @param exception configuración ausente
+     * @return respuesta HTTP 409 con código funcional
+     */
+    @ExceptionHandler(CapacityConfigurationMissingException.class)
+    public ResponseEntity<Map<String, Object>> handleCapacityConfigurationMissing(
+            CapacityConfigurationMissingException exception
+    ) {
+        return buildErrorResponse(HttpStatus.CONFLICT, "CAPACITY_NOT_CONFIGURED", exception.getMessage());
+    }
+
+    /**
+     * Mapea las fechas que incumplen el calendario operativo aprobado.
+     *
+     * @param exception fecha no permitida
+     * @return respuesta HTTP 422 con código funcional
+     */
+    @ExceptionHandler(ReservationDateNotAllowedException.class)
+    public ResponseEntity<Map<String, Object>> handleReservationDateNotAllowed(
+            ReservationDateNotAllowedException exception
+    ) {
+        return buildErrorResponse(
+                HttpStatus.UNPROCESSABLE_ENTITY,
+                "DATE_NOT_ALLOWED",
+                exception.getMessage()
+        );
+    }
+
+    /**
      * Mapea errores inesperados no controlados.
      *
      * @param exception excepcion no controlada
@@ -112,10 +170,21 @@ public class RestExceptionHandler {
     }
 
     private ResponseEntity<Map<String, Object>> buildErrorResponse(HttpStatus status, String message) {
+        return buildErrorResponse(status, null, message);
+    }
+
+    private ResponseEntity<Map<String, Object>> buildErrorResponse(
+            HttpStatus status,
+            String code,
+            String message
+    ) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("timestamp", OffsetDateTime.now(ERROR_TIMESTAMP_ZONE).toString());
         body.put("status", status.value());
         body.put("error", status.getReasonPhrase());
+        if (code != null) {
+            body.put("code", code);
+        }
         body.put("message", message);
         return ResponseEntity.status(status).body(body);
     }

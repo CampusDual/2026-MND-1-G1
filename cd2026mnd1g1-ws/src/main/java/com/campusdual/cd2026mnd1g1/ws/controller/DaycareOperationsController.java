@@ -66,6 +66,7 @@ public class DaycareOperationsController {
      * @return registro creado y estado actualizado de la reserva
      */
     @PostMapping("/{id}/check-registros")
+    @PreAuthorize("hasAnyRole('RECEPCIONISTA', 'ADMIN', 'GERENTE')")
     public ResponseEntity<CheckRecordDto> createCheckRecord(
             @PathVariable @Positive Long id,
             @Valid @RequestBody CheckRecordRequestDto request,

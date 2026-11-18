@@ -62,6 +62,22 @@ public class DogServiceImpl implements DogService {
     @Override
     @Transactional(readOnly = true)
     public DogPageDto findDogs(String search, int page, int size, String username) {
+        return findDogs(search, page, size, username, false);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DogPageDto findReservationCandidates(String search, int page, int size, String username) {
+        return findDogs(search, page, size, username, true);
+    }
+
+    private DogPageDto findDogs(
+            String search,
+            int page,
+            int size,
+            String username,
+            boolean reservationCandidatesOnly
+    ) {
         validatePagination(page, size);
         UserEntity user = findActiveUser(username);
         String normalizedSearch = search == null ? "" : search.trim();
@@ -70,13 +86,24 @@ public class DogServiceImpl implements DogService {
                 Sort.Order.asc("id")
         );
         PageRequest pageRequest = PageRequest.of(page, size, sort);
-        Page<DogEntity> dogPage = normalizedSearch.isEmpty()
-                ? this.dogRepository.findAllByCenter(user.getCenter().getId(), pageRequest)
-                : this.dogRepository.searchDogs(
-                        user.getCenter().getId(),
-                        normalizedSearch,
-                        pageRequest
-                );
+        Page<DogEntity> dogPage;
+        if (reservationCandidatesOnly) {
+            dogPage = normalizedSearch.isEmpty()
+                    ? this.dogRepository.findReservationCandidates(user.getCenter().getId(), pageRequest)
+                    : this.dogRepository.searchReservationCandidates(
+                            user.getCenter().getId(),
+                            normalizedSearch,
+                            pageRequest
+                    );
+        } else {
+            dogPage = normalizedSearch.isEmpty()
+                    ? this.dogRepository.findAllByCenter(user.getCenter().getId(), pageRequest)
+                    : this.dogRepository.searchDogs(
+                            user.getCenter().getId(),
+                            normalizedSearch,
+                            pageRequest
+                    );
+        }
 
         List<DogDto> items = dogPage.getContent().stream().map(this::mapToDto).toList();
         return new DogPageDto(

@@ -22,6 +22,17 @@ public interface DogService {
     DogPageDto findDogs(String search, int page, int size, String username);
 
     /**
+     * Busca perros activos con tutor válido para reservar en recepción.
+     *
+     * @param search texto opcional de búsqueda
+     * @param page índice de página
+     * @param size número de resultados
+     * @param username usuario autenticado
+     * @return perros reservables del centro autorizado
+     */
+    DogPageDto findReservationCandidates(String search, int page, int size, String username);
+
+    /**
      * Recupera una ficha dentro del centro del usuario autenticado.
      *
      * @param id identificador del perro
