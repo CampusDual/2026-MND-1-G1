@@ -77,6 +77,8 @@ describe('DogsComponent', () => {
         breed: null,
         size: 'MEDIANO',
         birthDate: null,
+        feedingInstructions: null,
+        temperament: null,
         tutorId: 4,
         tutorName: 'Ana Núñez',
         tutorNationalId: '12345678A'

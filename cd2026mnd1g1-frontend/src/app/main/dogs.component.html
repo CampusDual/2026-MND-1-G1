@@ -117,6 +117,8 @@
           <div><dt>Raza</dt><dd>{{ dog.breed || 'No indicada' }}</dd></div>
           <div><dt>Tamaño</dt><dd>{{ sizeLabel(dog.size) }}</dd></div>
           <div><dt>Fecha de nacimiento</dt><dd>{{ dog.birthDate || 'No indicada' }}</dd></div>
+          <div><dt>Pautas de alimentación</dt><dd>{{ dog.feedingInstructions || 'No indicadas' }}</dd></div>
+          <div><dt>Comportamiento (interno)</dt><dd>{{ dog.temperament || 'No indicado' }}</dd></div>
         </dl>
       </section>
       <section class="detail-card">
@@ -210,6 +212,14 @@
         <label for="dog-birth-date">Fecha de nacimiento</label>
         <input id="dog-birth-date" name="birthDate" type="date" [max]="today"
                [(ngModel)]="form.birthDate">
+
+        <label for="dog-feeding-instructions">Pautas de alimentación</label>
+        <textarea id="dog-feeding-instructions" name="feedingInstructions" maxlength="1000" rows="4"
+                  [(ngModel)]="form.feedingInstructions"></textarea>
+
+        <label for="dog-temperament">Comportamiento (interno)</label>
+        <textarea id="dog-temperament" name="temperament" maxlength="1000" rows="4"
+                  [(ngModel)]="form.temperament"></textarea>
 
         <div class="form-actions">
           <button type="button" class="secondary-button" (click)="cancelForm()">Cancelar</button>

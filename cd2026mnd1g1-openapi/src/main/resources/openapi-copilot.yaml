@@ -1744,6 +1744,16 @@ components:
           type: string
           format: date
           nullable: true
+        feedingInstructions:
+          type: string
+          maxLength: 1000
+          nullable: true
+          description: Pautas de alimentación visibles para los usuarios operativos del centro.
+        temperament:
+          type: string
+          maxLength: 1000
+          nullable: true
+          description: Información interna del centro; no se devuelve en el portal tutor.
         tutorId:
           type: integer
           format: int64
@@ -1814,6 +1824,16 @@ components:
           format: date
           nullable: true
           description: No puede ser una fecha futura.
+        feedingInstructions:
+          type: string
+          maxLength: 1000
+          nullable: true
+          description: Pautas de alimentación opcionales que mantiene el centro.
+        temperament:
+          type: string
+          maxLength: 1000
+          nullable: true
+          description: Información interna de comportamiento opcional que mantiene el centro.
         confirmMatches:
           type: boolean
           default: false
@@ -1839,6 +1859,16 @@ components:
           format: date
           nullable: true
           description: Si se omite, conserva la fecha actual; null también se interpreta como conservar.
+        feedingInstructions:
+          type: string
+          maxLength: 1000
+          nullable: true
+          description: Si se omite o es null, conserva el valor actual; una cadena vacía lo vacía.
+        temperament:
+          type: string
+          maxLength: 1000
+          nullable: true
+          description: Si se omite o es null, conserva el valor actual; una cadena vacía lo vacía.
         clearBreed:
           type: boolean
           default: false
@@ -1847,6 +1877,14 @@ components:
           type: boolean
           default: false
           description: Si es true, vacía la fecha de nacimiento; no puede combinarse con una fecha.
+        clearFeedingInstructions:
+          type: boolean
+          default: false
+          description: Si es true, vacía las pautas de alimentación; no puede combinarse con texto no vacío.
+        clearTemperament:
+          type: boolean
+          default: false
+          description: Si es true, vacía el comportamiento; no puede combinarse con texto no vacío.
         confirmMatches:
           type: boolean
           default: false

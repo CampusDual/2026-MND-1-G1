@@ -15,8 +15,12 @@ public class DogUpdateRequestDto {
     private String breed;
     private String size;
     private LocalDate birthDate;
+    private String feedingInstructions;
+    private String temperament;
     private boolean clearBreed;
     private boolean clearBirthDate;
+    private boolean clearFeedingInstructions;
+    private boolean clearTemperament;
     private boolean confirmMatches;
 
     public DogUpdateRequestDto() {
@@ -59,6 +63,24 @@ public class DogUpdateRequestDto {
         this.birthDate = birthDate;
     }
 
+    @Size(max = 1000, message = "Las pautas de alimentación no pueden superar 1000 caracteres")
+    public String getFeedingInstructions() {
+        return this.feedingInstructions;
+    }
+
+    public void setFeedingInstructions(String feedingInstructions) {
+        this.feedingInstructions = feedingInstructions;
+    }
+
+    @Size(max = 1000, message = "El comportamiento no puede superar 1000 caracteres")
+    public String getTemperament() {
+        return this.temperament;
+    }
+
+    public void setTemperament(String temperament) {
+        this.temperament = temperament;
+    }
+
     public boolean isClearBreed() {
         return this.clearBreed;
     }
@@ -73,6 +95,22 @@ public class DogUpdateRequestDto {
 
     public void setClearBirthDate(boolean clearBirthDate) {
         this.clearBirthDate = clearBirthDate;
+    }
+
+    public boolean isClearFeedingInstructions() {
+        return this.clearFeedingInstructions;
+    }
+
+    public void setClearFeedingInstructions(boolean clearFeedingInstructions) {
+        this.clearFeedingInstructions = clearFeedingInstructions;
+    }
+
+    public boolean isClearTemperament() {
+        return this.clearTemperament;
+    }
+
+    public void setClearTemperament(boolean clearTemperament) {
+        this.clearTemperament = clearTemperament;
     }
 
     public boolean isConfirmMatches() {

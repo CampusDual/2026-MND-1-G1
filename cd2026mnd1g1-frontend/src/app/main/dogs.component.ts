@@ -26,10 +26,12 @@ interface DogForm {
   breed: string;
   size: DogSize | null;
   birthDate: string;
+  feedingInstructions: string;
+  temperament: string;
 }
 
 /**
- * Pantallas de búsqueda, ficha, alta y edición básica de perros.
+ * Pantallas de búsqueda, ficha, alta y edición de perros para el centro.
  */
 @Component({
   selector: 'app-dogs',
@@ -294,7 +296,9 @@ export class DogsComponent implements OnInit, OnDestroy {
           name: result.dog.name,
           breed: result.dog.breed ?? '',
           size: result.dog.size,
-          birthDate: result.dog.birthDate ?? ''
+          birthDate: result.dog.birthDate ?? '',
+          feedingInstructions: result.dog.feedingInstructions ?? '',
+          temperament: result.dog.temperament ?? ''
         };
         this.isLoading = false;
       },
@@ -403,6 +407,8 @@ export class DogsComponent implements OnInit, OnDestroy {
       breed: this.normalizeOptionalText(this.form.breed),
       size: this.requireSize(),
       birthDate: this.form.birthDate || null,
+      feedingInstructions: this.normalizeOptionalText(this.form.feedingInstructions),
+      temperament: this.normalizeOptionalText(this.form.temperament),
       confirmMatches
     };
   }
@@ -415,8 +421,12 @@ export class DogsComponent implements OnInit, OnDestroy {
       breed,
       size: this.requireSize(),
       birthDate,
+      feedingInstructions: this.normalizeOptionalText(this.form.feedingInstructions),
+      temperament: this.normalizeOptionalText(this.form.temperament),
       clearBreed: breed === null,
       clearBirthDate: birthDate === null,
+      clearFeedingInstructions: this.normalizeOptionalText(this.form.feedingInstructions) === null,
+      clearTemperament: this.normalizeOptionalText(this.form.temperament) === null,
       confirmMatches
     };
   }
@@ -454,7 +464,9 @@ export class DogsComponent implements OnInit, OnDestroy {
       name: '',
       breed: '',
       size: null,
-      birthDate: ''
+      birthDate: '',
+      feedingInstructions: '',
+      temperament: ''
     };
   }
 

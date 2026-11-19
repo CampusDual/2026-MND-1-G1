@@ -156,6 +156,9 @@ public class DogServiceImpl implements DogService {
         DogSize size = parseSize(request.size());
         validateBirthDate(request.birthDate());
         validateBreedLength(breed);
+        String feedingInstructions = normalizeOptionalText(request.feedingInstructions());
+        String temperament = normalizeOptionalText(request.temperament());
+        validateCareTextLengths(feedingInstructions, temperament);
 
         if (!request.confirmMatches() && hasPotentialDuplicates(centerId, tutor.getId(), name, null)) {
             throw new IllegalStateException(DUPLICATE_MESSAGE);
@@ -168,6 +171,8 @@ public class DogServiceImpl implements DogService {
         dog.setBreed(breed);
         dog.setSize(size);
         dog.setBirthDate(request.birthDate());
+        dog.setFeedingInstructions(feedingInstructions);
+        dog.setTemperament(temperament);
         dog.setActive(true);
         dog.setInformationDeclaredByTutor(false);
         dog.setFeedingDeclaredByTutor(false);
@@ -200,13 +205,28 @@ public class DogServiceImpl implements DogService {
         String breed = updatedBreed(request, dog);
         DogSize size = parseSize(request.getSize());
         LocalDate birthDate = updatedBirthDate(request, dog);
+        String feedingInstructions = updatedCareText(
+                request.getFeedingInstructions(),
+                request.isClearFeedingInstructions(),
+                dog.getFeedingInstructions(),
+                "Las pautas de alimentación"
+        );
+        String temperament = updatedCareText(
+                request.getTemperament(),
+                request.isClearTemperament(),
+                dog.getTemperament(),
+                "El comportamiento"
+        );
         validateBirthDate(birthDate);
         validateBreedLength(breed);
+        validateCareTextLengths(feedingInstructions, temperament);
 
         if (dog.getName().equals(name)
                 && Objects.equals(dog.getBreed(), breed)
                 && dog.getSize() == size
-                && Objects.equals(dog.getBirthDate(), birthDate)) {
+                && Objects.equals(dog.getBirthDate(), birthDate)
+                && Objects.equals(dog.getFeedingInstructions(), feedingInstructions)
+                && Objects.equals(dog.getTemperament(), temperament)) {
             return mapToDto(dog);
         }
         Long tutorId = dog.getTutor() == null ? null : dog.getTutor().getId();
@@ -220,6 +240,14 @@ public class DogServiceImpl implements DogService {
         dog.setBreed(breed);
         dog.setSize(size);
         dog.setBirthDate(birthDate);
+        if (!Objects.equals(dog.getFeedingInstructions(), feedingInstructions)) {
+            dog.setFeedingInstructions(feedingInstructions);
+            dog.setFeedingDeclaredByTutor(false);
+        }
+        if (!Objects.equals(dog.getTemperament(), temperament)) {
+            dog.setTemperament(temperament);
+            dog.setTemperamentDeclaredByTutor(false);
+        }
         return mapToDto(this.dogRepository.save(dog));
     }
 
@@ -227,10 +255,12 @@ public class DogServiceImpl implements DogService {
         StringBuilder value = new StringBuilder();
         appendTagValue(value, String.valueOf(dog.id()));
         appendTagValue(value, dog.name());
-        appendTagValue(value, String.valueOf(dog.breed()));
+        appendTagValue(value, dog.breed());
         appendTagValue(value, dog.size());
-        appendTagValue(value, String.valueOf(dog.birthDate()));
-        appendTagValue(value, String.valueOf(dog.tutorId()));
+        appendTagValue(value, dog.birthDate() == null ? null : dog.birthDate().toString());
+        appendTagValue(value, dog.feedingInstructions());
+        appendTagValue(value, dog.temperament());
+        appendTagValue(value, dog.tutorId() == null ? null : String.valueOf(dog.tutorId()));
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256")
                     .digest(value.toString().getBytes(StandardCharsets.UTF_8));
@@ -241,6 +271,10 @@ public class DogServiceImpl implements DogService {
     }
 
     private static void appendTagValue(StringBuilder target, String value) {
+        if (value == null) {
+            target.append("-1:");
+            return;
+        }
         target.append(value.length()).append(':').append(value);
     }
 
@@ -298,6 +332,8 @@ public class DogServiceImpl implements DogService {
                 dog.getBreed(),
                 dog.getSize().name(),
                 dog.getBirthDate(),
+                dog.getFeedingInstructions(),
+                dog.getTemperament(),
                 tutor == null ? null : tutor.getId(),
                 tutorName,
                 tutor == null ? null : tutor.getNationalId()
@@ -316,6 +352,27 @@ public class DogServiceImpl implements DogService {
             return null;
         }
         return value.trim();
+    }
+
+    private String updatedCareText(String value, boolean clear, String currentValue, String fieldName) {
+        if (clear) {
+            if (value != null && !value.isBlank()) {
+                throw new IllegalArgumentException(
+                        "No se puede indicar un valor y vaciar el campo a la vez: " + fieldName
+                );
+            }
+            return null;
+        }
+        return value == null ? currentValue : normalizeOptionalText(value);
+    }
+
+    private void validateCareTextLengths(String feedingInstructions, String temperament) {
+        if (feedingInstructions != null && feedingInstructions.length() > 1000) {
+            throw new IllegalArgumentException("Las pautas de alimentación no pueden superar 1000 caracteres");
+        }
+        if (temperament != null && temperament.length() > 1000) {
+            throw new IllegalArgumentException("El comportamiento no puede superar 1000 caracteres");
+        }
     }
 
     private String updatedBreed(DogUpdateRequestDto request, DogEntity dog) {

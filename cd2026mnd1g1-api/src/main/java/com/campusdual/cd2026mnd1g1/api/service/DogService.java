@@ -43,7 +43,7 @@ public interface DogService {
     DogDetailDto findDog(Long id, String username);
 
     /**
-     * Registra un perro asociado a un tutor del centro autorizado.
+     * Registra un perro y sus datos de cuidados internos para un tutor del centro autorizado.
      *
      * @param request datos del perro
      * @param username usuario autenticado
@@ -52,7 +52,7 @@ public interface DogService {
     DogDto createDog(DogCreateRequestDto request, String username);
 
     /**
-     * Actualiza solo los datos básicos permitidos de un perro.
+     * Actualiza los datos básicos y de cuidados internos permitidos de un perro.
      *
      * @param id identificador del perro
      * @param request campos editables

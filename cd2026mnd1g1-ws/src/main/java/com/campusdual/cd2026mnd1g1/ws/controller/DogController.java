@@ -106,7 +106,7 @@ public class DogController {
     }
 
     /**
-     * Actualiza solo los datos básicos permitidos de un perro.
+     * Actualiza los datos básicos y de cuidados internos permitidos de un perro.
      *
      * @param id identificador del perro
      * @param ifMatch versión leída antes de editar

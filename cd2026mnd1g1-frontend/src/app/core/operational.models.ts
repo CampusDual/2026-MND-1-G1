@@ -266,6 +266,8 @@ export interface Dog {
   breed: string | null;
   size: DogSize;
   birthDate: string | null;
+  feedingInstructions: string | null;
+  temperament: string | null;
   tutorId: number | null;
   tutorName: string | null;
   tutorNationalId: string | null;
@@ -290,6 +292,8 @@ export interface DogCreateRequest {
   breed: string | null;
   size: DogSize;
   birthDate: string | null;
+  feedingInstructions: string | null;
+  temperament: string | null;
   confirmMatches: boolean;
 }
 
@@ -298,8 +302,12 @@ export interface DogUpdateRequest {
   breed: string | null;
   size: DogSize;
   birthDate: string | null;
+  feedingInstructions: string | null;
+  temperament: string | null;
   clearBreed: boolean;
   clearBirthDate: boolean;
+  clearFeedingInstructions: boolean;
+  clearTemperament: boolean;
   confirmMatches: boolean;
 }
 

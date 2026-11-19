@@ -58,10 +58,21 @@ class DogControllerITTest {
         MvcResult createdResult = this.mockMvc.perform(post(DOG_PATH)
                         .header("Authorization", basicAuthorization("recepcionista"))
                         .contentType("application/json")
-                        .content(createRequest(tutorId, "Bóreas", false)))
+                        .content("""
+                                {
+                                  "tutorId":%d,
+                                  "name":"Bóreas",
+                                  "size":"PEQUENO",
+                                  "feedingInstructions":"Dos raciones al día",
+                                  "temperament":"Tranquilo con otros perros",
+                                  "confirmMatches":false
+                                }
+                                """.formatted(tutorId)))
                 .andExpect(status().isCreated())
                 .andExpect(header().exists("Location"))
                 .andExpect(jsonPath("$.name").value("Bóreas"))
+                .andExpect(jsonPath("$.feedingInstructions").value("Dos raciones al día"))
+                .andExpect(jsonPath("$.temperament").value("Tranquilo con otros perros"))
                 .andExpect(jsonPath("$.tutorId").value(tutorId))
                 .andExpect(jsonPath("$.tutorName").value("Ana García"))
                 .andReturn();
@@ -158,6 +169,8 @@ class DogControllerITTest {
                 {
                   "name":"Nube actualizada",
                   "size":"GRANDE",
+                  "feedingInstructions":"Ración pequeña antes del paseo",
+                  "temperament":"Necesita adaptación gradual",
                   "confirmMatches":false,
                   "tutorId":999999,
                   "centerId":999999,
@@ -175,6 +188,8 @@ class DogControllerITTest {
                 .andExpect(jsonPath("$.name").value("Nube actualizada"))
                 .andExpect(jsonPath("$.breed").value("Caniche"))
                 .andExpect(jsonPath("$.birthDate").value("2020-01-01"))
+                .andExpect(jsonPath("$.feedingInstructions").value("Ración pequeña antes del paseo"))
+                .andExpect(jsonPath("$.temperament").value("Necesita adaptación gradual"))
                 .andExpect(jsonPath("$.tutorId").value(tutorId))
                 .andReturn();
 
@@ -205,6 +220,8 @@ class DogControllerITTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.breed").doesNotExist())
                 .andExpect(jsonPath("$.birthDate").doesNotExist())
+                .andExpect(jsonPath("$.feedingInstructions").value("Ración pequeña antes del paseo"))
+                .andExpect(jsonPath("$.temperament").value("Necesita adaptación gradual"))
                 .andExpect(jsonPath("$.tutorId").value(tutorId));
 
         assertEquals(tutorId, this.jdbcTemplate.queryForObject(

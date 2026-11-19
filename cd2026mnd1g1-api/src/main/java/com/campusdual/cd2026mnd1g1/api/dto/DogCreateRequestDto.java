@@ -29,6 +29,12 @@ public record DogCreateRequestDto(
 
         LocalDate birthDate,
 
+        @Size(max = 1000, message = "Las pautas de alimentación no pueden superar 1000 caracteres")
+        String feedingInstructions,
+
+        @Size(max = 1000, message = "El comportamiento no puede superar 1000 caracteres")
+        String temperament,
+
         boolean confirmMatches
 ) {
 }

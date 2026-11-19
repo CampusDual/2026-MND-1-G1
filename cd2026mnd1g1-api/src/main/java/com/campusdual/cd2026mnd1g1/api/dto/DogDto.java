@@ -11,6 +11,8 @@ public record DogDto(
         String breed,
         String size,
         LocalDate birthDate,
+        String feedingInstructions,
+        String temperament,
         Long tutorId,
         String tutorName,
         String tutorNationalId
