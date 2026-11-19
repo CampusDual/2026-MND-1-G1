@@ -7,8 +7,10 @@ import { Subscription, combineLatest } from 'rxjs';
 import { AuthService } from '../core/auth.service';
 import { DaycareOperationsService } from '../core/daycare-operations.service';
 import {
+  AuthorizedPerson,
   Dog,
   DogCreateRequest,
+  DogDetailVersionedResponse,
   DogSize,
   DogUpdateRequest,
   DogVersionedResponse,
@@ -57,6 +59,7 @@ export class DogsComponent implements OnInit, OnDestroy {
   totalElements: number = 0;
   dogs: Dog[] = [];
   dog: Dog | null = null;
+  authorizedPersons: AuthorizedPerson[] = [];
   tutors: Tutor[] = [];
   selectedTutor: Tutor | null = null;
   tutorSearch: string = '';
@@ -87,6 +90,7 @@ export class DogsComponent implements OnInit, OnDestroy {
       this.tutorErrorMessage = '';
       this.hasAccessError = false;
       this.dog = null;
+      this.authorizedPersons = [];
 
       if (this.screen === 'list') {
         this.loadDogs();
@@ -281,8 +285,9 @@ export class DogsComponent implements OnInit, OnDestroy {
     this.hasAccessError = false;
     this.loadSubscription?.unsubscribe();
     this.loadSubscription = this.daycareOperationsService.getDog(dogId).subscribe({
-      next: (result: DogVersionedResponse) => {
+      next: (result: DogDetailVersionedResponse) => {
         this.dog = result.dog;
+        this.authorizedPersons = result.authorizedPersons;
         this.dogEtag = result.etag;
         this.form = {
           tutorId: result.dog.tutorId,

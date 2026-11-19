@@ -6,9 +6,13 @@ import { ReservationDetailComponent } from './main/reservation-detail.component'
 import { TutorsComponent } from './main/tutors.component';
 import { DogsComponent } from './main/dogs.component';
 import { ReservationCreateComponent } from './main/reservation-create.component';
+import { ReceptionArrivalComponent } from './main/reception-arrival.component';
+import { ReceptionDepartureComponent } from './main/reception-departure.component';
 
 export const routes: Routes = [
 	{ path: 'login', component: LoginComponent },
+	{ path: 'tablero-diario/reservas/:id/entrada', component: ReceptionArrivalComponent, canActivate: [authGuard] },
+	{ path: 'tablero-diario/reservas/:id/salida', component: ReceptionDepartureComponent, canActivate: [authGuard] },
 	{ path: 'tablero-diario/reservas/:id', component: ReservationDetailComponent, canActivate: [authGuard] },
 	{ path: 'reservas/nueva', component: ReservationCreateComponent, canActivate: [authGuard] },
 	{ path: 'tablero-diario', component: ItWorksComponent, canActivate: [authGuard] },

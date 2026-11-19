@@ -103,6 +103,10 @@ export interface ReceptionDog {
   breed: string | null;
   size: 'PEQUENO' | 'MEDIANO' | 'GRANDE';
   birthDate: string | null;
+  temperament: string | null;
+  feedingInstructions: string | null;
+  allergies: string[];
+  medications: Medication[];
 }
 
 export interface ReceptionTutor {
@@ -114,7 +118,13 @@ export interface ReceptionPresence {
   status: ReceptionPresenceStatus;
   lastEntryAt: string | null;
   entryPetCondition: string | null;
+  entryObservations: string | null;
+  entryResponsible: string | null;
   lastExitAt: string | null;
+  exitResponsible: string | null;
+  collectorType: 'TUTOR' | 'PERSONA_AUTORIZADA' | null;
+  collectorName: string | null;
+  exitObservations: string | null;
   inconsistent: boolean;
 }
 
@@ -126,6 +136,55 @@ export interface ReceptionReservationDetail {
   dog: ReceptionDog;
   tutor: ReceptionTutor | null;
   presence: ReceptionPresence;
+}
+
+export interface ReceptionArrivalRequest {
+  observations: string | null;
+}
+
+export interface ReceptionArrivalResult {
+  id: number;
+  reservationId: number;
+  type: 'ENTRADA';
+  dateTime: string;
+  observations: string | null;
+  reservationStatus: string;
+}
+
+export interface AuthorizedPerson {
+  id: number;
+  name: string;
+}
+
+export interface ReceptionDepartureData {
+  reservationId: number;
+  date: string;
+  modality: ReservationModality;
+  reservationStatus: 'PENDIENTE' | 'CONFIRMADA' | 'EN_CURSO' | 'COMPLETADA' | 'CANCELADA';
+  dogName: string;
+  tutorId: number | null;
+  tutorName: string | null;
+  entryAt: string | null;
+  entryObservations: string | null;
+  presenceStatus: ReceptionPresenceStatus;
+  authorizedPersons: AuthorizedPerson[];
+}
+
+export interface ReceptionDepartureRequest {
+  collectorType: 'TUTOR' | 'PERSONA_AUTORIZADA';
+  authorizedPersonId: number | null;
+  observations: string | null;
+}
+
+export interface ReceptionDepartureResult {
+  id: number;
+  reservationId: number;
+  type: 'SALIDA';
+  dateTime: string;
+  observations: string | null;
+  reservationStatus: string;
+  collectorType: 'TUTOR' | 'PERSONA_AUTORIZADA';
+  collectorName: string;
 }
 
 export interface ReceptionGroupOption {
@@ -207,6 +266,11 @@ export interface Dog {
   tutorNationalId: string | null;
 }
 
+export interface DogDetail {
+  dog: Dog;
+  authorizedPersons: AuthorizedPerson[];
+}
+
 export interface DogPage {
   items: Dog[];
   page: number;
@@ -236,5 +300,11 @@ export interface DogUpdateRequest {
 
 export interface DogVersionedResponse {
   dog: Dog;
+  etag: string;
+}
+
+export interface DogDetailVersionedResponse {
+  dog: Dog;
+  authorizedPersons: AuthorizedPerson[];
   etag: string;
 }

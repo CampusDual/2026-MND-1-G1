@@ -119,6 +119,18 @@
           <div><dt>Fecha de nacimiento</dt><dd>{{ dog.birthDate || 'No indicada' }}</dd></div>
         </dl>
       </section>
+      <section class="detail-card">
+        <h2>Personas autorizadas para recoger</h2>
+        @if (authorizedPersons.length === 0) {
+          <p>No hay personas autorizadas registradas para este tutor.</p>
+        } @else {
+          <ul>
+            @for (person of authorizedPersons; track person.id) {
+              <li>{{ person.name }}</li>
+            }
+          </ul>
+        }
+      </section>
     } @else {
       <button type="button" class="back-button" (click)="cancelForm()">← Cancelar y volver</button>
       <div class="heading">

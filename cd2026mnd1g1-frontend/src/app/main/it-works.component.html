@@ -76,6 +76,14 @@
                  [queryParams]="{ date: selectedDate }">
                 Ver detalle <span aria-hidden="true">→</span>
               </a>
+              @if (canRegisterArrival(reservation)) {
+                <a class="detail-link" [routerLink]="['/tablero-diario/reservas', reservation.id, 'entrada']"
+                   [queryParams]="{ date: selectedDate }">Registrar llegada</a>
+              }
+              @if (canRegisterDeparture(reservation)) {
+                <a class="detail-link" [routerLink]="['/tablero-diario/reservas', reservation.id, 'salida']"
+                   [queryParams]="{ date: selectedDate }">Registrar salida</a>
+              }
             </div>
           </article>
         }

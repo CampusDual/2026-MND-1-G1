@@ -22,13 +22,29 @@ describe('ReservationDetailComponent', () => {
       date: '2026-11-17',
       modality: 'MEDIA_JORNADA',
       status: 'CONFIRMADA',
-      dog: { id: 4, name: 'Luna', breed: null, size: 'MEDIANO', birthDate: null },
+      dog: {
+        id: 4,
+        name: 'Luna',
+        breed: null,
+        size: 'MEDIANO',
+        birthDate: null,
+        temperament: null,
+        feedingInstructions: null,
+        allergies: [],
+        medications: []
+      },
       tutor: null,
       presence: {
         status: 'SIN_ENTRADA_REGISTRADA',
         lastEntryAt: null,
         entryPetCondition: null,
+        entryObservations: null,
+        entryResponsible: null,
         lastExitAt: null,
+        exitResponsible: null,
+        collectorType: null,
+        collectorName: null,
+        exitObservations: null,
         inconsistent: false
       }
     };

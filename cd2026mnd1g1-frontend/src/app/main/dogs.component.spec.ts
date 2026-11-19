@@ -4,7 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { BehaviorSubject, of } from 'rxjs';
 import { AuthService } from '../core/auth.service';
 import { DaycareOperationsService } from '../core/daycare-operations.service';
-import { DogPage, TutorPage } from '../core/operational.models';
+import { DogDetailVersionedResponse, DogPage, TutorPage } from '../core/operational.models';
 import { DogsComponent } from './dogs.component';
 
 describe('DogsComponent', () => {
@@ -35,7 +35,7 @@ describe('DogsComponent', () => {
             queryParamMap: routeParams,
             snapshot: {
               queryParamMap: convertToParamMap({ search: 'Luna', page: '0' }),
-              paramMap: convertToParamMap({})
+              paramMap: convertToParamMap({ id: '12' })
             }
           }
         },
@@ -67,6 +67,31 @@ describe('DogsComponent', () => {
     expect(daycareService.getTutors).toHaveBeenCalledWith('', 0, 100);
     expect(fixture.componentInstance.isCreate).toBeTrue();
     expect(fixture.componentInstance.form.tutorId).toBeNull();
+  });
+
+  it('loads authorized people with the receptionist dog detail', () => {
+    const result: DogDetailVersionedResponse = {
+      dog: {
+        id: 12,
+        name: 'Luna',
+        breed: null,
+        size: 'MEDIANO',
+        birthDate: null,
+        tutorId: 4,
+        tutorName: 'Ana Núñez',
+        tutorNationalId: '12345678A'
+      },
+      authorizedPersons: [{ id: 31, name: 'María autorizada' }],
+      etag: '"version"'
+    };
+    daycareService.getDog.and.returnValue(of(result));
+    routeData.next({ screen: 'detail' });
+
+    fixture = TestBed.createComponent(DogsComponent);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.dog?.name).toBe('Luna');
+    expect(fixture.componentInstance.authorizedPersons).toEqual([{ id: 31, name: 'María autorizada' }]);
   });
 });
 

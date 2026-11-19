@@ -1,6 +1,7 @@
 package com.campusdual.cd2026mnd1g1.model.repository;
 
 import com.campusdual.cd2026mnd1g1.model.entity.CheckRecordEntity;
+import com.campusdual.cd2026mnd1g1.model.entity.CheckRecordType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -18,5 +19,12 @@ public interface CheckRecordRepository extends JpaRepository<CheckRecordEntity, 
      */
     List<CheckRecordEntity> findByReservation_IdInOrderByReservation_IdAscOccurredAtAscIdAsc(
             Collection<Long> reservationIds
+    );
+
+    boolean existsByReservation_IdAndType(Long reservationId, CheckRecordType type);
+
+    java.util.Optional<CheckRecordEntity> findByReservation_IdAndType(
+            Long reservationId,
+            CheckRecordType type
     );
 }

@@ -79,6 +79,18 @@ export class ReservationDetailComponent implements OnInit {
     return labels[status];
   }
 
+  canRegisterArrival(item: ReceptionReservationDetail): boolean {
+    return item.date === this.getTodayDateInCenterZone()
+      && item.status === 'CONFIRMADA'
+      && item.presence.status === 'SIN_ENTRADA_REGISTRADA';
+  }
+
+  canRegisterDeparture(item: ReceptionReservationDetail): boolean {
+    return item.status === 'EN_CURSO'
+      && item.presence.status === 'EN_EL_CENTRO'
+      && item.presence.lastEntryAt !== null;
+  }
+
   formatDate(date: string): string {
     return new Intl.DateTimeFormat('es-ES', {
       weekday: 'long',
@@ -122,5 +134,16 @@ export class ReservationDetailComponent implements OnInit {
     this.errorMessage = error.status === 404
       ? 'No se encontró la reserva solicitada.'
       : 'No se pudo cargar el detalle. Comprueba la conexión e inténtalo de nuevo.';
+  }
+
+  private getTodayDateInCenterZone(): string {
+    const parts: Intl.DateTimeFormatPart[] = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Madrid',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).formatToParts(new Date());
+    const values: Map<string, string> = new Map(parts.map((part) => [part.type, part.value]));
+    return `${values.get('year')}-${values.get('month')}-${values.get('day')}`;
   }
 }

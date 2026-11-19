@@ -12,6 +12,9 @@ import com.campusdual.cd2026mnd1g1.model.entity.TutorEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.UserEntity;
 import com.campusdual.cd2026mnd1g1.model.exception.ResourceNotFoundException;
 import com.campusdual.cd2026mnd1g1.model.repository.CheckRecordRepository;
+import com.campusdual.cd2026mnd1g1.model.repository.AllergyRepository;
+import com.campusdual.cd2026mnd1g1.model.repository.AuthorizedPersonRepository;
+import com.campusdual.cd2026mnd1g1.model.repository.MedicationRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.ReservationRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,6 +55,15 @@ class ReceptionReservationServiceTest {
     @Mock
     private CheckRecordRepository checkRecordRepository;
 
+    @Mock
+    private AllergyRepository allergyRepository;
+
+    @Mock
+    private MedicationRepository medicationRepository;
+
+    @Mock
+    private AuthorizedPersonRepository authorizedPersonRepository;
+
     private ReceptionReservationServiceImpl service;
 
     @BeforeEach
@@ -60,6 +72,9 @@ class ReceptionReservationServiceTest {
                 this.userRepository,
                 this.reservationRepository,
                 this.checkRecordRepository,
+                this.allergyRepository,
+                this.medicationRepository,
+                this.authorizedPersonRepository,
                 Clock.fixed(Instant.parse("2026-11-16T23:30:00Z"), ZoneId.of("Europe/Madrid"))
         );
     }

@@ -1,6 +1,9 @@
 package com.campusdual.cd2026mnd1g1.model.service;
 
 import com.campusdual.cd2026mnd1g1.api.dto.ReceptionDogDto;
+import com.campusdual.cd2026mnd1g1.api.dto.AuthorizedPersonDto;
+import com.campusdual.cd2026mnd1g1.api.dto.ReceptionDepartureDataDto;
+import com.campusdual.cd2026mnd1g1.api.dto.MedicationDto;
 import com.campusdual.cd2026mnd1g1.api.dto.ReceptionPresenceDto;
 import com.campusdual.cd2026mnd1g1.api.dto.ReceptionReservationDetailDto;
 import com.campusdual.cd2026mnd1g1.api.dto.ReceptionReservationDto;
@@ -10,11 +13,17 @@ import com.campusdual.cd2026mnd1g1.api.service.ReceptionReservationService;
 import com.campusdual.cd2026mnd1g1.model.entity.CheckRecordEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.CheckRecordType;
 import com.campusdual.cd2026mnd1g1.model.entity.DogEntity;
+import com.campusdual.cd2026mnd1g1.model.entity.AllergyEntity;
+import com.campusdual.cd2026mnd1g1.model.entity.AuthorizedPersonEntity;
+import com.campusdual.cd2026mnd1g1.model.entity.MedicationEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.ReservationEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.UserEntity;
 import com.campusdual.cd2026mnd1g1.model.exception.OperationalUserNotFoundException;
 import com.campusdual.cd2026mnd1g1.model.exception.ResourceNotFoundException;
 import com.campusdual.cd2026mnd1g1.model.repository.CheckRecordRepository;
+import com.campusdual.cd2026mnd1g1.model.repository.AllergyRepository;
+import com.campusdual.cd2026mnd1g1.model.repository.AuthorizedPersonRepository;
+import com.campusdual.cd2026mnd1g1.model.repository.MedicationRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.ReservationRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.UserRepository;
 import org.springframework.data.domain.Page;
@@ -46,17 +55,26 @@ public class ReceptionReservationServiceImpl implements ReceptionReservationServ
     private final UserRepository userRepository;
     private final ReservationRepository reservationRepository;
     private final CheckRecordRepository checkRecordRepository;
+    private final AllergyRepository allergyRepository;
+    private final MedicationRepository medicationRepository;
+    private final AuthorizedPersonRepository authorizedPersonRepository;
     private final Clock receptionClock;
 
     public ReceptionReservationServiceImpl(
             UserRepository userRepository,
             ReservationRepository reservationRepository,
             CheckRecordRepository checkRecordRepository,
+            AllergyRepository allergyRepository,
+            MedicationRepository medicationRepository,
+            AuthorizedPersonRepository authorizedPersonRepository,
             Clock receptionClock
     ) {
         this.userRepository = userRepository;
         this.reservationRepository = reservationRepository;
         this.checkRecordRepository = checkRecordRepository;
+        this.allergyRepository = allergyRepository;
+        this.medicationRepository = medicationRepository;
+        this.authorizedPersonRepository = authorizedPersonRepository;
         this.receptionClock = receptionClock;
     }
 
@@ -103,6 +121,7 @@ public class ReceptionReservationServiceImpl implements ReceptionReservationServ
         ReservationEntity reservation = this.reservationRepository
                 .findByIdAndDog_Center_Id(reservationId, user.getCenter().getId())
                 .orElseThrow(() -> new ResourceNotFoundException("No existe la reserva indicada"));
+        ensureTutorBelongsToCenter(reservation.getDog(), user);
         PresenceState presence = findPresenceStates(List.of(reservationId))
                 .getOrDefault(reservationId, PresenceState.withoutRecords());
         DogEntity dog = reservation.getDog();
@@ -123,10 +142,66 @@ public class ReceptionReservationServiceImpl implements ReceptionReservationServ
                         dog.getName(),
                         dog.getBreed(),
                         dog.getSize().name(),
-                        dog.getBirthDate()
+                        dog.getBirthDate(),
+                        dog.getTemperament(),
+                        dog.getFeedingInstructions(),
+                        this.allergyRepository.findByDog_Id(dog.getId()).stream()
+                                .map(AllergyEntity::getDescription)
+                                .toList(),
+                        this.medicationRepository.findByDog_Id(dog.getId()).stream()
+                                .map(this::mapMedication)
+                                .toList()
                 ),
                 tutor,
                 presence.toDto()
+        );
+    }
+
+    @Override
+    public ReceptionDepartureDataDto findDepartureData(Long reservationId, String username) {
+        ReceptionReservationDetailDto detail = findReservation(reservationId, username);
+        ReservationEntity reservation = this.reservationRepository
+                .findByIdAndDog_Center_Id(reservationId, findActiveUser(username).getCenter().getId())
+                .orElseThrow(() -> new ResourceNotFoundException("No existe la reserva indicada"));
+        List<AuthorizedPersonDto> authorizedPersons = reservation.getDog().getTutor() == null
+                ? List.of()
+                : this.authorizedPersonRepository
+                        .findByTutor_IdOrderByNameAscIdAsc(reservation.getDog().getTutor().getId())
+                        .stream()
+                        .map(this::mapAuthorizedPerson)
+                        .toList();
+        return new ReceptionDepartureDataDto(
+                detail.id(),
+                detail.date(),
+                detail.modality(),
+                detail.status(),
+                detail.dog().name(),
+                reservation.getDog().getTutor() == null ? null : reservation.getDog().getTutor().getId(),
+                detail.tutor() == null ? null : detail.tutor().name(),
+                detail.presence().lastEntryAt(),
+                detail.presence().entryObservations(),
+                detail.presence().status(),
+                authorizedPersons
+        );
+    }
+
+    private AuthorizedPersonDto mapAuthorizedPerson(AuthorizedPersonEntity person) {
+        return new AuthorizedPersonDto(person.getId(), person.getName());
+    }
+
+    private void ensureTutorBelongsToCenter(DogEntity dog, UserEntity user) {
+        if (dog.getTutor() != null
+                && !dog.getTutor().getCenter().getId().equals(user.getCenter().getId())) {
+            throw new ResourceNotFoundException("No existe la reserva indicada");
+        }
+    }
+
+    private MedicationDto mapMedication(MedicationEntity medication) {
+        return new MedicationDto(
+                medication.getId(),
+                medication.getMedication(),
+                medication.getDosage(),
+                medication.getInstructions()
         );
     }
 
@@ -233,7 +308,24 @@ public class ReceptionReservationServiceImpl implements ReceptionReservationServ
                     this.status,
                     this.lastEntry == null ? null : this.lastEntry.getOccurredAt(),
                     this.lastEntry == null ? null : this.lastEntry.getPetCondition(),
+                    this.lastEntry == null ? null : this.lastEntry.getObservations(),
+                    this.lastEntry == null
+                            ? null
+                            : (this.lastEntry.getUser().getFirstName() + " "
+                                    + this.lastEntry.getUser().getLastName()).trim(),
                     this.lastExit == null ? null : this.lastExit.getOccurredAt(),
+                    this.lastExit == null
+                            ? null
+                            : (this.lastExit.getUser().getFirstName() + " "
+                                    + this.lastExit.getUser().getLastName()).trim(),
+                    this.lastExit == null || this.lastExit.getCollectedByTutor() == null
+                            && this.lastExit.getCollectedByAuthorizedPerson() == null
+                            ? null
+                            : this.lastExit.getCollectedByTutor() != null
+                                    ? "TUTOR"
+                                    : "PERSONA_AUTORIZADA",
+                    this.lastExit == null ? null : this.lastExit.getCollectorName(),
+                    this.lastExit == null ? null : this.lastExit.getObservations(),
                     this.inconsistent
             );
         }

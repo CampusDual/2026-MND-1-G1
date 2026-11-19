@@ -297,7 +297,9 @@ paths:
         - basicAuth: []
       tags: [Perros]
       summary: Consulta la ficha de un perro
-      description: Una ficha de otro centro se responde como no encontrada.
+      description: >
+        Devuelve los datos del perro y los nombres de las personas autorizadas de su tutor.
+        Una ficha de otro centro se responde como no encontrada.
       operationId: getReceptionDog
       responses:
         '200':
@@ -310,7 +312,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DogDto'
+                $ref: '#/components/schemas/DogDetailDto'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -578,6 +580,137 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReceptionReservationDetailDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/recepcion/reservas/{id}/entrada:
+    post:
+      security:
+        - basicAuth: []
+      tags: [Recepcion]
+      summary: Registra la llegada de una reserva del día
+      description: >
+        Solo Recepcionista, Admin y Gerente. El centro, el usuario responsable, el tipo
+        de registro y la hora se obtienen del contexto de servidor. Solo acepta reservas
+        confirmadas de hoy sin entrada ni salida previas; el estado pasa a EN_CURSO.
+        Observaciones y pertenencias se guardan como texto en un único campo. La operación
+        es transaccional y solo admite una entrada y una salida por reserva.
+      operationId: registerReceptionArrival
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReceptionArrivalRequestDto'
+      responses:
+        '201':
+          description: Entrada persistida con hora del servidor y estado actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckRecordDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/recepcion/reservas/{id}/datos-salida:
+    get:
+      security:
+        - basicAuth: []
+      tags: [Recepcion]
+      summary: Consulta datos y autorizaciones para preparar una salida
+      description: >
+        Solo Recepcionista, Admin y Gerente del centro de la reserva. Devuelve únicamente
+        las personas autorizadas asociadas al tutor del perro; no crea ni modifica autorizaciones.
+      operationId: getReceptionDepartureData
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+      responses:
+        '200':
+          description: Información mínima de la estancia y personas autorizadas registradas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceptionDepartureDataDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/recepcion/reservas/{id}/salida:
+    post:
+      security:
+        - basicAuth: []
+      tags: [Recepcion]
+      summary: Registra la salida y el destinatario de la entrega
+      description: >
+        Solo Recepcionista, Admin y Gerente del centro. Requiere una entrada válida,
+        estancia EN_CURSO y ausencia de salida previa. La autorización se revalida en servidor
+        y la operación bloquea la reserva y se ejecuta en una transacción. Las observaciones
+        son opcionales, independientes de la gestión de pertenencias y se guardan como texto libre.
+        Las estancias abiertas antiguas se cierran con la hora actual del servidor.
+      operationId: registerReceptionDeparture
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 0
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterReceptionDepartureRequestDto'
+      responses:
+        '201':
+          description: Salida persistida con hora, responsable y destinatario históricos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckRecordDto'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -1006,6 +1139,18 @@ components:
         tutorNationalId:
           type: string
           nullable: true
+    DogDetailDto:
+      type: object
+      additionalProperties: false
+      required: [dog, authorizedPersons]
+      properties:
+        dog:
+          $ref: '#/components/schemas/DogDto'
+        authorizedPersons:
+          type: array
+          description: Personas autorizadas por el tutor del perro, ordenadas por nombre.
+          items:
+            $ref: '#/components/schemas/AuthorizedPersonDto'
     DogPageDto:
       type: object
       required: [items, page, size, totalElements, totalPages]
@@ -1370,7 +1515,7 @@ components:
           maxLength: 120
     ReceptionDogDto:
       type: object
-      required: [id, name, size]
+      required: [id, name, size, allergies, medications]
       properties:
         id:
           type: integer
@@ -1390,6 +1535,25 @@ components:
           type: string
           format: date
           nullable: true
+        temperament:
+          type: string
+          maxLength: 1000
+          nullable: true
+        feedingInstructions:
+          type: string
+          maxLength: 1000
+          nullable: true
+        allergies:
+          type: array
+          description: Una lista vacía significa que no hay datos registrados, no que se confirme ausencia de alergias.
+          items:
+            type: string
+            maxLength: 1000
+        medications:
+          type: array
+          description: Medicación y pautas registradas, solo para consulta.
+          items:
+            $ref: '#/components/schemas/MedicationDto'
     ReceptionTutorDto:
       type: object
       required: [name, phone]
@@ -1415,9 +1579,32 @@ components:
           type: string
           maxLength: 500
           nullable: true
+        entryObservations:
+          type: string
+          maxLength: 2000
+          nullable: true
+          description: Observaciones de llegada, incluidas las pertenencias descritas por recepción.
+        entryResponsible:
+          type: string
+          nullable: true
         lastExitAt:
           type: string
           format: date-time
+          nullable: true
+        exitResponsible:
+          type: string
+          nullable: true
+        collectorType:
+          type: string
+          enum: [TUTOR, PERSONA_AUTORIZADA]
+          nullable: true
+        collectorName:
+          type: string
+          maxLength: 281
+          nullable: true
+        exitObservations:
+          type: string
+          maxLength: 2000
           nullable: true
         inconsistent:
           type: boolean
@@ -1428,7 +1615,7 @@ components:
         id:
           type: integer
           format: int64
-          minimum: 1
+          minimum: 0
         date:
           type: string
           format: date
@@ -1558,6 +1745,89 @@ components:
           maxLength: 2000
           nullable: true
           description: Artículos o indicaciones que deja el tutor.
+    CreateReceptionArrivalRequestDto:
+      type: object
+      additionalProperties: false
+      properties:
+        observations:
+          type: string
+          maxLength: 2000
+          nullable: true
+          description: Observaciones de llegada y descripción libre de pertenencias, si las hay.
+    AuthorizedPersonDto:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 0
+        name:
+          type: string
+          maxLength: 120
+    ReceptionDepartureDataDto:
+      type: object
+      required: [reservationId, date, modality, reservationStatus, dogName, presenceStatus, authorizedPersons]
+      properties:
+        reservationId:
+          type: integer
+          format: int64
+          minimum: 0
+        date:
+          type: string
+          format: date
+        modality:
+          type: string
+          enum: [DIA_COMPLETO, MEDIA_JORNADA, MANANA, TARDE]
+        reservationStatus:
+          type: string
+          enum: [PENDIENTE, CONFIRMADA, EN_CURSO, COMPLETADA, CANCELADA]
+        dogName:
+          type: string
+          maxLength: 120
+        tutorId:
+          type: integer
+          format: int64
+          minimum: 0
+          nullable: true
+        tutorName:
+          type: string
+          maxLength: 281
+          nullable: true
+        entryAt:
+          type: string
+          format: date-time
+          nullable: true
+        entryObservations:
+          type: string
+          maxLength: 2000
+          nullable: true
+        presenceStatus:
+          type: string
+          enum: [SIN_ENTRADA_REGISTRADA, EN_EL_CENTRO, SALIDA_REGISTRADA, REGISTRO_INCOHERENTE]
+        authorizedPersons:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuthorizedPersonDto'
+    RegisterReceptionDepartureRequestDto:
+      type: object
+      additionalProperties: false
+      required: [collectorType]
+      properties:
+        collectorType:
+          type: string
+          enum: [TUTOR, PERSONA_AUTORIZADA]
+        authorizedPersonId:
+          type: integer
+          format: int64
+          minimum: 0
+          nullable: true
+          description: Requerido solo cuando collectorType es PERSONA_AUTORIZADA.
+        observations:
+          type: string
+          maxLength: 2000
+          nullable: true
+          description: Texto libre opcional, independiente de las pertenencias.
     CheckRecordDto:
       type: object
       required: [id, reservationId, type, dateTime, reservationStatus]
@@ -1565,11 +1835,11 @@ components:
         id:
           type: integer
           format: int64
-          minimum: 1
+          minimum: 0
         reservationId:
           type: integer
           format: int64
-          minimum: 1
+          minimum: 0
         type:
           type: string
           enum: [ENTRADA, SALIDA]
@@ -1587,6 +1857,14 @@ components:
         reservationStatus:
           type: string
           enum: [PENDIENTE, CONFIRMADA, EN_CURSO, COMPLETADA, CANCELADA]
+        collectorType:
+          type: string
+          enum: [TUTOR, PERSONA_AUTORIZADA]
+          nullable: true
+        collectorName:
+          type: string
+          maxLength: 281
+          nullable: true
     DailyRecordRequestDto:
       type: object
       required: [type]

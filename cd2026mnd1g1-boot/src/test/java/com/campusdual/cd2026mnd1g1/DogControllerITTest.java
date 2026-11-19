@@ -91,16 +91,25 @@ class DogControllerITTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.items[0].name").value("Nube"))
-                .andExpect(jsonPath("$.items[0].tutorNationalId").value(TEST_DNI));
+                .andExpect(jsonPath("$.items[0].tutorNationalId").value(TEST_DNI))
+                .andExpect(jsonPath("$.items[0].authorizedPersons").doesNotExist());
 
         Long dogId = this.jdbcTemplate.queryForObject(
                 "SELECT id FROM perro WHERE nombre = 'Nube'", Long.class
+        );
+        this.jdbcTemplate.update(
+                "INSERT INTO persona_autorizada (tutor_id, nombre, telefono) VALUES (?, ?, ?)",
+                tutorId,
+                "María autorizada",
+                "600000001"
         );
         this.mockMvc.perform(get(DOG_PATH + "/{id}", dogId)
                         .header("Authorization", basicAuthorization("recepcionista")))
                 .andExpect(status().isOk())
                 .andExpect(header().exists("ETag"))
-                .andExpect(jsonPath("$.size").value("PEQUENO"));
+                .andExpect(jsonPath("$.dog.size").value("PEQUENO"))
+                .andExpect(jsonPath("$.authorizedPersons.length()").value(1))
+                .andExpect(jsonPath("$.authorizedPersons[0].name").value("María autorizada"));
 
         if (this.jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM centro WHERE cif = 'B00000001'", Integer.class

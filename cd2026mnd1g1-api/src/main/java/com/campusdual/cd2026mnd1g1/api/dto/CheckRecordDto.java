@@ -11,6 +11,8 @@ public class CheckRecordDto {
     private String petCondition;
     private String observations;
     private String reservationStatus;
+    private String collectorType;
+    private String collectorName;
 
     public CheckRecordDto() {
     }
@@ -29,4 +31,8 @@ public class CheckRecordDto {
     public void setObservations(String observations) { this.observations = observations; }
     public String getReservationStatus() { return reservationStatus; }
     public void setReservationStatus(String reservationStatus) { this.reservationStatus = reservationStatus; }
+    public String getCollectorType() { return collectorType; }
+    public void setCollectorType(String collectorType) { this.collectorType = collectorType; }
+    public String getCollectorName() { return collectorName; }
+    public void setCollectorName(String collectorName) { this.collectorName = collectorName; }
 }

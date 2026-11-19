@@ -1,6 +1,7 @@
 package com.campusdual.cd2026mnd1g1.ws.controller;
 
 import com.campusdual.cd2026mnd1g1.api.dto.DogCreateRequestDto;
+import com.campusdual.cd2026mnd1g1.api.dto.DogDetailDto;
 import com.campusdual.cd2026mnd1g1.api.dto.DogDto;
 import com.campusdual.cd2026mnd1g1.api.dto.DogPageDto;
 import com.campusdual.cd2026mnd1g1.api.dto.DogUpdateRequestDto;
@@ -74,10 +75,10 @@ public class DogController {
      */
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('RECEPCIONISTA', 'ADMIN', 'GERENTE')")
-    public ResponseEntity<DogDto> getDog(@PathVariable @Min(0) Long id, Principal principal) {
-        DogDto dog = this.dogService.findDog(id, principal.getName());
+    public ResponseEntity<DogDetailDto> getDog(@PathVariable @Min(0) Long id, Principal principal) {
+        DogDetailDto dog = this.dogService.findDog(id, principal.getName());
         HttpHeaders headers = new HttpHeaders();
-        headers.setETag(DogServiceImpl.dogTag(dog));
+        headers.setETag(DogServiceImpl.dogTag(dog.dog()));
         return ResponseEntity.ok().headers(headers).body(dog);
     }
 

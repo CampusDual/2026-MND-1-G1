@@ -2,6 +2,7 @@ package com.campusdual.cd2026mnd1g1.ws.controller;
 
 import com.campusdual.cd2026mnd1g1.model.exception.UserNotFoundException;
 import com.campusdual.cd2026mnd1g1.model.exception.CapacityConfigurationMissingException;
+import com.campusdual.cd2026mnd1g1.model.exception.CheckRecordConflictException;
 import com.campusdual.cd2026mnd1g1.model.exception.CapacityExceededException;
 import com.campusdual.cd2026mnd1g1.model.exception.DuplicateReservationException;
 import com.campusdual.cd2026mnd1g1.model.exception.ResourceNotFoundException;
@@ -10,6 +11,7 @@ import com.campusdual.cd2026mnd1g1.model.exception.ReservationDateNotAllowedExce
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -23,6 +25,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Locale;
 
 @RestControllerAdvice
 public class RestExceptionHandler {
@@ -102,6 +105,41 @@ public class RestExceptionHandler {
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, Object>> handleConflict(IllegalStateException exception) {
         return buildErrorResponse(HttpStatus.CONFLICT, exception.getMessage());
+    }
+
+    /**
+     * Mapea conflictos al registrar presencia sin exponer detalles de persistencia.
+     *
+     * @param exception conflicto funcional de registro de entrada o salida
+     * @return respuesta HTTP 409
+     */
+    @ExceptionHandler(CheckRecordConflictException.class)
+    public ResponseEntity<Map<String, Object>> handleCheckRecordConflict(
+            CheckRecordConflictException exception
+    ) {
+        return buildErrorResponse(HttpStatus.CONFLICT, exception.getCode(), exception.getMessage());
+    }
+
+    /**
+     * Convierte la colisión de unicidad de entradas/salidas en un conflicto funcional.
+     *
+     * @param exception error de integridad de persistencia
+     * @return respuesta de conflicto para la restricción de presencia o error genérico
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrityViolation(
+            DataIntegrityViolationException exception
+    ) {
+        String causeMessage = exception.getMostSpecificCause().getMessage();
+        if (causeMessage != null
+                && causeMessage.toLowerCase(Locale.ROOT).contains("uq_check_registro_reserva_tipo")) {
+            return buildErrorResponse(
+                    HttpStatus.CONFLICT,
+                    "CHECK_RECORD_ALREADY_RECORDED",
+                    "Ya existe un registro de entrada o salida para esta reserva."
+            );
+        }
+        return handleGenericException(exception);
     }
 
     /**

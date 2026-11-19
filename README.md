@@ -131,7 +131,7 @@ La autenticación usa las tablas canónicas `USUARIOS` y `ROL`. Los permisos se 
 - La zona horaria para “hoy” es `Europe/Madrid`. La API permite consultar cualquier fecha con paginación (50 resultados por defecto, máximo 100).
 - Recepcionista, Admin y Gerente pueden consultar las reservas de su propio centro. Tutor y usuario del centro cliente B2B no pueden acceder. No se acepta un centro enviado por el navegador.
 - Se muestran también las reservas canceladas. Se distinguen del estado de presencia y no se presentan como llegadas pendientes. Una salida sin entrada previa se marca como incoherente.
-- El tablero no permite crear, editar ni cancelar reservas, ni registrar entradas o salidas. Al recargar una ruta protegida habrá que iniciar sesión de nuevo; después se recupera la ruta y la fecha solicitadas.
+- En el tablero, las acciones de llegada y salida quedan disponibles según las reglas de sus secciones. No permiten crear/editar reservas ni cancelarlas. Al recargar una ruta protegida habrá que iniciar sesión de nuevo; después se recupera la ruta y la fecha solicitadas.
 - La base de datos no registra si `MEDIA_JORNADA` es de mañana o tarde. Los datos de Kira usan ese valor sin asignar una franja. Una reserva cancelada libera capacidad de grupo, pero la restricción única de perro y fecha impide una segunda reserva para el mismo perro y día.
 
 ### Cuentas y carga de datos manuales
@@ -174,6 +174,61 @@ FETCH FIRST 1 ROW ONLY;
 ```
 
 Los tests automatizados usan su propia base HSQLDB de pruebas y no dependen de este script ni de los datos manuales. En los tests, la presencia se comprueba desde `check_registro`; una salida sin entrada se muestra como registro incoherente.
+
+## Registro de llegada en recepción
+- Plan aplicado (aprobado por el usuario): solo registrar llegada para reservas confirmadas del día en `Europe/Madrid`; preservar la transición `CONFIRMADA → EN_CURSO` y derivar presencia de `check_registro`. No se crean reservas, no se cambian bonos, grupo, modalidad ni aforo.
+- `POST /api/recepcion/reservas/{id}/entrada` está protegido para Recepcionista, Admin y Gerente y limita la reserva al centro del usuario autenticado. La hora y el responsable proceden del servidor/sesión. No admite reservas canceladas, futuras, pasadas, entradas repetidas ni registros incoherentes.
+- La reserva se bloquea dentro de la transacción y V7 añade unicidad por `(reserva_id, tipo)`: admite una entrada y una salida, pero no reentradas. Observaciones opcionales (máximo 2000 caracteres) incluyen las pertenencias descritas por recepción; no hay tabla de artículos. El detalle muestra hora, responsable y texto guardado.
+- Como las pertenencias son texto y no filas estructuradas, no se puede cotejar ni auditar su devolución individual. El flujo de salida permite declarar en texto lo devuelto y lo pendiente, sin inventariar objetos.
+- Antes de aplicar V7 a una base existente, comprobar que no haya duplicados históricos con `SELECT reserva_id, tipo, COUNT(*) FROM check_registro GROUP BY reserva_id, tipo HAVING COUNT(*) > 1;`. La migración no borra ni corrige duplicados: si existen, deben revisarse antes de actualizar.
+- La vista muestra alergias y medicación ya registradas en modo de consulta. Una lista vacía significa “sin datos registrados”, no ausencia confirmada de necesidades. La ficha de cuidados es parcial; no se administran ni editan pautas desde la llegada.
+- En el tablero, **Registrar llegada** solo aparece para una reserva confirmada de hoy sin entrada. El detalle y el tablero derivan presencia de los registros persistidos. Si se pierde la respuesta de red, consulta el detalle antes de reintentar; el servidor rechaza duplicados.
+
+Para la prueba manual local, carga `scripts/dev/seed-reception-demo.sql` únicamente en la base HSQLDB local y entra con `recepcionista` / `admin1234`. Usa una reserva confirmada de hoy todavía sin entrada, por ejemplo Luna / Ana Núñez o Kira / Belén López si siguen disponibles. Prueba primero sin observaciones y, en otra reserva elegible, con texto como `Mochila azul; correa roja; recipiente de comida identificado`. Cada entrada se persiste y no debe borrarse para repetir pruebas; la repetición debe usar otra reserva de demostración válida y comprobar antes el aforo. El script existente aporta casos de entrada previa, entrada/salida, cancelación, fecha pasada/futura y nombres repetidos. Los escenarios de concurrencia y reintento deben ejecutarse en base de pruebas aislada; no se afirma que se hayan probado manualmente. No se preparan incoherencias en la base local.
+
+| Comprobación | Preparación | Resultado esperado |
+|---|---|---|
+| Llegada sin texto | Reserva de hoy, confirmada y sin registros; recepción autorizada | `201`, una entrada con hora y usuario del servidor, estado `EN_CURSO`; aforo sin cambios |
+| Llegada con pertenencias | Otra reserva elegible; observaciones con varias descripciones | Un solo texto guardado en `check_registro.observaciones`; sin filas de artículos |
+| Reintento/duplicado | Repetir POST o concurrir con dos recepcionistas | Una entrada como máximo; segunda petición `409`; sin pertenencias duplicadas |
+| Fecha/estado no elegibles | Reserva pasada, futura, cancelada o ya finalizada | Rechazo controlado; sin cambios persistidos |
+| Autorización/ámbito | Sin sesión, tutor, cuidador o reserva de otro centro | `401`/`403`/`404`; no se registra la llegada |
+| Persistencia en pantalla | Consultar tablero y detalle después del `201` | Presencia “En el centro”, hora, responsable y observaciones visibles |
+
+Las verificaciones de construcción y automatización realizadas se informan por separado al cierre; los escenarios manuales de la tabla son pasos de aceptación, no pruebas manuales ejecutadas.
+
+## Registro de salida y entrega en recepción
+- Plan aplicado (aprobado por el usuario el 19/11/2026): registrar una salida solo para una estancia EN_CURSO con entrada válida y sin salida; preservar la entrada y cerrar con `COMPLETADA`, sin cambiar fecha, modalidad, grupo ni bono. El centro, responsable y hora actual se obtienen del servidor. Una estancia abierta de una fecha anterior puede cerrarse ahora, con aviso en pantalla; no se retrocede ni inventa la hora.
+- `POST /api/recepcion/reservas/{id}/salida` y los datos auxiliares están protegidos para Recepcionista, Admin y Gerente, y limitados al centro autenticado. La reserva se bloquea dentro de la transacción y V7 permite como máximo una entrada y una salida. Una repetición o carrera devuelve un conflicto; no sobrescribe al destinatario ganador. La ruta genérica de check-registros ya no acepta `SALIDA`.
+- La persona que recoge se representa mediante una referencia inequívoca al tutor del perro o a una persona autorizada de ese tutor, junto con una copia histórica del nombre. Al guardar se vuelve a validar la autorización dentro de su tutor; no se admiten personas escritas libremente, IDs ajenos, excepciones administrativas ni alta rápida. La relación existente es por tutor, así que su autorización puede aplicarse a varios perros de ese tutor; no hay autorización por perro, estados inactivos ni caducidad en el modelo.
+- V8 conserva el esquema ya aplicado (`recogido_nombre VARCHAR(120)`); V9 amplía esa columna a `VARCHAR(281)` mediante una migración nueva. No se debe modificar una migración aplicada ni ejecutar `repair` para ocultar diferencias de checksum.
+- **Dependencia operativa pendiente:** aunque la tabla `persona_autorizada` existe, el producto aún no ofrece una pantalla/procedimiento aprobado para mantenerla. Las altas de demostración solo se cargan localmente con el fixture. Si no existe un registro autorizado utilizable (y el tutor no está vinculado), la salida se bloquea; no se debe presentar la gestión operativa como terminada.
+- La entrada y la salida se conservan. La presencia cambia de “En el centro” a “Salida registrada”; el estado de reserva pasa de `EN_CURSO` a `COMPLETADA`, transición ya existente. El aforo cuenta reservas no canceladas, por lo que la salida no libera plaza ni cambia modalidad o fecha. Tampoco consume ni devuelve bonos. Peluquería no se finaliza ni bloquea automáticamente.
+- La salida solicita únicamente observaciones opcionales (máximo 2000 caracteres), en texto libre e independientes de las pertenencias. Se guardan sin prefijos en `check_registro.observaciones`. No se registra ni se declara devolución o pendiente de pertenencias. Las observaciones guardadas por salidas anteriores no se modifican.
+- Las observaciones de salida no sustituyen incidencias. No hay reentradas, anulación/corrección de salidas, alta rápida de autorizados ni cambios de reserva. Información de cuidados pendiente del MVP y cancelación de reservas siguen fuera de alcance.
+
+### Comprobación manual de salida
+1. Carga `scripts/dev/seed-reception-demo.sql` solo en la base HSQLDB local y entra como `recepcionista / admin1234`. El fixture deja a Bruno / Ana Núñez en el centro con la entrada y las pertenencias declaradas `Arnés rojo; bolsa azul; recipiente de comida`, y añade a `María Autorizada Demo` como persona autorizada de Ana. No se reinician datos ni se borran salidas para repetir el ejercicio.
+2. Desde el detalle de Bruno, registra una salida como tutor o selecciona a María como persona autorizada; confirma la salida y las observaciones opcionales. El tablero y detalle deben mostrar salida, responsable y destinatario. Para probar una nueva entrega, utiliza otra reserva abierta válida; no reutilices una reserva ya completada.
+3. La reserva Kira / Belén o Luna / Ana puede servir para probar primero el flujo normal de llegada, y después la salida como tutor, siempre que siga disponible hoy. Una reserva futura, una reserva sin entrada o una entrada ya cerrada debe rechazarse. Una estancia antigua solo puede probarse si existe una entrada válida de fecha anterior; se cierra con la hora actual.
+4. Verifica los datos sin modificar la base: `SELECT * FROM check_registro WHERE reserva_id = <id> ORDER BY fecha_hora;` y `SELECT estado, fecha, modalidad, grupo_id, bono_id FROM reserva WHERE id = <id>;`. No ejecutes `DELETE` ni `TRUNCATE`. El script no crea incidencias ni salidas de prueba para poder revertir.
+
+| Comprobación | Resultado esperado |
+|---|---|
+| Tutor recoge; entrada válida | Una sola salida con hora y usuario del servidor, referencia al tutor y nombre histórico. |
+| Persona autorizada recoge | Solo se acepta si se mantiene vinculada al tutor de la reserva; persona de otro tutor rechazada. |
+| Observaciones | Campo opcional de texto libre; se guarda literalmente y no representa el estado de pertenencias. |
+| Sin entrada, salida previa o reserva ajena | Rechazo controlado; sin mutaciones parciales. |
+| Dos solicitudes concurrentes o reintento | Como máximo una salida; el segundo intento recibe conflicto y no sustituye al destinatario. |
+| Presencia y aforo | Presencia “Salida registrada”; fecha, modalidad, grupo y bono no cambian; no se libera plaza por salida anticipada. |
+| Roles y ámbito | Recepción autorizada del centro puede operar; sin sesión `401`, rol no autorizado `403`, reserva ajena `404`. |
+
+Las pruebas automatizadas independientes no dependen de estos fixtures manuales. La concurrencia se cubre en pruebas con peticiones concurrentes y base HSQLDB de pruebas; no se debe probar simultaneidad en la base local persistente.
+
+## Personas autorizadas en la ficha del perro
+- La ficha de recepción (`GET /api/recepcion/perros/{id}`) muestra los nombres de las personas autorizadas asociadas al tutor del perro. No añade datos de contacto ni permite editarlas.
+- Las autorizaciones dependen del tutor y pueden aplicar a varios perros de su titularidad. El listado se obtiene solo en la consulta individual de la ficha; los resultados paginados no cargan autorizaciones.
+- Si el perro no tiene tutor o no hay personas autorizadas registradas, la ficha indica que no hay personas disponibles. El endpoint conserva la autorización de Recepcionista, Admin y Gerente y el aislamiento por centro.
 
 ## Gestión de tutores para recepción
 - Plan aplicado (aprobado el 18/11/2026): conservar la tabla `tutor`, separar las fichas de tutor de las cuentas de `USUARIOS`, permitir consulta/alta/edición solo dentro del centro del usuario autenticado y no modificar el esquema.

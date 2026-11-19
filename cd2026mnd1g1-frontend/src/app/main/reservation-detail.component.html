@@ -63,19 +63,76 @@
           </section>
 
           <section class="detail-card">
+            <h2>Información de cuidados registrada</h2>
+            <h3>Temperamento</h3>
+            <p>{{ item.dog.temperament || 'No hay datos de temperamento registrados.' }}</p>
+            <h3>Pautas de alimentación</h3>
+            <p>{{ item.dog.feedingInstructions || 'No hay pautas de alimentación registradas.' }}</p>
+            <h3>Alergias</h3>
+            @if (item.dog.allergies.length > 0) {
+              <ul>
+                @for (allergy of item.dog.allergies; track $index) {
+                  <li>{{ allergy }}</li>
+                }
+              </ul>
+            } @else {
+              <p>No hay datos de alergias registrados; esto no confirma que el perro no tenga necesidades especiales.</p>
+            }
+            <h3>Medicación</h3>
+            @if (item.dog.medications.length > 0) {
+              <ul>
+                @for (medication of item.dog.medications; track medication.id) {
+                  <li><strong>{{ medication.medication }}</strong>
+                    @if (medication.dosage) { — {{ medication.dosage }} }
+                    · Pauta registrada: {{ medication.instructions }}
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p>No hay datos de medicación registrados; confirma con el tutor si hay necesidades no documentadas.</p>
+            }
+            <p class="warning">Información de consulta únicamente. No se administra ni modifica medicación desde la llegada.</p>
+          </section>
+
+          <section class="detail-card">
             <h2>Entrada y salida</h2>
             <p class="presence">{{ presenceLabel(item.presence.status) }}</p>
             @if (item.presence.lastEntryAt) {
               <p><strong>Última entrada:</strong> {{ formatDateTime(item.presence.lastEntryAt) }}</p>
+            }
+            @if (item.presence.entryResponsible) {
+              <p><strong>Responsable:</strong> {{ item.presence.entryResponsible }}</p>
+            }
+            @if (item.presence.entryObservations) {
+              <p><strong>Observaciones de llegada y pertenencias:</strong> {{ item.presence.entryObservations }}</p>
             }
             @if (item.presence.entryPetCondition) {
               <p><strong>Estado indicado en la entrada:</strong> {{ item.presence.entryPetCondition }}</p>
             }
             @if (item.presence.lastExitAt) {
               <p><strong>Última salida:</strong> {{ formatDateTime(item.presence.lastExitAt) }}</p>
+              @if (item.presence.exitResponsible) {
+                <p><strong>Responsable de salida:</strong> {{ item.presence.exitResponsible }}</p>
+              }
+              @if (item.presence.collectorName) {
+                <p><strong>Entregado a:</strong> {{ item.presence.collectorName }}
+                  ({{ item.presence.collectorType === 'TUTOR' ? 'tutor' : 'persona autorizada' }})</p>
+              }
+              @if (item.presence.exitObservations) {
+                <p><strong>Declaración de pertenencias y observaciones de salida:</strong>
+                  {{ item.presence.exitObservations }}</p>
+              }
             }
             @if (item.presence.inconsistent) {
               <p class="warning">Hay una salida sin una entrada previa. Revisa el registro.</p>
+            }
+            @if (canRegisterArrival(item)) {
+              <a class="detail-link" [routerLink]="['/tablero-diario/reservas', item.id, 'entrada']"
+                 [queryParams]="{ date: selectedDate }">Registrar llegada</a>
+            }
+            @if (canRegisterDeparture(item)) {
+              <a class="detail-link" [routerLink]="['/tablero-diario/reservas', item.id, 'salida']"
+                 [queryParams]="{ date: selectedDate }">Registrar salida</a>
             }
         </section>
       }

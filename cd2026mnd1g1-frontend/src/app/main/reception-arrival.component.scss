@@ -1,0 +1,133 @@
+.arrival-page {
+  min-height: 100vh;
+  background: #f5f7f8;
+}
+
+.content {
+  width: min(900px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 28px 0 56px;
+}
+
+.back-button,
+.secondary-button,
+.primary-button {
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+  padding: 10px 16px;
+}
+
+.back-button,
+.secondary-button {
+  background: #e8edef;
+  color: #23343a;
+}
+
+.eyebrow {
+  color: #327b72;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  margin: 28px 0 6px;
+}
+
+h1 {
+  margin: 0;
+}
+
+.confirmation {
+  font-size: 1.1rem;
+  margin: 8px 0 22px;
+}
+
+.detail-card,
+.state-card {
+  background: #fff;
+  border: 1px solid #dfe7e9;
+  border-radius: 12px;
+  margin: 16px 0;
+  padding: 20px;
+}
+
+.detail-card h2 {
+  margin-top: 0;
+}
+
+.detail-card h3 {
+  font-size: 1rem;
+  margin-bottom: 4px;
+}
+
+dl {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  margin: 0;
+}
+
+dt {
+  color: #526269;
+  font-size: 0.88rem;
+}
+
+dd {
+  font-weight: 600;
+  margin: 4px 0 0;
+}
+
+.care-card li {
+  margin: 5px 0;
+}
+
+.warning,
+.warning-card {
+  color: #795516;
+}
+
+.warning-card {
+  background: #fff8e6;
+}
+
+.arrival-form label {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+textarea {
+  box-sizing: border-box;
+  font: inherit;
+  min-height: 120px;
+  padding: 12px;
+  resize: vertical;
+  width: 100%;
+}
+
+.hint {
+  color: #526269;
+  font-size: 0.9rem;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
+.primary-button {
+  background: #22786e;
+  color: #fff;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.error-message,
+.state-card.error {
+  color: #a4262c;
+}

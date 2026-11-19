@@ -1,12 +1,15 @@
 package com.campusdual.cd2026mnd1g1.model.service;
 
 import com.campusdual.cd2026mnd1g1.api.dto.DogCreateRequestDto;
+import com.campusdual.cd2026mnd1g1.api.dto.AuthorizedPersonDto;
+import com.campusdual.cd2026mnd1g1.api.dto.DogDetailDto;
 import com.campusdual.cd2026mnd1g1.api.dto.DogDto;
 import com.campusdual.cd2026mnd1g1.api.dto.DogPageDto;
 import com.campusdual.cd2026mnd1g1.api.dto.DogUpdateRequestDto;
 import com.campusdual.cd2026mnd1g1.api.service.DogService;
 import com.campusdual.cd2026mnd1g1.model.entity.DogEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.DogSize;
+import com.campusdual.cd2026mnd1g1.model.repository.AuthorizedPersonRepository;
 import com.campusdual.cd2026mnd1g1.model.entity.TutorEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.UserEntity;
 import com.campusdual.cd2026mnd1g1.model.exception.OperationalUserNotFoundException;
@@ -43,17 +46,20 @@ public class DogServiceImpl implements DogService {
             "Ya existe un perro con el mismo nombre para ese tutor. Confirma si quieres continuar.";
 
     private final DogRepository dogRepository;
+    private final AuthorizedPersonRepository authorizedPersonRepository;
     private final TutorRepository tutorRepository;
     private final UserRepository userRepository;
     private final Clock receptionClock;
 
     public DogServiceImpl(
             DogRepository dogRepository,
+            AuthorizedPersonRepository authorizedPersonRepository,
             TutorRepository tutorRepository,
             UserRepository userRepository,
             Clock receptionClock
     ) {
         this.dogRepository = dogRepository;
+        this.authorizedPersonRepository = authorizedPersonRepository;
         this.tutorRepository = tutorRepository;
         this.userRepository = userRepository;
         this.receptionClock = receptionClock;
@@ -117,13 +123,20 @@ public class DogServiceImpl implements DogService {
 
     @Override
     @Transactional(readOnly = true)
-    public DogDto findDog(Long id, String username) {
+    public DogDetailDto findDog(Long id, String username) {
         validateId(id);
         UserEntity user = findActiveUser(username);
         DogEntity dog = this.dogRepository.findByIdAndCenter_Id(id, user.getCenter().getId())
                 .orElseThrow(() -> new ResourceNotFoundException("No existe el perro indicado"));
         validateTutorCenter(dog);
-        return mapToDto(dog);
+        List<AuthorizedPersonDto> authorizedPersons = dog.getTutor() == null
+                ? List.of()
+                : this.authorizedPersonRepository
+                        .findByTutor_IdOrderByNameAscIdAsc(dog.getTutor().getId())
+                        .stream()
+                        .map(person -> new AuthorizedPersonDto(person.getId(), person.getName()))
+                        .toList();
+        return new DogDetailDto(mapToDto(dog), authorizedPersons);
     }
 
     @Override

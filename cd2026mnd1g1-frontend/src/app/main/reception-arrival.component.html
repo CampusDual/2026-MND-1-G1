@@ -1,0 +1,90 @@
+<main class="arrival-page">
+  <header class="topbar">
+    <a class="brand" routerLink="/tablero-diario" aria-label="PawCare, tablero de recepción">
+      <span class="brand-mark" aria-hidden="true">P</span>
+      <span>PawCare <span class="brand-divider">·</span> <strong>Registrar llegada</strong></span>
+    </a>
+    <button class="logout-button" type="button" (click)="logout()">Cerrar sesión</button>
+  </header>
+
+  <section class="content">
+    <button class="back-button" type="button" (click)="cancel()">← Cancelar y volver</button>
+    @if (isLoading) {
+      <div class="state-card" role="status">Cargando la reserva...</div>
+    } @else if (errorMessage && !reservation) {
+      <div class="state-card error" role="alert">{{ errorMessage }}</div>
+    } @else {
+      @if (reservation; as item) {
+      <p class="eyebrow">RECEPCIÓN</p>
+      <h1>Registrar llegada</h1>
+      <p class="confirmation">Vas a recibir a <strong>{{ item.dog.name }}</strong>.</p>
+
+      <section class="detail-card">
+        <h2>Datos de la reserva</h2>
+        <dl>
+          <div><dt>Perro</dt><dd>{{ item.dog.name }}</dd></div>
+          <div><dt>Tutor</dt><dd>{{ item.tutor?.name || 'No hay tutor asociado' }}</dd></div>
+          <div><dt>Fecha</dt><dd>{{ formatDate(item.date) }}</dd></div>
+          <div><dt>Modalidad</dt><dd>{{ modalityLabel(item.modality) }}</dd></div>
+          <div><dt>Estado de reserva</dt><dd>{{ statusLabel(item.status) }}</dd></div>
+        </dl>
+      </section>
+
+      <section class="detail-card care-card">
+        <h2>Información de cuidados registrada</h2>
+        <h3>Temperamento</h3>
+        <p>{{ item.dog.temperament || 'No hay datos de temperamento registrados.' }}</p>
+        <h3>Pautas de alimentación</h3>
+        <p>{{ item.dog.feedingInstructions || 'No hay pautas de alimentación registradas.' }}</p>
+        <h3>Alergias</h3>
+        @if (item.dog.allergies.length > 0) {
+          <ul>
+            @for (allergy of item.dog.allergies; track $index) { <li>{{ allergy }}</li> }
+          </ul>
+        } @else {
+          <p>No hay datos de alergias registrados. Esto no garantiza que no existan necesidades especiales.</p>
+        }
+        <h3>Medicación</h3>
+        @if (item.dog.medications.length > 0) {
+          <ul>
+            @for (medication of item.dog.medications; track medication.id) {
+              <li><strong>{{ medication.medication }}</strong>
+                @if (medication.dosage) { — {{ medication.dosage }} }
+                · Pauta registrada: {{ medication.instructions }}
+              </li>
+            }
+          </ul>
+        } @else {
+          <p>No hay datos de medicación registrados. Confirma con el tutor si hay necesidades no documentadas.</p>
+        }
+        <p class="warning">La llegada no permite administrar ni modificar medicación.</p>
+      </section>
+
+      @if (canRegisterArrival(item)) {
+        <form class="detail-card arrival-form" (ngSubmit)="submit()">
+          <label for="arrival-observations">Observaciones de llegada</label>
+          <textarea id="arrival-observations" name="observations" rows="5" maxlength="2000"
+                    [(ngModel)]="observations"
+                    placeholder="Anota aquí también las pertenencias que deja el tutor, si corresponde."></textarea>
+          <p class="hint">Máximo 2000 caracteres. Incluye las pertenencias en este texto; no se guarda un inventario separado.</p>
+          @if (errorMessage) { <p class="error-message" role="alert">{{ errorMessage }}</p> }
+          <div class="actions">
+            <button type="button" class="secondary-button" [disabled]="isSaving" (click)="cancel()">Cancelar</button>
+            <button type="submit" class="primary-button" [disabled]="isSaving">
+              {{ isSaving ? 'Guardando...' : 'Confirmar llegada' }}
+            </button>
+          </div>
+        </form>
+      } @else {
+        <section class="detail-card warning-card" role="status">
+          <h2>No se puede registrar la llegada</h2>
+          <p>{{ errorMessage || 'Solo se admiten reservas confirmadas de hoy sin una entrada previa.' }}</p>
+          @if (item.presence.status === 'EN_EL_CENTRO') {
+            <p>La entrada ya está registrada. Actualiza la vista para consultar hora y responsable.</p>
+          }
+        </section>
+      }
+    }
+    }
+  </section>
+</main>

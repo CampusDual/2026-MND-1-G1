@@ -30,6 +30,17 @@ public class CheckRecordEntity {
     @JoinColumn(name = "usuario_id", nullable = false)
     private UserEntity user;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "recogido_por_tutor_id")
+    private TutorEntity collectedByTutor;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "recogido_por_persona_autorizada_id")
+    private AuthorizedPersonEntity collectedByAuthorizedPerson;
+
+    @Column(name = "recogido_nombre", length = 281)
+    private String collectorName;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "tipo", nullable = false, length = 10)
     private CheckRecordType type;
@@ -49,6 +60,14 @@ public class CheckRecordEntity {
     public void setReservation(ReservationEntity reservation) { this.reservation = reservation; }
     public UserEntity getUser() { return user; }
     public void setUser(UserEntity user) { this.user = user; }
+    public TutorEntity getCollectedByTutor() { return collectedByTutor; }
+    public void setCollectedByTutor(TutorEntity collectedByTutor) { this.collectedByTutor = collectedByTutor; }
+    public AuthorizedPersonEntity getCollectedByAuthorizedPerson() { return collectedByAuthorizedPerson; }
+    public void setCollectedByAuthorizedPerson(AuthorizedPersonEntity collectedByAuthorizedPerson) {
+        this.collectedByAuthorizedPerson = collectedByAuthorizedPerson;
+    }
+    public String getCollectorName() { return collectorName; }
+    public void setCollectorName(String collectorName) { this.collectorName = collectorName; }
     public CheckRecordType getType() { return type; }
     public void setType(CheckRecordType type) { this.type = type; }
     public LocalDateTime getOccurredAt() { return occurredAt; }

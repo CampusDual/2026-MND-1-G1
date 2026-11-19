@@ -2,6 +2,7 @@ package com.campusdual.cd2026mnd1g1.api.service;
 
 import com.campusdual.cd2026mnd1g1.api.dto.ReceptionReservationDetailDto;
 import com.campusdual.cd2026mnd1g1.api.dto.ReceptionReservationPageDto;
+import com.campusdual.cd2026mnd1g1.api.dto.ReceptionDepartureDataDto;
 
 import java.time.LocalDate;
 
@@ -29,4 +30,13 @@ public interface ReceptionReservationService {
      * @return detalle de la reserva
      */
     ReceptionReservationDetailDto findReservation(Long reservationId, String username);
+
+    /**
+     * Recupera los datos de estancia y autorizaciones para preparar una salida.
+     *
+     * @param reservationId identificador de reserva
+     * @param username usuario autenticado
+     * @return datos mínimos de salida dentro del centro autorizado
+     */
+    ReceptionDepartureDataDto findDepartureData(Long reservationId, String username);
 }

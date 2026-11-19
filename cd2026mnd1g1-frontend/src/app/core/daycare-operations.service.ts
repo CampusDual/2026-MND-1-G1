@@ -7,11 +7,18 @@ import {
   DailyReservation,
   Dog,
   DogCreateRequest,
+  DogDetail,
+  DogDetailVersionedResponse,
   DogPage,
   DogUpdateRequest,
   DogVersionedResponse,
   IncidentRequest,
   ReceptionAvailability,
+  ReceptionArrivalRequest,
+  ReceptionArrivalResult,
+  ReceptionDepartureData,
+  ReceptionDepartureRequest,
+  ReceptionDepartureResult,
   ReceptionGroupOption,
   ReceptionReservationCreateRequest,
   ReceptionReservationCreated,
@@ -60,6 +67,35 @@ export class DaycareOperationsService {
   getReceptionReservation(reservationId: number): Observable<ReceptionReservationDetail> {
     return this.http.get<ReceptionReservationDetail>(
       `${this.receptionReservationsPath}/${reservationId}`,
+      { headers: this.getAuthHeaders() }
+    );
+  }
+
+  registerReceptionArrival(
+    reservationId: number,
+    request: ReceptionArrivalRequest
+  ): Observable<ReceptionArrivalResult> {
+    return this.http.post<ReceptionArrivalResult>(
+      `${this.receptionReservationsPath}/${reservationId}/entrada`,
+      request,
+      { headers: this.getAuthHeaders() }
+    );
+  }
+
+  getReceptionDepartureData(reservationId: number): Observable<ReceptionDepartureData> {
+    return this.http.get<ReceptionDepartureData>(
+      `${this.receptionReservationsPath}/${reservationId}/datos-salida`,
+      { headers: this.getAuthHeaders() }
+    );
+  }
+
+  registerReceptionDeparture(
+    reservationId: number,
+    request: ReceptionDepartureRequest
+  ): Observable<ReceptionDepartureResult> {
+    return this.http.post<ReceptionDepartureResult>(
+      `${this.receptionReservationsPath}/${reservationId}/salida`,
+      request,
       { headers: this.getAuthHeaders() }
     );
   }
@@ -146,11 +182,11 @@ export class DaycareOperationsService {
     );
   }
 
-  getDog(dogId: number): Observable<DogVersionedResponse> {
-    return this.http.get<Dog>(`${this.dogsPath}/${dogId}`, {
+  getDog(dogId: number): Observable<DogDetailVersionedResponse> {
+    return this.http.get<DogDetail>(`${this.dogsPath}/${dogId}`, {
       headers: this.getAuthHeaders(),
       observe: 'response'
-    }).pipe(map((response: HttpResponse<Dog>) => this.mapDogResponse(response)));
+    }).pipe(map((response: HttpResponse<DogDetail>) => this.mapDogDetailResponse(response)));
   }
 
   createDog(request: DogCreateRequest): Observable<Dog> {
@@ -194,6 +230,21 @@ export class DaycareOperationsService {
       throw new Error('El servidor no devolvió la versión de la ficha del perro.');
     }
     return { dog: response.body, etag };
+  }
+
+  private mapDogDetailResponse(response: HttpResponse<DogDetail>): DogDetailVersionedResponse {
+    if (response.body === null) {
+      throw new Error('El servidor devolvió una ficha de perro vacía.');
+    }
+    const etag: string | null = response.headers.get('ETag');
+    if (etag === null) {
+      throw new Error('El servidor no devolvió la versión de la ficha del perro.');
+    }
+    return {
+      dog: response.body.dog,
+      authorizedPersons: response.body.authorizedPersons,
+      etag
+    };
   }
 
   createDailyRecord(reservationId: number, request: DailyRecordRequest): Observable<unknown> {

@@ -9,7 +9,13 @@ public record ReceptionPresenceDto(
         String status,
         LocalDateTime lastEntryAt,
         String entryPetCondition,
+        String entryObservations,
+        String entryResponsible,
         LocalDateTime lastExitAt,
+        String exitResponsible,
+        String collectorType,
+        String collectorName,
+        String exitObservations,
         boolean inconsistent
 ) {
 }

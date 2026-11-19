@@ -1,0 +1,120 @@
+<main class="departure-page">
+  <header class="topbar">
+    <a class="brand" routerLink="/tablero-diario" aria-label="PawCare, tablero de recepción">
+      <span class="brand-mark" aria-hidden="true">P</span>
+      <span>PawCare <span class="brand-divider">·</span> <strong>Tablero de recepción</strong></span>
+    </a>
+    <button class="logout-button" type="button" (click)="logout()">Cerrar sesión</button>
+  </header>
+
+  <section class="content">
+    <button class="back-button" type="button" (click)="cancel()">← Volver al detalle</button>
+    @if (isLoading) {
+      <div class="state-card" role="status">Cargando los datos de salida...</div>
+    } @else {
+      @if (departureData; as data) {
+      <p class="eyebrow">ENTREGA EN RECEPCIÓN</p>
+      <h1>Registrar salida de {{ data.dogName }}</h1>
+      <p class="date">{{ formatDate(data.date) }} · {{ modalityLabel(data.modality) }}</p>
+
+      @if (noticeMessage) {
+        <div class="state-card notice" role="status">{{ noticeMessage }}</div>
+      }
+      @if (errorMessage) {
+        <div class="state-card error" role="alert">{{ errorMessage }}</div>
+      }
+      @if (data.presenceStatus === 'SALIDA_REGISTRADA') {
+        <div class="state-card notice" role="status">
+          Otra persona ya registró la salida. No vuelvas a enviar la operación.
+          @if (existingDeparture; as reservation) {
+            @if (reservation.presence.lastExitAt) {
+              <p><strong>Hora:</strong> {{ formatDateTime(reservation.presence.lastExitAt) }}</p>
+            }
+            @if (reservation.presence.exitResponsible) {
+              <p><strong>Responsable:</strong> {{ reservation.presence.exitResponsible }}</p>
+            }
+            @if (reservation.presence.collectorName) {
+              <p><strong>Entregado a:</strong> {{ reservation.presence.collectorName }}</p>
+            }
+          }
+          <a class="detail-link" [routerLink]="['/tablero-diario/reservas', data.reservationId]"
+             [queryParams]="selectedDate ? { date: selectedDate } : {}">Ver detalle actualizado</a>
+        </div>
+      } @else if (data.reservationStatus !== 'EN_CURSO' || data.presenceStatus !== 'EN_EL_CENTRO' || !data.entryAt) {
+        <div class="state-card error" role="alert">
+          No se puede registrar la salida: debe existir una entrada válida y no puede haber una salida anterior.
+          Estado actual: {{ data.reservationStatus }} / {{ data.presenceStatus }}.
+        </div>
+      } @else {
+        @if (isOldStay) {
+          <div class="state-card warning" role="alert">
+            Esta estancia comenzó en una fecha anterior. Se permite cerrarla con la hora actual del servidor;
+            no se modificará la fecha de la reserva ni se inventará una hora anterior.
+          </div>
+        }
+
+        <section class="detail-card">
+          <h2>Estancia</h2>
+          <dl>
+            <div><dt>Perro</dt><dd>{{ data.dogName }}</dd></div>
+            <div><dt>Tutor</dt><dd>{{ data.tutorName || 'Sin tutor asociado' }}</dd></div>
+            <div><dt>Fecha y modalidad</dt><dd>{{ formatDate(data.date) }} · {{ modalityLabel(data.modality) }}</dd></div>
+            <div><dt>Estado</dt><dd>{{ statusLabel(data.reservationStatus) }}</dd></div>
+            <div><dt>Entrada registrada</dt><dd>{{ formatDateTime(data.entryAt) }}</dd></div>
+          </dl>
+          @if (data.entryObservations) {
+            <p><strong>Observaciones de llegada:</strong> {{ data.entryObservations }}</p>
+          }
+        </section>
+
+        <form class="detail-card form-card" (ngSubmit)="submit()">
+          <h2>¿Quién recoge al perro?</h2>
+          @if (data.tutorName) {
+            <label class="choice">
+              <input type="radio" name="collectorType" [(ngModel)]="collectorType" value="TUTOR">
+              <span>Recoge el tutor: <strong>{{ data.tutorName }}</strong></span>
+            </label>
+          }
+          @if (data.authorizedPersons.length > 0) {
+            <label class="choice">
+              <input type="radio" name="collectorType" [(ngModel)]="collectorType" value="PERSONA_AUTORIZADA">
+              <span>Recoge otra persona autorizada</span>
+            </label>
+          }
+          @if (collectorType === 'PERSONA_AUTORIZADA') {
+            @if (data.authorizedPersons.length > 0) {
+              <label for="authorized-person">Persona autorizada</label>
+              <select id="authorized-person" name="authorizedPersonId" [(ngModel)]="authorizedPersonId" required>
+                <option [ngValue]="null" disabled>Selecciona una persona</option>
+                @for (person of data.authorizedPersons; track person.id) {
+                  <option [ngValue]="person.id">{{ person.name }}</option>
+                }
+              </select>
+            } @else {
+              <p class="warning">No hay personas autorizadas registradas. No se puede continuar con una persona no registrada.</p>
+            }
+          }
+          @if (!data.tutorName && data.authorizedPersons.length === 0) {
+            <p class="warning">No hay una persona autorizada disponible para esta reserva. No se puede registrar la salida.</p>
+          }
+
+          <h2>Observaciones</h2>
+          <label for="departure-observations">Observaciones (opcionales)</label>
+          <textarea id="departure-observations" name="observations" [(ngModel)]="observations"
+                    maxlength="2000" rows="3"></textarea>
+
+          <div class="actions">
+            <button type="button" class="secondary-button" [disabled]="isSaving" (click)="cancel()">Cancelar</button>
+            <button type="submit" class="primary-button"
+                    [disabled]="isSaving || !canRegisterDeparture(data)">
+              {{ isSaving ? 'Registrando salida...' : 'Confirmar entrega' }}
+            </button>
+          </div>
+        </form>
+      }
+      } @else if (errorMessage) {
+        <div class="state-card error" role="alert">{{ errorMessage }}</div>
+      }
+    }
+  </section>
+</main>

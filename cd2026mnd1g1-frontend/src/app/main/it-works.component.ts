@@ -138,6 +138,16 @@ export class ItWorksComponent implements OnInit, OnDestroy {
     return labels[status];
   }
 
+  canRegisterArrival(reservation: ReceptionReservation): boolean {
+    return reservation.date === this.getTodayDateInCenterZone()
+      && reservation.status === 'CONFIRMADA'
+      && reservation.presenceStatus === 'SIN_ENTRADA_REGISTRADA';
+  }
+
+  canRegisterDeparture(reservation: ReceptionReservation): boolean {
+    return reservation.status === 'EN_CURSO' && reservation.presenceStatus === 'EN_EL_CENTRO';
+  }
+
   displayDate(date: string): string {
     if (!this.isValidDate(date)) {
       return date;

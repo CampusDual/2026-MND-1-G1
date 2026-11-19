@@ -1,6 +1,7 @@
 package com.campusdual.cd2026mnd1g1.api.service;
 
 import com.campusdual.cd2026mnd1g1.api.dto.DogCreateRequestDto;
+import com.campusdual.cd2026mnd1g1.api.dto.DogDetailDto;
 import com.campusdual.cd2026mnd1g1.api.dto.DogDto;
 import com.campusdual.cd2026mnd1g1.api.dto.DogPageDto;
 import com.campusdual.cd2026mnd1g1.api.dto.DogUpdateRequestDto;
@@ -39,7 +40,7 @@ public interface DogService {
      * @param username usuario autenticado
      * @return ficha del perro
      */
-    DogDto findDog(Long id, String username);
+    DogDetailDto findDog(Long id, String username);
 
     /**
      * Registra un perro asociado a un tutor del centro autorizado.

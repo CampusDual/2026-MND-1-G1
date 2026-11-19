@@ -57,6 +57,19 @@ FROM centro c
 WHERE c.cif = 'B00000000'
   AND NOT EXISTS (SELECT 1 FROM tutor WHERE centro_id = c.id AND dni = 'DEMO-REC-04');
 
+INSERT INTO persona_autorizada (tutor_id, nombre, telefono)
+SELECT t.id, 'María Autorizada Demo', '981000199'
+FROM tutor t
+JOIN centro c ON c.id = t.centro_id
+WHERE c.cif = 'B00000000'
+  AND t.dni = 'DEMO-REC-01'
+  AND NOT EXISTS (
+      SELECT 1 FROM persona_autorizada pa
+      WHERE pa.tutor_id = t.id
+        AND pa.nombre = 'María Autorizada Demo'
+        AND pa.telefono = '981000199'
+  );
+
 INSERT INTO dev_fixture_registry (fixture_key, entity_id)
 SELECT 'reception.dog.luna.ana', MIN(p.id)
 FROM centro c
@@ -358,8 +371,9 @@ JOIN grupo g ON g.id = group_ref.entity_id AND g.centro_id = c.id
 WHERE c.cif = 'B00000000'
   AND NOT EXISTS (SELECT 1 FROM reserva WHERE perro_id = p.id AND fecha = CURRENT_DATE + 1);
 
-INSERT INTO check_registro (reserva_id, usuario_id, tipo, fecha_hora, estado_mascota)
-SELECT r.id, u.id, 'ENTRADA', CURRENT_TIMESTAMP, 'Llegó con buen estado general'
+INSERT INTO check_registro (reserva_id, usuario_id, tipo, fecha_hora, estado_mascota, observaciones)
+SELECT r.id, u.id, 'ENTRADA', CURRENT_TIMESTAMP, 'Llegó con buen estado general',
+       'Arnés rojo; bolsa azul; recipiente de comida'
 FROM reserva r
 JOIN dev_fixture_registry dog_ref ON dog_ref.fixture_key = 'reception.dog.bruno.ana'
 JOIN perro p ON p.id = r.perro_id AND p.id = dog_ref.entity_id
@@ -369,6 +383,22 @@ WHERE r.fecha = CURRENT_DATE
   AND NOT EXISTS (
       SELECT 1 FROM check_registro cr
       WHERE cr.reserva_id = r.id AND cr.tipo = 'ENTRADA' AND CAST(cr.fecha_hora AS DATE) = CURRENT_DATE
+  );
+
+UPDATE reserva
+SET estado = 'EN_CURSO'
+WHERE fecha = CURRENT_DATE
+  AND estado = 'CONFIRMADA'
+  AND id IN (
+      SELECT r.id
+      FROM reserva r
+      JOIN perro p ON p.id = r.perro_id
+      JOIN dev_fixture_registry dog_ref ON dog_ref.fixture_key = 'reception.dog.bruno.ana'
+      WHERE p.id = dog_ref.entity_id
+  )
+  AND EXISTS (
+      SELECT 1 FROM check_registro cr
+      WHERE cr.reserva_id = reserva.id AND cr.tipo = 'ENTRADA'
   );
 
 INSERT INTO check_registro (reserva_id, usuario_id, tipo, fecha_hora, estado_mascota)
