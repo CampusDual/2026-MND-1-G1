@@ -60,6 +60,22 @@ public interface DogRepository extends JpaRepository<DogEntity, Long> {
             @Param("centerId") Long centerId
     );
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @EntityGraph(attributePaths = "tutor")
+    @Query("""
+            SELECT dog FROM DogEntity dog
+            JOIN dog.tutor tutor
+            WHERE dog.id = :dogId
+              AND tutor.id = :tutorId
+              AND dog.center.id = :centerId
+              AND tutor.center.id = :centerId
+            """)
+    Optional<DogEntity> findTutorPortalDogForUpdate(
+            @Param("dogId") Long dogId,
+            @Param("tutorId") Long tutorId,
+            @Param("centerId") Long centerId
+    );
+
     @EntityGraph(attributePaths = "tutor")
     @Query("""
             SELECT dog FROM DogEntity dog LEFT JOIN dog.tutor tutor

@@ -14,8 +14,8 @@ public record TutorDogDetailDto(
         LocalDate birthDate,
         boolean photoAvailable,
         String feedingInstructions,
-        String temperament,
-        List<String> allergies,
+        boolean feedingDeclaredByTutor,
+        List<TutorDogAllergyDto> allergies,
         List<TutorMedicationDto> medications,
         List<TutorAuthorizedPersonDto> authorizedPersons
 ) {

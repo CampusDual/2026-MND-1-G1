@@ -1,8 +1,10 @@
 package com.campusdual.cd2026mnd1g1.api.service;
 
 import com.campusdual.cd2026mnd1g1.api.dto.TutorDogDetailDto;
+import com.campusdual.cd2026mnd1g1.api.dto.TutorDogEditResultDto;
 import com.campusdual.cd2026mnd1g1.api.dto.TutorDogCreateRequestDto;
 import com.campusdual.cd2026mnd1g1.api.dto.TutorDogCreateResultDto;
+import com.campusdual.cd2026mnd1g1.api.dto.TutorDogUpdateRequestDto;
 import com.campusdual.cd2026mnd1g1.api.dto.TutorDogPageDto;
 import com.campusdual.cd2026mnd1g1.api.dto.TutorAuthorizedPersonDto;
 
@@ -31,6 +33,15 @@ public interface TutorPortalService {
      * @return ficha con campos expresamente permitidos
      */
     TutorDogDetailDto findMyDog(Long dogId, String username);
+
+    /**
+     * Recupera una ficha y su etiqueta de concurrencia en una sola lectura.
+     *
+     * @param dogId identificador del perro
+     * @param username usuario autenticado
+     * @return ficha y ETag calculado sobre sus datos editables
+     */
+    TutorDogEditResultDto findMyDogVersioned(Long dogId, String username);
 
     /**
      * Resuelve la referencia interna de foto después de comprobar la propiedad.
@@ -65,5 +76,23 @@ public interface TutorPortalService {
             String idempotencyKey,
             String payloadHash,
             String photoReference
+    );
+
+    /**
+     * Actualiza una ficha propia y sus cuidados dentro de una transacción.
+     *
+     * @param dogId perro solicitado
+     * @param request datos editables
+     * @param username usuario autenticado
+     * @param ifMatch versión leída por el cliente
+     * @param replacementPhotoReference nueva foto validada, si existe
+     * @return detalle actualizado y metadatos de compensación
+     */
+    TutorDogEditResultDto updateMyDog(
+            Long dogId,
+            TutorDogUpdateRequestDto request,
+            String username,
+            String ifMatch,
+            String replacementPhotoReference
     );
 }

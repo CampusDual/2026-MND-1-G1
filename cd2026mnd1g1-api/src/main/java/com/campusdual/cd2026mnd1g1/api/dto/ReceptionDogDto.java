@@ -15,7 +15,9 @@ public record ReceptionDogDto(
         String temperament,
         String feedingInstructions,
         boolean informationDeclaredByTutor,
-        List<String> allergies,
+        boolean feedingDeclaredByTutor,
+        boolean temperamentDeclaredByTutor,
+        List<ReceptionDogAllergyDto> allergies,
         List<MedicationDto> medications
 ) {
 }

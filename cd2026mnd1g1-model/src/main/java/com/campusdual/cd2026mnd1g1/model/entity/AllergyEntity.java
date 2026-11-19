@@ -25,10 +25,15 @@ public class AllergyEntity {
     @Column(name = "descripcion", nullable = false, length = 1000)
     private String description;
 
+    @Column(name = "declarada_por_tutor", nullable = false)
+    private Boolean declaredByTutor;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public DogEntity getDog() { return dog; }
     public void setDog(DogEntity dog) { this.dog = dog; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+    public Boolean getDeclaredByTutor() { return declaredByTutor; }
+    public void setDeclaredByTutor(Boolean declaredByTutor) { this.declaredByTutor = declaredByTutor; }
 }

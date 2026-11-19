@@ -323,7 +323,8 @@ public class DaycareOperationsServiceImpl implements DaycareOperationsService {
                 medication.getId(),
                 medication.getMedication(),
                 medication.getDosage(),
-                medication.getInstructions()
+                medication.getInstructions(),
+                Boolean.TRUE.equals(medication.getDeclaredByTutor())
         );
     }
 

@@ -3,7 +3,9 @@ package com.campusdual.cd2026mnd1g1.ws.controller;
 import com.campusdual.cd2026mnd1g1.api.dto.TutorDogDetailDto;
 import com.campusdual.cd2026mnd1g1.api.dto.TutorDogCreateRequestDto;
 import com.campusdual.cd2026mnd1g1.api.dto.TutorDogCreateResultDto;
+import com.campusdual.cd2026mnd1g1.api.dto.TutorDogEditResultDto;
 import com.campusdual.cd2026mnd1g1.api.dto.TutorDogPageDto;
+import com.campusdual.cd2026mnd1g1.api.dto.TutorDogUpdateRequestDto;
 import com.campusdual.cd2026mnd1g1.api.service.TutorPortalService;
 import com.campusdual.cd2026mnd1g1.model.exception.ResourceNotFoundException;
 import com.campusdual.cd2026mnd1g1.api.dto.TutorAuthorizedPersonDto;
@@ -27,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -42,6 +45,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.security.Principal;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Consultas privadas del tutor autenticado.
@@ -51,6 +56,7 @@ import java.util.UUID;
 @RequestMapping("/api/tutor/mis-perros")
 public class TutorPortalController {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(TutorPortalController.class);
     private static final Map<String, MediaType> IMAGE_TYPES = Map.of(
             ".jpg", MediaType.IMAGE_JPEG,
             ".jpeg", MediaType.IMAGE_JPEG,
@@ -116,7 +122,50 @@ public class TutorPortalController {
             @PathVariable @Min(0) Long id,
             Principal principal
     ) {
-        return ResponseEntity.ok(this.tutorPortalService.findMyDog(id, principal.getName()));
+        TutorDogEditResultDto result = this.tutorPortalService.findMyDogVersioned(id, principal.getName());
+        return ResponseEntity.ok().eTag(result.etag()).body(result.dog());
+    }
+
+    /**
+     * Actualiza los campos permitidos de una ficha propia y su foto opcional.
+     *
+     * @param id identificador del perro
+     * @param request datos permitidos
+     * @param photo foto opcional de reemplazo
+     * @param ifMatch versión leída por el cliente
+     * @param principal identidad autenticada
+     * @return ficha actualizada y nueva etiqueta de versión
+     */
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('TUTOR')")
+    public ResponseEntity<TutorDogDetailDto> updateMyDog(
+            @PathVariable @Min(0) Long id,
+            @Valid @RequestPart("request") TutorDogUpdateRequestDto request,
+            @RequestPart(value = "photo", required = false) MultipartFile photo,
+            @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch,
+            Principal principal
+    ) {
+        if (request.removePhoto() && photo != null && !photo.isEmpty()) {
+            throw new IllegalArgumentException("No se puede reemplazar y retirar la foto en la misma operación");
+        }
+        String replacementPhotoReference = this.photoStorage.store(photo);
+        TutorDogEditResultDto result;
+        try {
+            result = this.tutorPortalService.updateMyDog(
+                    id,
+                    request,
+                    principal.getName(),
+                    ifMatch,
+                    replacementPhotoReference
+            );
+        } catch (RuntimeException exception) {
+            cleanupPhoto(replacementPhotoReference, exception);
+            throw exception;
+        }
+        if (result.photoChanged()) {
+            cleanupOldPhoto(result.previousPhotoReference());
+        }
+        return ResponseEntity.ok().eTag(result.etag()).body(result.dog());
     }
 
     /**
@@ -248,13 +297,12 @@ public class TutorPortalController {
             updateDigest(digest, request.breed());
             updateDigest(digest, request.size());
             updateDigest(digest, request.birthDate() == null ? null : request.birthDate().toString());
-            updateDigest(digest, request.feedingInstructions());
-            updateDigest(digest, request.temperament());
             updateDigest(digest, request.allergies() == null ? -1 : request.allergies().size());
             if (request.allergies() != null) {
                 request.allergies().forEach(item ->
                         updateDigest(digest, item == null ? null : item.description()));
             }
+
             updateDigest(digest, request.medications() == null ? -1 : request.medications().size());
             if (request.medications() != null) {
                 request.medications().forEach(item -> {
@@ -310,6 +358,14 @@ public class TutorPortalController {
                 return;
             }
             throw cleanupException;
+        }
+    }
+
+    private void cleanupOldPhoto(String photoReference) {
+        try {
+            this.photoStorage.delete(photoReference);
+        } catch (RuntimeException exception) {
+            LOGGER.error("La foto anterior del perro no se pudo limpiar; la actualización ya fue guardada", exception);
         }
     }
 }

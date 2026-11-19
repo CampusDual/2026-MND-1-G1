@@ -1,6 +1,9 @@
 package com.campusdual.cd2026mnd1g1.model.service;
 
 import com.campusdual.cd2026mnd1g1.api.dto.TutorDogDetailDto;
+import com.campusdual.cd2026mnd1g1.api.dto.TutorDogAllergyDto;
+import com.campusdual.cd2026mnd1g1.api.dto.TutorDogAuthorizedPersonEditInputDto;
+import com.campusdual.cd2026mnd1g1.api.dto.TutorDogEditResultDto;
 import com.campusdual.cd2026mnd1g1.api.dto.TutorDogAllergyInputDto;
 import com.campusdual.cd2026mnd1g1.api.dto.TutorDogAuthorizedPersonInputDto;
 import com.campusdual.cd2026mnd1g1.api.dto.TutorDogCreateRequestDto;
@@ -10,6 +13,7 @@ import com.campusdual.cd2026mnd1g1.api.dto.TutorDogPageDto;
 import com.campusdual.cd2026mnd1g1.api.dto.TutorDogSummaryDto;
 import com.campusdual.cd2026mnd1g1.api.dto.TutorAuthorizedPersonDto;
 import com.campusdual.cd2026mnd1g1.api.dto.TutorMedicationDto;
+import com.campusdual.cd2026mnd1g1.api.dto.TutorDogUpdateRequestDto;
 import com.campusdual.cd2026mnd1g1.api.service.TutorPortalService;
 import com.campusdual.cd2026mnd1g1.model.entity.AllergyEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.AuthorizedPersonEntity;
@@ -41,8 +45,18 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 @Service
 @Transactional(readOnly = true)
@@ -111,8 +125,13 @@ public class TutorPortalServiceImpl implements TutorPortalService {
 
     @Override
     public TutorDogDetailDto findMyDog(Long dogId, String username) {
+        return findMyDogVersioned(dogId, username).dog();
+    }
+
+    @Override
+    public TutorDogEditResultDto findMyDogVersioned(Long dogId, String username) {
         DogEntity dog = findOwnedDog(dogId, username);
-        return mapDetail(dog);
+        return new TutorDogEditResultDto(mapDetail(dog), dogTag(dog), null, false);
     }
 
     @Override
@@ -128,9 +147,9 @@ public class TutorPortalServiceImpl implements TutorPortalService {
     public List<TutorAuthorizedPersonDto> findMyAuthorizedPersons(String username) {
         UserEntity account = findLinkedAccount(username);
         return this.authorizedPersonRepository
-                .findByTutor_IdOrderByNameAscIdAsc(account.getTutor().getId())
+                .findByTutor_IdAndRevokedAtIsNullOrderByNameAscIdAsc(account.getTutor().getId())
                 .stream()
-                .map(person -> new TutorAuthorizedPersonDto(person.getName(), person.getPhone()))
+                .map(person -> new TutorAuthorizedPersonDto(person.getId(), person.getName(), person.getPhone()))
                 .toList();
     }
 
@@ -171,8 +190,6 @@ public class TutorPortalServiceImpl implements TutorPortalService {
         }
         String name = requiredText(request.name(), "El nombre del perro es obligatorio");
         String breed = optionalText(request.breed());
-        String feedingInstructions = optionalText(request.feedingInstructions());
-        String temperament = optionalText(request.temperament());
         DogSize size = parseSize(request.size());
 
         DogEntity dog = new DogEntity();
@@ -182,8 +199,10 @@ public class TutorPortalServiceImpl implements TutorPortalService {
         dog.setBreed(breed);
         dog.setSize(size);
         dog.setBirthDate(request.birthDate());
-        dog.setFeedingInstructions(feedingInstructions);
-        dog.setTemperament(temperament);
+        dog.setFeedingInstructions(null);
+        dog.setFeedingDeclaredByTutor(false);
+        dog.setTemperament(null);
+        dog.setTemperamentDeclaredByTutor(false);
         dog.setPhotoUrl(photoReference);
         dog.setActive(true);
         dog.setInformationDeclaredByTutor(true);
@@ -197,6 +216,7 @@ public class TutorPortalServiceImpl implements TutorPortalService {
                     input == null ? null : input.description(),
                     "La descripción de cada alergia es obligatoria"
             ));
+            allergy.setDeclaredByTutor(true);
             this.allergyRepository.save(allergy);
         }
         for (TutorDogMedicationInputDto input : safeList(request.medications())) {
@@ -211,6 +231,7 @@ public class TutorPortalServiceImpl implements TutorPortalService {
                     input == null ? null : input.instructions(),
                     "La pauta del medicamento es obligatoria"
             ));
+            medication.setDeclaredByTutor(true);
             this.medicationRepository.save(medication);
         }
         for (TutorDogAuthorizedPersonInputDto input : safeList(request.authorizedPersons())) {
@@ -243,6 +264,109 @@ public class TutorPortalServiceImpl implements TutorPortalService {
         return new TutorDogCreateResultDto(mapDetail(savedDog), false);
     }
 
+    @Override
+    @Transactional
+    public TutorDogEditResultDto updateMyDog(
+            Long dogId,
+            TutorDogUpdateRequestDto request,
+            String username,
+            String ifMatch,
+            String replacementPhotoReference
+    ) {
+        if (request == null) {
+            throw new IllegalArgumentException("El cuerpo de la petición no puede ser nulo");
+        }
+        UserEntity account = findLinkedAccount(username);
+        TutorEntity tutor = this.tutorRepository.findByIdForUpdate(account.getTutor().getId())
+                .orElseThrow(TutorAccountInconsistentException::new);
+        if (!account.getCenter().getId().equals(tutor.getCenter().getId())) {
+            throw new TutorAccountInconsistentException();
+        }
+        DogEntity dog = this.dogRepository.findTutorPortalDogForUpdate(
+                        dogId,
+                        tutor.getId(),
+                        account.getCenter().getId()
+                )
+                .orElseThrow(() -> new ResourceNotFoundException("Perro no encontrado"));
+        String currentTag = dogTag(dog);
+        if (ifMatch == null || !ifMatch.trim().equals(currentTag)) {
+            throw new IllegalStateException(
+                    "La ficha del perro ha cambiado desde que la abriste. Recarga sus datos antes de guardar."
+            );
+        }
+        if (request.removePhoto() && replacementPhotoReference != null) {
+            throw new IllegalArgumentException("No se puede reemplazar y retirar la foto en la misma operación");
+        }
+        LocalDate today = LocalDate.now(this.receptionClock);
+        if (request.birthDate() != null && request.birthDate().isAfter(today)) {
+            throw new IllegalArgumentException("La fecha de nacimiento no puede ser futura");
+        }
+
+        String name = requiredText(request.name(), "El nombre del perro es obligatorio");
+        String breed = optionalText(request.breed());
+        DogSize size = parseSize(request.size());
+        validateLengths(breed);
+
+        List<TutorDogAllergyInputDto> allergies = safeList(request.allergies());
+        List<TutorDogMedicationInputDto> medications = safeList(request.medications());
+        List<TutorDogAuthorizedPersonEditInputDto> authorizedPersons = safeList(request.authorizedPersons());
+        validateCareInputs(allergies, medications);
+        validateAuthorizedPersonInputs(authorizedPersons);
+        List<AuthorizedPersonEntity> currentAuthorizedPersons = this.authorizedPersonRepository
+                .findByTutor_IdAndRevokedAtIsNullOrderByNameAscIdAsc(tutor.getId());
+        String previousPhotoReference = dog.getPhotoUrl();
+
+        dog.setName(name);
+        dog.setBreed(breed);
+        dog.setSize(size);
+        dog.setBirthDate(request.birthDate());
+        if (request.removePhoto()) {
+            dog.setPhotoUrl(null);
+        } else if (replacementPhotoReference != null) {
+            dog.setPhotoUrl(replacementPhotoReference);
+        }
+        dog.setUpdatedBy(account);
+        dog.setUpdatedAt(LocalDateTime.now(this.receptionClock));
+        DogEntity savedDog = this.dogRepository.saveAndFlush(dog);
+
+        this.allergyRepository.deleteAll(this.allergyRepository.findByDog_IdOrderByIdAsc(savedDog.getId())
+                .stream()
+                .filter(allergy -> Boolean.TRUE.equals(allergy.getDeclaredByTutor()))
+                .toList());
+        for (TutorDogAllergyInputDto input : allergies) {
+            AllergyEntity allergy = new AllergyEntity();
+            allergy.setDog(savedDog);
+            allergy.setDescription(requiredText(input.description(), "La descripción de cada alergia es obligatoria"));
+            allergy.setDeclaredByTutor(true);
+            this.allergyRepository.save(allergy);
+        }
+        this.medicationRepository.deleteAll(this.medicationRepository.findByDog_Id(savedDog.getId())
+                .stream()
+                .filter(medication -> Boolean.TRUE.equals(medication.getDeclaredByTutor()))
+                .toList());
+        for (TutorDogMedicationInputDto input : medications) {
+            MedicationEntity medication = new MedicationEntity();
+            medication.setDog(savedDog);
+            medication.setMedication(requiredText(input.medication(), "El nombre del medicamento es obligatorio"));
+            medication.setDosage(optionalText(input.dosage()));
+            medication.setInstructions(requiredText(input.instructions(), "La pauta del medicamento es obligatoria"));
+            medication.setDeclaredByTutor(true);
+            this.medicationRepository.save(medication);
+        }
+        updateAuthorizedPersons(authorizedPersons, currentAuthorizedPersons, tutor, account);
+        this.allergyRepository.flush();
+        this.medicationRepository.flush();
+        this.authorizedPersonRepository.flush();
+
+        boolean photoChanged = !Objects.equals(previousPhotoReference, savedDog.getPhotoUrl());
+        return new TutorDogEditResultDto(
+                mapDetail(savedDog),
+                dogTag(savedDog),
+                photoChanged ? previousPhotoReference : null,
+                photoChanged
+        );
+    }
+
     private UserEntity findLinkedAccount(String username) {
         UserEntity account = this.userRepository.findPortalAccountByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("No se ha encontrado la cuenta autenticada"));
@@ -272,9 +396,12 @@ public class TutorPortalServiceImpl implements TutorPortalService {
     }
 
     private TutorDogDetailDto mapDetail(DogEntity dog) {
-        List<String> allergies = this.allergyRepository.findByDog_IdOrderByIdAsc(dog.getId())
+        List<TutorDogAllergyDto> allergies = this.allergyRepository.findByDog_IdOrderByIdAsc(dog.getId())
                 .stream()
-                .map(allergy -> allergy.getDescription())
+                .map(allergy -> new TutorDogAllergyDto(
+                        allergy.getDescription(),
+                        Boolean.TRUE.equals(allergy.getDeclaredByTutor())
+                ))
                 .toList();
         List<TutorMedicationDto> medications = this.medicationRepository
                 .findByDog_IdOrderByIdAsc(dog.getId())
@@ -282,7 +409,8 @@ public class TutorPortalServiceImpl implements TutorPortalService {
                 .map(medication -> new TutorMedicationDto(
                         medication.getMedication(),
                         medication.getDosage(),
-                        medication.getInstructions()
+                        medication.getInstructions(),
+                        Boolean.TRUE.equals(medication.getDeclaredByTutor())
                 ))
                 .toList();
         return new TutorDogDetailDto(
@@ -293,15 +421,168 @@ public class TutorPortalServiceImpl implements TutorPortalService {
                 dog.getBirthDate(),
                 dog.getPhotoUrl() != null && !dog.getPhotoUrl().isBlank(),
                 dog.getFeedingInstructions(),
-                dog.getTemperament(),
+                Boolean.TRUE.equals(dog.getFeedingDeclaredByTutor()),
                 allergies,
                 medications,
                 this.authorizedPersonRepository
-                        .findByTutor_IdOrderByNameAscIdAsc(dog.getTutor().getId())
+                        .findByTutor_IdAndRevokedAtIsNullOrderByNameAscIdAsc(dog.getTutor().getId())
                         .stream()
-                        .map(person -> new TutorAuthorizedPersonDto(person.getName(), person.getPhone()))
+                        .map(this::mapAuthorizedPerson)
                         .toList()
         );
+    }
+
+    private TutorAuthorizedPersonDto mapAuthorizedPerson(AuthorizedPersonEntity person) {
+        return new TutorAuthorizedPersonDto(person.getId(), person.getName(), person.getPhone());
+    }
+
+    private String dogTag(DogEntity dog) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            updateDigest(digest, dog.getId());
+            updateDigest(digest, dog.getName());
+            updateDigest(digest, dog.getBreed());
+            updateDigest(digest, dog.getSize().name());
+            updateDigest(digest, dog.getBirthDate() == null ? null : dog.getBirthDate().toString());
+            updateDigest(digest, dog.getFeedingInstructions());
+            updateDigest(digest, dog.getPhotoUrl());
+            updateDigest(digest, Boolean.TRUE.equals(dog.getFeedingDeclaredByTutor()) ? 1 : 0);
+            for (AllergyEntity allergy : this.allergyRepository.findByDog_IdOrderByIdAsc(dog.getId())) {
+                updateDigest(digest, allergy.getDescription());
+                updateDigest(digest, Boolean.TRUE.equals(allergy.getDeclaredByTutor()) ? 1 : 0);
+            }
+            for (MedicationEntity medication : this.medicationRepository.findByDog_IdOrderByIdAsc(dog.getId())) {
+                updateDigest(digest, medication.getMedication());
+                updateDigest(digest, medication.getDosage());
+                updateDigest(digest, medication.getInstructions());
+                updateDigest(digest, Boolean.TRUE.equals(medication.getDeclaredByTutor()) ? 1 : 0);
+            }
+            if (dog.getTutor() != null) {
+                for (AuthorizedPersonEntity person : this.authorizedPersonRepository
+                        .findByTutor_IdAndRevokedAtIsNullOrderByNameAscIdAsc(dog.getTutor().getId())) {
+                    updateDigest(digest, person.getId());
+                    updateDigest(digest, person.getName());
+                    updateDigest(digest, person.getPhone());
+                }
+            }
+            return "\"" + HexFormat.of().formatHex(digest.digest()) + "\"";
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("No se pudo verificar la versión de la ficha", exception);
+        }
+    }
+
+    private void updateDigest(MessageDigest digest, Long value) {
+        updateDigest(digest, value == null ? null : value.toString());
+    }
+
+    private void updateDigest(MessageDigest digest, String value) {
+        if (value == null) {
+            digest.update(new byte[] {-1, -1, -1, -1});
+            return;
+        }
+        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+        int length = bytes.length;
+        digest.update(new byte[] {
+                (byte) (length >>> 24),
+                (byte) (length >>> 16),
+                (byte) (length >>> 8),
+                (byte) length
+        });
+        digest.update(bytes);
+    }
+
+    private void updateDigest(MessageDigest digest, int value) {
+        digest.update(new byte[] {
+                (byte) (value >>> 24),
+                (byte) (value >>> 16),
+                (byte) (value >>> 8),
+                (byte) value
+        });
+    }
+
+    private void validateCareInputs(
+            List<TutorDogAllergyInputDto> allergies,
+            List<TutorDogMedicationInputDto> medications
+    ) {
+        for (TutorDogAllergyInputDto allergy : allergies) {
+            requiredText(allergy == null ? null : allergy.description(),
+                    "La descripción de cada alergia es obligatoria");
+        }
+        for (TutorDogMedicationInputDto medication : medications) {
+            requiredText(medication == null ? null : medication.medication(),
+                    "El nombre del medicamento es obligatorio");
+            requiredText(medication == null ? null : medication.instructions(),
+                    "La pauta del medicamento es obligatoria");
+        }
+    }
+
+    private void validateAuthorizedPersonInputs(List<TutorDogAuthorizedPersonEditInputDto> inputs) {
+        Set<Long> submittedIds = new HashSet<>();
+        for (TutorDogAuthorizedPersonEditInputDto input : inputs) {
+            if (input == null) {
+                throw new IllegalArgumentException("La lista de personas autorizadas contiene una fila no válida");
+            }
+            requiredText(input.name(), "El nombre completo es obligatorio");
+            requiredText(input.phone(), "El teléfono es obligatorio");
+            if (input.id() != null && !submittedIds.add(input.id())) {
+                throw new IllegalArgumentException("Una persona autorizada no puede aparecer más de una vez");
+            }
+        }
+    }
+
+    private void updateAuthorizedPersons(
+            List<TutorDogAuthorizedPersonEditInputDto> inputs,
+            List<AuthorizedPersonEntity> currentPersons,
+            TutorEntity tutor,
+            UserEntity account
+    ) {
+        Map<Long, AuthorizedPersonEntity> currentById = new HashMap<>();
+        for (AuthorizedPersonEntity person : currentPersons) {
+            currentById.put(person.getId(), person);
+        }
+        Set<Long> retainedIds = new HashSet<>();
+        LocalDateTime now = LocalDateTime.now(this.receptionClock);
+        for (TutorDogAuthorizedPersonEditInputDto input : inputs) {
+            String name = requiredText(input.name(), "El nombre completo es obligatorio");
+            String phone = requiredText(input.phone(), "El teléfono es obligatorio");
+            if (input.id() == null) {
+                AuthorizedPersonEntity person = new AuthorizedPersonEntity();
+                person.setTutor(tutor);
+                person.setName(name);
+                person.setPhone(phone);
+                person.setCreatedBy(account);
+                person.setCreatedAt(now);
+                this.authorizedPersonRepository.save(person);
+                continue;
+            }
+            AuthorizedPersonEntity person = currentById.get(input.id());
+            if (person == null) {
+                throw new ResourceNotFoundException("No existe una autorización propia indicada en la solicitud");
+            }
+            retainedIds.add(person.getId());
+            if (!person.getName().equals(name) || !person.getPhone().equals(phone)) {
+                person.setName(name);
+                person.setPhone(phone);
+                person.setUpdatedBy(account);
+                person.setUpdatedAt(now);
+                this.authorizedPersonRepository.save(person);
+            }
+        }
+        for (AuthorizedPersonEntity person : currentPersons) {
+            if (!retainedIds.contains(person.getId())) {
+                person.setRevokedBy(account);
+                person.setRevokedAt(now);
+                person.setUpdatedBy(account);
+                person.setUpdatedAt(now);
+                this.authorizedPersonRepository.save(person);
+            }
+        }
+    }
+
+    private void validateLengths(String breed) {
+        if (breed != null && breed.length() > 120) {
+            throw new IllegalArgumentException("La raza no puede superar 120 caracteres");
+        }
     }
 
     private String requiredText(String value, String message) {

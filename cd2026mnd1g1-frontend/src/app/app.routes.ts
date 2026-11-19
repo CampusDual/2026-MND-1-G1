@@ -16,6 +16,7 @@ const receptionRoles: string[] = ['RECEPCIONISTA', 'ADMIN', 'GERENTE'];
 export const routes: Routes = [
 	{ path: 'login', component: LoginComponent },
 	{ path: 'mis-perros/nuevo', component: TutorDogsComponent, canActivate: [authGuard, roleGuard], data: { roles: ['TUTOR'] } },
+	{ path: 'mis-perros/:id/editar', component: TutorDogsComponent, canActivate: [authGuard, roleGuard], data: { roles: ['TUTOR'] } },
 	{ path: 'mis-perros', component: TutorDogsComponent, canActivate: [authGuard, roleGuard], data: { roles: ['TUTOR'] } },
 	{ path: 'mis-perros/:id', component: TutorDogsComponent, canActivate: [authGuard, roleGuard], data: { roles: ['TUTOR'] } },
 	{ path: 'tablero-diario/reservas/:id/entrada', component: ReceptionArrivalComponent, canActivate: [authGuard, roleGuard], data: { roles: receptionRoles } },

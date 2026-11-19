@@ -14,6 +14,7 @@ export interface Medication {
   medication: string;
   dosage: string | null;
   instructions: string;
+  declaredByTutor: boolean;
 }
 
 export interface Incompatibility {
@@ -106,7 +107,9 @@ export interface ReceptionDog {
   temperament: string | null;
   feedingInstructions: string | null;
   informationDeclaredByTutor: boolean;
-  allergies: string[];
+  feedingDeclaredByTutor: boolean;
+  temperamentDeclaredByTutor: boolean;
+  allergies: { description: string; declaredByTutor: boolean }[];
   medications: Medication[];
 }
 
@@ -155,6 +158,7 @@ export interface ReceptionArrivalResult {
 export interface AuthorizedPerson {
   id: number;
   name: string;
+  phone: string;
 }
 
 export interface ReceptionDepartureData {
@@ -330,11 +334,18 @@ export interface TutorMedication {
   medication: string;
   dosage: string | null;
   instructions: string;
+  declaredByTutor: boolean;
 }
 
 export interface TutorAuthorizedPerson {
+  id: number;
   name: string;
   phone: string;
+}
+
+export interface TutorDogVersionedResponse {
+  dog: TutorDogDetail;
+  etag: string;
 }
 
 export interface TutorDogDetail {
@@ -345,8 +356,8 @@ export interface TutorDogDetail {
   birthDate: string | null;
   photoAvailable: boolean;
   feedingInstructions: string | null;
-  temperament: string | null;
-  allergies: string[];
+  feedingDeclaredByTutor: boolean;
+  allergies: { description: string; declaredByTutor: boolean }[];
   medications: TutorMedication[];
   authorizedPersons: TutorAuthorizedPerson[];
 }
@@ -356,9 +367,18 @@ export interface TutorDogCreateRequest {
   breed: string | null;
   size: DogSize;
   birthDate: string | null;
-  feedingInstructions: string | null;
-  temperament: string | null;
   allergies: { description: string }[];
-  medications: TutorMedication[];
+  medications: { medication: string; dosage: string | null; instructions: string }[];
   authorizedPersons: { name: string; phone: string }[];
+}
+
+export interface TutorDogUpdateRequest {
+  name: string;
+  breed: string | null;
+  size: DogSize;
+  birthDate: string | null;
+  allergies: { description: string }[];
+  medications: { medication: string; dosage: string | null; instructions: string }[];
+  authorizedPersons: { id: number | null; name: string; phone: string }[];
+  removePhoto: boolean;
 }

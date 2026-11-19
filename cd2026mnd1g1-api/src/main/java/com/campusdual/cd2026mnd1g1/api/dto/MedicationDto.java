@@ -6,15 +6,17 @@ public class MedicationDto {
     private String medication;
     private String dosage;
     private String instructions;
+    private boolean declaredByTutor;
 
     public MedicationDto() {
     }
 
-    public MedicationDto(Long id, String medication, String dosage, String instructions) {
+    public MedicationDto(Long id, String medication, String dosage, String instructions, boolean declaredByTutor) {
         this.id = id;
         this.medication = medication;
         this.dosage = dosage;
         this.instructions = instructions;
+        this.declaredByTutor = declaredByTutor;
     }
 
     public Long getId() { return id; }
@@ -25,4 +27,6 @@ public class MedicationDto {
     public void setDosage(String dosage) { this.dosage = dosage; }
     public String getInstructions() { return instructions; }
     public void setInstructions(String instructions) { this.instructions = instructions; }
+    public boolean isDeclaredByTutor() { return declaredByTutor; }
+    public void setDeclaredByTutor(boolean declaredByTutor) { this.declaredByTutor = declaredByTutor; }
 }

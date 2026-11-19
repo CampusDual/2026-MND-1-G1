@@ -20,7 +20,7 @@ public interface AuthorizedPersonRepository extends JpaRepository<AuthorizedPers
      * @param tutorId tutor titular de las autorizaciones
      * @return personas ordenadas por nombre e identificador
      */
-    List<AuthorizedPersonEntity> findByTutor_IdOrderByNameAscIdAsc(Long tutorId);
+    List<AuthorizedPersonEntity> findByTutor_IdAndRevokedAtIsNullOrderByNameAscIdAsc(Long tutorId);
 
     /**
      * Revalida y bloquea una autorización dentro de la transacción de salida.
@@ -34,6 +34,7 @@ public interface AuthorizedPersonRepository extends JpaRepository<AuthorizedPers
             SELECT person FROM AuthorizedPersonEntity person
             WHERE person.id = :personId
               AND person.tutor.id = :tutorId
+              AND person.revokedAt IS NULL
             """)
     Optional<AuthorizedPersonEntity> findByIdAndTutorIdForUpdate(
             @Param("personId") Long personId,

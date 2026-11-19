@@ -40,6 +40,20 @@ public class AuthorizedPersonEntity {
     @Column(name = "creado_en")
     private LocalDateTime createdAt;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "actualizado_por_usuario_id")
+    private UserEntity updatedBy;
+
+    @Column(name = "actualizado_en")
+    private LocalDateTime updatedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "revocado_por_usuario_id")
+    private UserEntity revokedBy;
+
+    @Column(name = "revocado_en")
+    private LocalDateTime revokedAt;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public TutorEntity getTutor() { return tutor; }
@@ -52,4 +66,16 @@ public class AuthorizedPersonEntity {
     public void setCreatedBy(UserEntity createdBy) { this.createdBy = createdBy; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public UserEntity getUpdatedBy() { return updatedBy; }
+    public void setUpdatedBy(UserEntity updatedBy) { this.updatedBy = updatedBy; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    public UserEntity getRevokedBy() { return revokedBy; }
+    public void setRevokedBy(UserEntity revokedBy) { this.revokedBy = revokedBy; }
+    public LocalDateTime getRevokedAt() { return revokedAt; }
+    public void setRevokedAt(LocalDateTime revokedAt) { this.revokedAt = revokedAt; }
+
+    public boolean isRevoked() {
+        return this.revokedAt != null;
+    }
 }

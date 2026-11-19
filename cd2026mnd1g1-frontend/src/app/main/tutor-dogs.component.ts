@@ -11,7 +11,8 @@ import {
   TutorAuthorizedPerson,
   TutorDogCreateRequest,
   TutorDogDetail,
-  TutorDogSummary
+  TutorDogSummary,
+  TutorDogUpdateRequest
 } from '../core/operational.models';
 
 /**
@@ -28,10 +29,12 @@ export class TutorDogsComponent implements OnDestroy {
   private readonly routeSubscription: Subscription;
   private requestSubscriptions: Subscription = new Subscription();
   private readonly isCreateRoute: boolean;
+  private readonly isEditRoute: boolean;
   private readonly photoUrls: Map<number, string> = new Map<number, string>();
   private readonly failedPhotos: Set<number> = new Set<number>();
   page: number = 0;
   private currentDogId: number | null = null;
+  private etag: string | null = null;
   private readonly pageSize: number = 50;
 
   dogs: TutorDogSummary[] = [];
@@ -46,11 +49,10 @@ export class TutorDogsComponent implements OnDestroy {
   breed: string = '';
   size: DogSize | '' = '';
   birthDate: string = '';
-  feedingInstructions: string = '';
-  temperament: string = '';
   allergyRows: string[] = [];
   medicationRows: { medication: string; dosage: string; instructions: string }[] = [];
-  authorizedPersonRows: { name: string; phone: string }[] = [];
+  authorizedPersonRows: { id: number | null; name: string; phone: string }[] = [];
+  removeExistingPhoto: boolean = false;
   existingAuthorizedPersons: TutorAuthorizedPerson[] = [];
   selectedPhoto: File | null = null;
   photoPreviewUrl: string | null = null;
@@ -73,6 +75,7 @@ export class TutorDogsComponent implements OnDestroy {
     route: ActivatedRoute
   ) {
     this.isCreateRoute = route.snapshot.routeConfig?.path === 'mis-perros/nuevo';
+    this.isEditRoute = route.snapshot.routeConfig?.path === 'mis-perros/:id/editar';
     this.routeSubscription = combineLatest([route.paramMap, route.queryParamMap]).subscribe(
       ([parameters, queryParameters]) => {
         const dogIdValue: string | null = parameters.get('id');
@@ -97,6 +100,14 @@ export class TutorDogsComponent implements OnDestroy {
 
   get isCreate(): boolean {
     return this.isCreateRoute;
+  }
+
+  get isEdit(): boolean {
+    return this.isEditRoute;
+  }
+
+  get isDogForm(): boolean {
+    return this.isCreate || this.isEdit;
   }
 
   getPhotoUrl(dogId: number): string | null {
@@ -133,10 +144,14 @@ export class TutorDogsComponent implements OnDestroy {
   }
 
   addAuthorizedPerson(): void {
-    this.authorizedPersonRows.push({ name: '', phone: '' });
+    this.authorizedPersonRows.push({ id: null, name: '', phone: '' });
   }
 
   removeAuthorizedPerson(index: number): void {
+    if (this.authorizedPersonRows[index]?.id !== null
+      && !window.confirm('¿Quieres revocar esta autorización para todos tus perros actuales y futuros?')) {
+      return;
+    }
     this.authorizedPersonRows.splice(index, 1);
   }
 
@@ -146,6 +161,9 @@ export class TutorDogsComponent implements OnDestroy {
     this.clearPhotoPreview();
     this.photoErrorMessage = '';
     this.selectedPhoto = file ?? null;
+    if (file !== undefined) {
+      this.removeExistingPhoto = false;
+    }
     if (file === undefined) {
       return;
     }
@@ -164,6 +182,18 @@ export class TutorDogsComponent implements OnDestroy {
     this.selectedPhoto = null;
     this.photoErrorMessage = '';
     this.clearPhotoPreview();
+    this.removeExistingPhoto = this.isEdit && Boolean(this.dog?.photoAvailable);
+  }
+
+  cancelPhotoSelection(): void {
+    this.selectedPhoto = null;
+    this.photoErrorMessage = '';
+    this.clearPhotoPreview();
+    this.removeExistingPhoto = false;
+  }
+
+  keepCurrentPhoto(): void {
+    this.removeExistingPhoto = false;
   }
 
   cancelCreate(): void {
@@ -171,6 +201,10 @@ export class TutorDogsComponent implements OnDestroy {
   }
 
   submitCreate(): void {
+    if (this.isEdit) {
+      this.submitEdit();
+      return;
+    }
     if (this.isSaving || this.retryRequired) {
       if (this.retryRequired) {
         this.sendCreateRequest();
@@ -233,6 +267,8 @@ export class TutorDogsComponent implements OnDestroy {
     this.dog = null;
     this.errorMessage = '';
     this.configurationMessage = '';
+    this.etag = null;
+    this.removeExistingPhoto = false;
     this.loading = true;
 
     if (this.isCreate) {
@@ -278,11 +314,15 @@ export class TutorDogsComponent implements OnDestroy {
 
   private loadDog(dogId: number): void {
     this.requestSubscriptions.add(this.operationsService.getMyDog(dogId).subscribe({
-      next: (dog: TutorDogDetail) => {
-        this.dog = dog;
+      next: (result) => {
+        this.dog = result.dog;
+        this.etag = result.etag;
+        if (this.isEdit) {
+          this.populateEditForm(result.dog);
+        }
         this.loading = false;
-        if (dog.photoAvailable) {
-          this.loadPhoto(dog.id);
+        if (result.dog.photoAvailable) {
+          this.loadPhoto(result.dog.id);
         }
       },
       error: (error: HttpErrorResponse) => this.handleError(error)
@@ -341,9 +381,6 @@ export class TutorDogsComponent implements OnDestroy {
     if (this.birthDate && this.birthDate > this.today) {
       return 'La fecha de nacimiento no puede ser futura.';
     }
-    if (this.feedingInstructions.length > 1000 || this.temperament.length > 1000) {
-      return 'Alimentación y temperamento admiten hasta 1000 caracteres.';
-    }
     if (this.allergyRows.some((description: string) => !description.trim() || description.trim().length > 1000)) {
       return 'Cada alergia debe incluir una descripción de hasta 1000 caracteres.';
     }
@@ -357,11 +394,93 @@ export class TutorDogsComponent implements OnDestroy {
     if (this.authorizedPersonRows.some((person) => {
       const hasName: boolean = Boolean(person.name.trim());
       const hasPhone: boolean = Boolean(person.phone.trim());
-      return hasName !== hasPhone || person.name.trim().length > 120 || person.phone.trim().length > 30;
+      const existingPersonWasCleared: boolean = person.id !== null && !hasName && !hasPhone;
+      return existingPersonWasCleared || hasName !== hasPhone
+        || person.name.trim().length > 120 || person.phone.trim().length > 30;
     })) {
       return 'Cada persona autorizada debe incluir nombre y teléfono (hasta 120 y 30 caracteres).';
     }
     return '';
+  }
+
+  private populateEditForm(dog: TutorDogDetail): void {
+    this.dogName = dog.name;
+    this.breed = dog.breed ?? '';
+    this.size = dog.size;
+    this.birthDate = dog.birthDate ?? '';
+    this.allergyRows = dog.allergies
+      .filter((allergy) => allergy.declaredByTutor)
+      .map((allergy) => allergy.description);
+    this.medicationRows = dog.medications
+      .filter((medication) => medication.declaredByTutor)
+      .map((medication) => ({
+        medication: medication.medication,
+        dosage: medication.dosage ?? '',
+        instructions: medication.instructions
+      }));
+    this.authorizedPersonRows = dog.authorizedPersons.map((person) => ({
+      id: person.id,
+      name: person.name,
+      phone: person.phone
+    }));
+    this.existingAuthorizedPersons = dog.authorizedPersons;
+  }
+
+  private submitEdit(): void {
+    this.formErrorMessage = this.validateCreateForm();
+    if (this.formErrorMessage || this.photoErrorMessage || this.isSaving) {
+      return;
+    }
+    if (this.hasRepeatedAuthorizedPerson()
+      && !window.confirm('Hay una persona con el mismo nombre y teléfono en tus autorizaciones o en este formulario. ¿Quieres mantenerla como un registro independiente?')) {
+      return;
+    }
+    if (this.currentDogId === null || this.size === '' || this.etag === null) {
+      this.formErrorMessage = 'No se pudo cargar la versión actual de la ficha. Vuelve a abrirla antes de guardar.';
+      return;
+    }
+    const request: TutorDogUpdateRequest = {
+      name: this.dogName.trim(),
+      breed: this.breed.trim() || null,
+      size: this.size,
+      birthDate: this.birthDate || null,
+      allergies: this.allergyRows.map((description) => ({ description: description.trim() })),
+      medications: this.medicationRows.map((item) => ({
+        medication: item.medication.trim(),
+        dosage: item.dosage.trim() || null,
+        instructions: item.instructions.trim()
+      })),
+      authorizedPersons: this.authorizedPersonRows
+        .filter((person) => person.name.trim() || person.phone.trim())
+        .map((person) => ({
+        id: person.id,
+        name: person.name.trim(),
+        phone: person.phone.trim()
+        })),
+      removePhoto: this.removeExistingPhoto
+    };
+    this.isSaving = true;
+    this.operationsService.updateMyDog(
+      this.currentDogId,
+      request,
+      this.selectedPhoto,
+      this.etag
+    ).subscribe({
+      next: (result) => {
+        this.isSaving = false;
+        this.router.navigate(['/mis-perros', result.dog.id]);
+      },
+      error: (error: HttpErrorResponse) => {
+        this.isSaving = false;
+        if (error.status === 401) {
+          this.handleError(error);
+          return;
+        }
+        this.formErrorMessage = error.status === 409 || error.status === 412
+          ? 'La ficha ha cambiado mientras la editabas. Tus datos siguen en el formulario; cancela y vuelve a abrir la ficha para cargar la versión actual.'
+          : 'No se pudo guardar la ficha. Tus cambios siguen en el formulario; revisa los datos e inténtalo de nuevo.';
+      }
+    });
   }
 
   private sendCreateRequest(): void {
@@ -373,8 +492,6 @@ export class TutorDogsComponent implements OnDestroy {
       breed: this.breed.trim() || null,
       size: this.size,
       birthDate: this.birthDate || null,
-      feedingInstructions: this.feedingInstructions.trim() || null,
-      temperament: this.temperament.trim() || null,
       allergies: this.allergyRows.map((description: string) => ({ description: description.trim() })),
       medications: this.medicationRows.map((item) => ({
         medication: item.medication.trim(),
@@ -419,16 +536,17 @@ export class TutorDogsComponent implements OnDestroy {
   private hasRepeatedAuthorizedPerson(): boolean {
     const normalizeName = (value: string): string => value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('es-ES');
     const normalizePhone = (value: string): string => value.replace(/[\s().-]/g, '');
-    const seen: Set<string> = new Set(
-      this.existingAuthorizedPersons.map((person) =>
-        `${normalizeName(person.name)}|${normalizePhone(person.phone)}`)
-    );
+    const seen: Set<string> = new Set();
     for (const person of this.authorizedPersonRows) {
       if (!person.name.trim() || !person.phone.trim()) {
         continue;
       }
       const key: string = `${normalizeName(person.name)}|${normalizePhone(person.phone)}`;
-      if (seen.has(key)) {
+      const repeatsExisting: boolean = this.existingAuthorizedPersons.some((existing) =>
+        existing.id !== person.id
+        && `${normalizeName(existing.name)}|${normalizePhone(existing.phone)}` === key
+      );
+      if (seen.has(key) || repeatsExisting) {
         return true;
       }
       seen.add(key);

@@ -34,12 +34,16 @@
         <h2>Información de cuidados registrada</h2>
         <h3>Temperamento</h3>
         <p>{{ item.dog.temperament || 'No hay datos de temperamento registrados.' }}</p>
+        @if (item.dog.temperamentDeclaredByTutor) { <p class="warning">Información aportada por el tutor.</p> }
         <h3>Pautas de alimentación</h3>
         <p>{{ item.dog.feedingInstructions || 'No hay pautas de alimentación registradas.' }}</p>
+        @if (item.dog.feedingDeclaredByTutor) { <p class="warning">Información aportada por el tutor.</p> }
         <h3>Alergias</h3>
         @if (item.dog.allergies.length > 0) {
           <ul>
-            @for (allergy of item.dog.allergies; track $index) { <li>{{ allergy }}</li> }
+            @for (allergy of item.dog.allergies; track $index) {
+              <li>{{ allergy.description }} @if (allergy.declaredByTutor) { <span class="warning"> (información aportada por el tutor)</span> }</li>
+            }
           </ul>
         } @else {
           <p>No hay datos de alergias registrados. Esto no garantiza que no existan necesidades especiales.</p>
@@ -51,6 +55,7 @@
               <li><strong>{{ medication.medication }}</strong>
                 @if (medication.dosage) { — {{ medication.dosage }} }
                 · Pauta registrada: {{ medication.instructions }}
+                @if (medication.declaredByTutor) { <span class="warning"> (información aportada por el tutor)</span> }
               </li>
             }
           </ul>

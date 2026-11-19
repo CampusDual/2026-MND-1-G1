@@ -8,6 +8,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.web.servlet.MvcResult;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -94,8 +95,8 @@ class TutorPortalControllerITTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Luna"))
                 .andExpect(jsonPath("$.feedingInstructions").value("Alimentación compartida"))
-                .andExpect(jsonPath("$.temperament").value("Temperamento compartido"))
-                .andExpect(jsonPath("$.allergies[0]").value("Alergia de integración"))
+                .andExpect(jsonPath("$.temperament").doesNotExist())
+                .andExpect(jsonPath("$.allergies[0].description").value("Alergia de integración"))
                 .andExpect(jsonPath("$.medications[0].medication").value("Medicación de prueba"))
                 .andExpect(jsonPath("$.medications[0].dosage").value("2 ml"))
                 .andExpect(jsonPath("$.incompatibilities").doesNotExist())
@@ -154,8 +155,6 @@ class TutorPortalControllerITTest {
                   "breed": "Mestiza",
                   "size": "MEDIANO",
                   "birthDate": "2022-05-04",
-                  "feedingInstructions": "Ración aportada por el tutor",
-                  "temperament": "Información declarada por el tutor",
                   "allergies": [{"description": "Reacción declarada"}],
                   "medications": [{
                     "medication": "Tratamiento informado",
@@ -176,7 +175,7 @@ class TutorPortalControllerITTest {
                         .header("Authorization", basicAuthorization(owner.username())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("Nube"))
-                .andExpect(jsonPath("$.allergies[0]").value("Reacción declarada"))
+                .andExpect(jsonPath("$.allergies[0].description").value("Reacción declarada"))
                 .andExpect(jsonPath("$.medications[0].medication").value("Tratamiento informado"))
                 .andExpect(jsonPath("$.authorizedPersons[0].name").value("Persona autorizada"))
                 .andExpect(jsonPath("$.authorizedPersons[0].phone").value("+1 202 555 0188"));
@@ -312,6 +311,182 @@ class TutorPortalControllerITTest {
                 owner.tutorId(),
                 idempotencyKey
         ));
+    }
+
+    @Test
+    void tutorUpdatesOnlyTheirDogAndPreservesCenterCareRecords() throws Exception {
+        TutorAccount owner = createTutorAccount();
+        long dogId = createDog(owner.tutorId(), "Antes", null);
+        long otherDogId = createDog(owner.tutorId(), "Sin cambios", null);
+        this.jdbcTemplate.update("""
+                INSERT INTO alergia (perro_id, descripcion, declarada_por_tutor)
+                VALUES (?, 'Alergia del centro', FALSE)
+                """, dogId);
+        long centerAllergyId = this.jdbcTemplate.queryForObject(
+                "SELECT id FROM alergia WHERE perro_id = ? AND descripcion = 'Alergia del centro'",
+                Long.class,
+                dogId
+        );
+        this.jdbcTemplate.update("""
+                INSERT INTO medicacion (perro_id, medicamento, dosis, pauta, declarada_por_tutor)
+                VALUES (?, 'Medicación del centro', '1 ml', 'Pauta interna', FALSE)
+                """, dogId);
+        this.jdbcTemplate.update("""
+                INSERT INTO alergia (perro_id, descripcion, declarada_por_tutor)
+                VALUES (?, 'Alergia tutor anterior', TRUE)
+                """, dogId);
+        this.jdbcTemplate.update("""
+                INSERT INTO medicacion (perro_id, medicamento, dosis, pauta, declarada_por_tutor)
+                VALUES (?, 'Medicación tutor anterior', '2 ml', 'Pauta declarada', TRUE)
+                """, dogId);
+        this.jdbcTemplate.update("""
+                INSERT INTO persona_autorizada (tutor_id, nombre, telefono, registrado_por_usuario_id, creado_en)
+                VALUES (?, 'Persona inicial', '5550101',
+                        (SELECT id FROM usuarios WHERE username = ?), CURRENT_TIMESTAMP)
+                """, owner.tutorId(), owner.username());
+        Long existingAuthorizedId = this.jdbcTemplate.queryForObject(
+                "SELECT id FROM persona_autorizada WHERE tutor_id = ? AND nombre = 'Persona inicial'",
+                Long.class,
+                owner.tutorId()
+        );
+
+        MvcResult detailResult = this.mockMvc.perform(get("/api/tutor/mis-perros/{id}", dogId)
+                        .header("Authorization", basicAuthorization(owner.username())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.temperament").doesNotExist())
+                .andExpect(jsonPath("$.allergies[0].description").value("Alergia del centro"))
+                .andReturn();
+        String etag = detailResult.getResponse().getHeader("ETag");
+
+        String request = """
+                {
+                  "name": "Después",
+                  "breed": "Mestiza",
+                  "size": "GRANDE",
+                  "birthDate": "2021-06-03",
+                  "allergies": [{"description": "Alergia tutor nueva"}],
+                  "medications": [{
+                    "medication": "Medicación tutor nueva",
+                    "dosage": null,
+                    "instructions": "Pauta comunicada"
+                  }],
+                  "authorizedPersons": [
+                    {"id": %d, "name": "Persona actualizada", "phone": "5550202"},
+                    {"id": null, "name": "Persona nueva", "phone": "5550303"}
+                  ],
+                  "removePhoto": false
+                }
+                """.formatted(existingAuthorizedId);
+
+        MvcResult updateResult = this.mockMvc.perform(multipart("/api/tutor/mis-perros/{id}", dogId)
+                        .file(jsonRequestPart(request))
+                        .header("If-Match", etag)
+                        .header("Authorization", basicAuthorization(owner.username()))
+                        .with(servletRequest -> {
+                            servletRequest.setMethod("PUT");
+                            return servletRequest;
+                        }))
+                .andExpect(status().isOk())
+                .andExpect(header().exists("ETag"))
+                .andExpect(jsonPath("$.name").value("Después"))
+                .andExpect(jsonPath("$.temperament").doesNotExist())
+                .andExpect(jsonPath("$.allergies.length()").value(2))
+                .andExpect(jsonPath("$.allergies[0].description").value("Alergia del centro"))
+                .andExpect(jsonPath("$.allergies[0].declaredByTutor").value(false))
+                .andExpect(jsonPath("$.medications.length()").value(2))
+                .andExpect(jsonPath("$.authorizedPersons.length()").value(2))
+                .andReturn();
+
+        assertEquals(1, this.jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM alergia WHERE id = ? AND declarada_por_tutor = FALSE",
+                Integer.class,
+                centerAllergyId
+        ));
+        assertEquals(1, this.jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM medicacion WHERE perro_id = ? AND medicamento = 'Medicación del centro'",
+                Integer.class,
+                dogId
+        ));
+        assertEquals("Alimentación compartida", this.jdbcTemplate.queryForObject(
+                "SELECT pautas_alimentacion FROM perro WHERE id = ?",
+                String.class,
+                dogId
+        ));
+        assertEquals("Temperamento compartido", this.jdbcTemplate.queryForObject(
+                "SELECT temperamento FROM perro WHERE id = ?",
+                String.class,
+                dogId
+        ));
+        assertEquals(0, this.jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM alergia WHERE perro_id = ? AND descripcion = 'Alergia tutor anterior'",
+                Integer.class,
+                dogId
+        ));
+        assertEquals(1, this.jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM perro WHERE id = ? AND nombre = 'Sin cambios'",
+                Integer.class,
+                otherDogId
+        ));
+        assertEquals(1, this.jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM persona_autorizada WHERE id = ? AND nombre = 'Persona actualizada'",
+                Integer.class,
+                existingAuthorizedId
+        ));
+
+        long newAuthorizedId = this.jdbcTemplate.queryForObject(
+                "SELECT id FROM persona_autorizada WHERE tutor_id = ? AND nombre = 'Persona nueva'",
+                Long.class,
+                owner.tutorId()
+        );
+        String updatedEtag = updateResult.getResponse().getHeader("ETag");
+        String revokeRequest = """
+                {
+                  "name": "Después",
+                  "breed": "Mestiza",
+                  "size": "GRANDE",
+                  "birthDate": "2021-06-03",
+                  "allergies": [{"description": "Alergia tutor nueva"}],
+                  "medications": [{
+                    "medication": "Medicación tutor nueva",
+                    "dosage": null,
+                    "instructions": "Pauta comunicada"
+                  }],
+                  "authorizedPersons": [
+                    {"id": %d, "name": "Persona nueva", "phone": "5550303"}
+                  ],
+                  "removePhoto": false
+                }
+                """.formatted(newAuthorizedId);
+        this.mockMvc.perform(multipart("/api/tutor/mis-perros/{id}", dogId)
+                        .file(jsonRequestPart(revokeRequest))
+                        .header("If-Match", updatedEtag)
+                        .header("Authorization", basicAuthorization(owner.username()))
+                        .with(servletRequest -> {
+                            servletRequest.setMethod("PUT");
+                            return servletRequest;
+                        }))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.authorizedPersons.length()").value(1));
+        assertEquals(1, this.jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM persona_autorizada WHERE id = ? AND revocado_en IS NOT NULL",
+                Integer.class,
+                existingAuthorizedId
+        ));
+        this.mockMvc.perform(get("/api/tutor/mis-perros/personas-autorizadas")
+                        .header("Authorization", basicAuthorization(owner.username())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].name").value("Persona nueva"));
+
+        this.mockMvc.perform(multipart("/api/tutor/mis-perros/{id}", dogId)
+                        .file(jsonRequestPart(request))
+                        .header("If-Match", etag)
+                        .header("Authorization", basicAuthorization(owner.username()))
+                        .with(servletRequest -> {
+                            servletRequest.setMethod("PUT");
+                            return servletRequest;
+                        }))
+                .andExpect(status().isConflict());
     }
 
     private MockMultipartFile jsonRequestPart(String request) {

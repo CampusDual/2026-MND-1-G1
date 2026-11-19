@@ -31,6 +31,9 @@ public class MedicationEntity {
     @Column(name = "pauta", nullable = false, length = 1000)
     private String instructions;
 
+    @Column(name = "declarada_por_tutor", nullable = false)
+    private Boolean declaredByTutor;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public DogEntity getDog() { return dog; }
@@ -41,4 +44,6 @@ public class MedicationEntity {
     public void setDosage(String dosage) { this.dosage = dosage; }
     public String getInstructions() { return instructions; }
     public void setInstructions(String instructions) { this.instructions = instructions; }
+    public Boolean getDeclaredByTutor() { return declaredByTutor; }
+    public void setDeclaredByTutor(Boolean declaredByTutor) { this.declaredByTutor = declaredByTutor; }
 }

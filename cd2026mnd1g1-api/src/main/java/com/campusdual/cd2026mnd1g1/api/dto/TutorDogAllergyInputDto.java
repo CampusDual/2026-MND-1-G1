@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 /**
- * Declaración de alergia facilitada por el tutor durante el alta.
+ * Declaración de alergia facilitada por el tutor.
  */
 public record TutorDogAllergyInputDto(
         @NotBlank(message = "La descripción de cada alergia es obligatoria")

@@ -6,6 +6,7 @@ package com.campusdual.cd2026mnd1g1.api.dto;
 public record TutorMedicationDto(
         String medication,
         String dosage,
-        String instructions
+        String instructions,
+        boolean declaredByTutor
 ) {
 }

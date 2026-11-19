@@ -132,9 +132,13 @@ public class DogServiceImpl implements DogService {
         List<AuthorizedPersonDto> authorizedPersons = dog.getTutor() == null
                 ? List.of()
                 : this.authorizedPersonRepository
-                        .findByTutor_IdOrderByNameAscIdAsc(dog.getTutor().getId())
+                        .findByTutor_IdAndRevokedAtIsNullOrderByNameAscIdAsc(dog.getTutor().getId())
                         .stream()
-                        .map(person -> new AuthorizedPersonDto(person.getId(), person.getName()))
+                        .map(person -> new AuthorizedPersonDto(
+                                person.getId(),
+                                person.getName(),
+                                person.getPhone()
+                        ))
                         .toList();
         return new DogDetailDto(mapToDto(dog), authorizedPersons);
     }
@@ -166,6 +170,8 @@ public class DogServiceImpl implements DogService {
         dog.setBirthDate(request.birthDate());
         dog.setActive(true);
         dog.setInformationDeclaredByTutor(false);
+        dog.setFeedingDeclaredByTutor(false);
+        dog.setTemperamentDeclaredByTutor(false);
         dog.setCreatedAt(LocalDateTime.now(this.receptionClock));
         return mapToDto(this.dogRepository.save(dog));
     }

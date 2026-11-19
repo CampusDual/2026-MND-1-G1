@@ -1,6 +1,7 @@
 package com.campusdual.cd2026mnd1g1.model.service;
 
 import com.campusdual.cd2026mnd1g1.api.dto.ReceptionDogDto;
+import com.campusdual.cd2026mnd1g1.api.dto.ReceptionDogAllergyDto;
 import com.campusdual.cd2026mnd1g1.api.dto.AuthorizedPersonDto;
 import com.campusdual.cd2026mnd1g1.api.dto.ReceptionDepartureDataDto;
 import com.campusdual.cd2026mnd1g1.api.dto.MedicationDto;
@@ -146,8 +147,13 @@ public class ReceptionReservationServiceImpl implements ReceptionReservationServ
                         dog.getTemperament(),
                         dog.getFeedingInstructions(),
                         Boolean.TRUE.equals(dog.getInformationDeclaredByTutor()),
+                        Boolean.TRUE.equals(dog.getFeedingDeclaredByTutor()),
+                        Boolean.TRUE.equals(dog.getTemperamentDeclaredByTutor()),
                         this.allergyRepository.findByDog_Id(dog.getId()).stream()
-                                .map(AllergyEntity::getDescription)
+                                .map(allergy -> new ReceptionDogAllergyDto(
+                                        allergy.getDescription(),
+                                        Boolean.TRUE.equals(allergy.getDeclaredByTutor())
+                                ))
                                 .toList(),
                         this.medicationRepository.findByDog_Id(dog.getId()).stream()
                                 .map(this::mapMedication)
@@ -167,7 +173,9 @@ public class ReceptionReservationServiceImpl implements ReceptionReservationServ
         List<AuthorizedPersonDto> authorizedPersons = reservation.getDog().getTutor() == null
                 ? List.of()
                 : this.authorizedPersonRepository
-                        .findByTutor_IdOrderByNameAscIdAsc(reservation.getDog().getTutor().getId())
+                        .findByTutor_IdAndRevokedAtIsNullOrderByNameAscIdAsc(
+                                reservation.getDog().getTutor().getId()
+                        )
                         .stream()
                         .map(this::mapAuthorizedPerson)
                         .toList();
@@ -187,7 +195,7 @@ public class ReceptionReservationServiceImpl implements ReceptionReservationServ
     }
 
     private AuthorizedPersonDto mapAuthorizedPerson(AuthorizedPersonEntity person) {
-        return new AuthorizedPersonDto(person.getId(), person.getName());
+        return new AuthorizedPersonDto(person.getId(), person.getName(), person.getPhone());
     }
 
     private void ensureTutorBelongsToCenter(DogEntity dog, UserEntity user) {
@@ -202,7 +210,8 @@ public class ReceptionReservationServiceImpl implements ReceptionReservationServ
                 medication.getId(),
                 medication.getMedication(),
                 medication.getDosage(),
-                medication.getInstructions()
+                medication.getInstructions(),
+                Boolean.TRUE.equals(medication.getDeclaredByTutor())
         );
     }
 

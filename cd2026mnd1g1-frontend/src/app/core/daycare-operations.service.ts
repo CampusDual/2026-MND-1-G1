@@ -30,8 +30,10 @@ import {
   TutorVersionedResponse,
   TutorDogPage,
   TutorDogDetail,
+  TutorDogVersionedResponse,
   TutorAuthorizedPerson,
-  TutorDogCreateRequest
+  TutorDogCreateRequest,
+  TutorDogUpdateRequest
 } from './operational.models';
 import { AuthService } from './auth.service';
 
@@ -66,10 +68,11 @@ export class DaycareOperationsService {
     });
   }
 
-  getMyDog(dogId: number): Observable<TutorDogDetail> {
+  getMyDog(dogId: number): Observable<TutorDogVersionedResponse> {
     return this.http.get<TutorDogDetail>(`${this.tutorDogsPath}/${dogId}`, {
-      headers: this.getAuthHeaders()
-    });
+      headers: this.getAuthHeaders(),
+      observe: 'response'
+    }).pipe(map((response: HttpResponse<TutorDogDetail>) => this.mapTutorDogResponse(response)));
   }
 
   getMyDogPhoto(dogId: number): Observable<Blob> {
@@ -98,6 +101,23 @@ export class DaycareOperationsService {
     return this.http.post<TutorDogDetail>(this.tutorDogsPath, formData, {
       headers: this.getAuthHeaders().set('Idempotency-Key', idempotencyKey)
     });
+  }
+
+  updateMyDog(
+    dogId: number,
+    request: TutorDogUpdateRequest,
+    photo: File | null,
+    etag: string
+  ): Observable<TutorDogVersionedResponse> {
+    const formData: FormData = new FormData();
+    formData.append('request', new Blob([JSON.stringify(request)], { type: 'application/json' }));
+    if (photo !== null) {
+      formData.append('photo', photo, photo.name);
+    }
+    return this.http.put<TutorDogDetail>(`${this.tutorDogsPath}/${dogId}`, formData, {
+      headers: this.getAuthHeaders().set('If-Match', etag),
+      observe: 'response'
+    }).pipe(map((response: HttpResponse<TutorDogDetail>) => this.mapTutorDogResponse(response)));
   }
 
   getReceptionReservations(date: string, page: number, size: number): Observable<ReceptionReservationPage> {
@@ -266,6 +286,17 @@ export class DaycareOperationsService {
       throw new Error('El servidor no devolvió la versión de la ficha.');
     }
     return { tutor: response.body, etag };
+  }
+
+  private mapTutorDogResponse(response: HttpResponse<TutorDogDetail>): TutorDogVersionedResponse {
+    if (response.body === null) {
+      throw new Error('El servidor devolvió una ficha de perro vacía.');
+    }
+    const etag: string | null = response.headers.get('ETag');
+    if (etag === null) {
+      throw new Error('El servidor no devolvió la versión de la ficha del perro.');
+    }
+    return { dog: response.body, etag };
   }
 
   private mapDogResponse(response: HttpResponse<Dog>): DogVersionedResponse {

@@ -77,6 +77,9 @@ function reservationForToday(): ReceptionReservationDetail {
       birthDate: null,
       temperament: null,
       feedingInstructions: null,
+      informationDeclaredByTutor: false,
+      feedingDeclaredByTutor: false,
+      temperamentDeclaredByTutor: false,
       allergies: [],
       medications: []
     },

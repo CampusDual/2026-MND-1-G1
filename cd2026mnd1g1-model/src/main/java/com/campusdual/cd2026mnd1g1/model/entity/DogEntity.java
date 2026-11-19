@@ -59,8 +59,21 @@ public class DogEntity {
     @Column(name = "informacion_declarada_por_tutor", nullable = false)
     private Boolean informationDeclaredByTutor;
 
+    @Column(name = "alimentacion_declarada_por_tutor", nullable = false)
+    private Boolean feedingDeclaredByTutor;
+
+    @Column(name = "temperamento_declarado_por_tutor", nullable = false)
+    private Boolean temperamentDeclaredByTutor;
+
     @Column(name = "creado_en", nullable = false)
     private LocalDateTime createdAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "actualizado_por_usuario_id")
+    private UserEntity updatedBy;
+
+    @Column(name = "actualizado_en")
+    private LocalDateTime updatedAt;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -88,6 +101,18 @@ public class DogEntity {
     public void setInformationDeclaredByTutor(Boolean informationDeclaredByTutor) {
         this.informationDeclaredByTutor = informationDeclaredByTutor;
     }
+    public Boolean getFeedingDeclaredByTutor() { return feedingDeclaredByTutor; }
+    public void setFeedingDeclaredByTutor(Boolean feedingDeclaredByTutor) {
+        this.feedingDeclaredByTutor = feedingDeclaredByTutor;
+    }
+    public Boolean getTemperamentDeclaredByTutor() { return temperamentDeclaredByTutor; }
+    public void setTemperamentDeclaredByTutor(Boolean temperamentDeclaredByTutor) {
+        this.temperamentDeclaredByTutor = temperamentDeclaredByTutor;
+    }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public UserEntity getUpdatedBy() { return updatedBy; }
+    public void setUpdatedBy(UserEntity updatedBy) { this.updatedBy = updatedBy; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

@@ -92,12 +92,12 @@ paths:
       summary: Registra un perro y datos asociados para el tutor autenticado
       description: >
         Obtiene tutor y centro desde la sesión; no acepta sus identificadores ni
-        datos internos. La operación de base de datos es transaccional. Las
-        personas autorizadas quedan vinculadas al tutor para sus perros actuales
-        y futuros. La información de cuidados se marca como declarada por el
-        tutor y no revisada por el centro. Requiere una clave UUID estable para
-        proteger reintentos; repetir la misma clave y datos devuelve el resultado
-        anterior sin crear otro registro.
+        datos internos. Las pautas de alimentación y el temperamento son
+        gestionados por el centro y no se reciben desde el portal. La operación
+        de base de datos es transaccional. Las personas autorizadas quedan
+        vinculadas al tutor para sus perros actuales y futuros. Requiere una
+        clave UUID estable para proteger reintentos; repetir la misma clave y
+        datos devuelve el resultado anterior sin crear otro registro.
       operationId: createMyDog
       security:
         - basicAuth: []
@@ -175,9 +175,9 @@ paths:
       tags: [Tutors]
       summary: Lista las autorizaciones generales del tutor autenticado
       description: >
-        Devuelve solo nombre y teléfono de las personas autorizadas para recoger
-        cualquiera de los perros actuales o futuros del tutor. No permite
-        modificar ni revocar autorizaciones.
+        Devuelve las personas autorizadas para recoger cualquiera de los perros
+        actuales o futuros del tutor. La modificación y revocación se realiza
+        dentro de la actualización versionada de una ficha propia.
       operationId: listMyAuthorizedPersons
       security:
         - basicAuth: []
@@ -211,13 +211,20 @@ paths:
     get:
       tags: [Tutors]
       summary: Consulta una ficha propia en modo lectura
-      description: Los campos internos, peso, incidencias y relaciones de terceros no se incluyen.
+      description: >
+        Excluye el temperamento, datos internos, peso, incidencias y relaciones
+        de terceros. La alimentación se devuelve solo como información de consulta.
       operationId: getMyDog
       security:
         - basicAuth: []
       responses:
         '200':
           description: Ficha con los campos permitidos para el tutor.
+          headers:
+            ETag:
+              description: Versión para la actualización condicional.
+              schema:
+                type: string
           content:
             application/json:
               schema:
@@ -232,6 +239,74 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    put:
+      tags: [Tutors]
+      summary: Actualiza los campos editables de un perro propio
+      description: >
+        Obtiene tutor y centro desde la sesión y bloquea la ficha para evitar
+        escrituras concurrentes. Solo actualiza datos básicos, alergias y
+        medicación declaradas por el tutor, foto y autorizaciones generales del
+        tutor. La alimentación es de solo lectura y el temperamento no se
+        expone en este portal. Los registros de cuidados creados por recepción
+        se conservan. La lista completa de autorizaciones es obligatoria: las
+        filas con ID se actualizan, las filas sin ID se crean y las omitidas se
+        revocan lógicamente. La operación de base de datos es transaccional; la
+        gestión del archivo de foto se compensa por separado.
+      operationId: updateMyDog
+      security:
+        - basicAuth: []
+      parameters:
+        - in: header
+          name: If-Match
+          required: true
+          description: ETag recibido al consultar la ficha.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [request]
+              properties:
+                request:
+                  $ref: '#/components/schemas/TutorDogUpdateRequestDto'
+                photo:
+                  type: string
+                  format: binary
+                  description: Nueva imagen JPEG o PNG de hasta 5 MiB; opcional.
+            encoding:
+              request:
+                contentType: application/json
+      responses:
+        '200':
+          description: Ficha actualizada.
+          headers:
+            ETag:
+              description: Nueva versión de la ficha.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TutorDogDetailDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
         '500':
@@ -1451,18 +1526,15 @@ components:
           type: string
           nullable: true
           maxLength: 1000
-          description: Campo acordado como compartible con el tutor; no guardar aquí notas internas.
-        temperament:
-          type: string
-          nullable: true
-          maxLength: 1000
-          description: Campo acordado como compartible con el tutor; no guardar aquí evaluaciones privadas.
+          description: Pauta de consulta; solo el centro puede actualizarla.
+        feedingDeclaredByTutor:
+          type: boolean
+          description: Procedencia histórica del valor; no habilita su edición por el tutor.
         allergies:
           type: array
           description: Lista de descripciones registradas; una lista vacía no afirma que no existan alergias.
           items:
-            type: string
-            maxLength: 1000
+            $ref: '#/components/schemas/TutorDogAllergyDto'
         medications:
           type: array
           description: Pautas registradas, no dosis administradas ni tratamientos activos.
@@ -1494,15 +1566,6 @@ components:
           format: date
           nullable: true
           description: No puede ser posterior a la fecha actual del centro.
-        feedingInstructions:
-          type: string
-          nullable: true
-          maxLength: 1000
-        temperament:
-          type: string
-          nullable: true
-          maxLength: 1000
-          description: Información declarada por el tutor, nunca una evaluación interna.
         allergies:
           type: array
           items:
@@ -1517,6 +1580,55 @@ components:
           description: Nuevas personas autorizadas generales; filas vacías se omiten.
           items:
             $ref: '#/components/schemas/TutorDogAuthorizedPersonInputDto'
+    TutorDogUpdateRequestDto:
+      type: object
+      required: [name, size, allergies, medications, authorizedPersons, removePhoto]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        breed:
+          type: string
+          nullable: true
+          maxLength: 120
+        size:
+          type: string
+          enum: [PEQUENO, MEDIANO, GRANDE]
+        birthDate:
+          type: string
+          format: date
+          nullable: true
+          description: No puede ser posterior a la fecha actual del centro.
+        allergies:
+          type: array
+          description: Reemplaza únicamente las alergias declaradas por el tutor; las del centro se conservan.
+          items:
+            $ref: '#/components/schemas/TutorDogAllergyInputDto'
+        medications:
+          type: array
+          description: Reemplaza únicamente las pautas declaradas por el tutor; las del centro se conservan.
+          items:
+            $ref: '#/components/schemas/TutorDogMedicationInputDto'
+        authorizedPersons:
+          type: array
+          description: Conjunto completo de autorizaciones generales; IDs existentes se actualizan, nuevas filas se crean y las omitidas se revocan.
+          items:
+            $ref: '#/components/schemas/TutorDogAuthorizedPersonEditInputDto'
+        removePhoto:
+          type: boolean
+          description: Retira la foto actual; no puede combinarse con el envío de otra foto.
+    TutorDogAllergyDto:
+      type: object
+      required: [description, declaredByTutor]
+      properties:
+        description:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        declaredByTutor:
+          type: boolean
     TutorDogAllergyInputDto:
       type: object
       required: [description]
@@ -1558,8 +1670,12 @@ components:
       description: Si alguno se aporta, ambos son obligatorios; si ambos se omiten o vacían, la fila no se guarda.
     TutorAuthorizedPersonDto:
       type: object
-      required: [name, phone]
+      required: [id, name, phone]
       properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 0
         name:
           type: string
           minLength: 1
@@ -1570,7 +1686,7 @@ components:
           maxLength: 30
     TutorMedicationDto:
       type: object
-      required: [medication, instructions]
+      required: [medication, instructions, declaredByTutor]
       properties:
         medication:
           type: string
@@ -1584,6 +1700,27 @@ components:
           type: string
           minLength: 1
           maxLength: 1000
+        declaredByTutor:
+          type: boolean
+    TutorDogAuthorizedPersonEditInputDto:
+      type: object
+      required: [name, phone]
+      additionalProperties: false
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 0
+          nullable: true
+          description: ID de una autorización ya mostrada para este tutor; null para crear.
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        phone:
+          type: string
+          minLength: 1
+          maxLength: 30
     DogDto:
       type: object
       required: [id, name, size, tutorId, tutorName, tutorNationalId]
@@ -1994,7 +2131,7 @@ components:
           maxLength: 120
     ReceptionDogDto:
       type: object
-      required: [id, name, size, allergies, medications]
+      required: [id, name, size, informationDeclaredByTutor, feedingDeclaredByTutor, temperamentDeclaredByTutor, allergies, medications]
       properties:
         id:
           type: integer
@@ -2022,17 +2159,34 @@ components:
           type: string
           maxLength: 1000
           nullable: true
+        informationDeclaredByTutor:
+          type: boolean
+        feedingDeclaredByTutor:
+          type: boolean
+          description: Identifica la procedencia; no equivale a aprobación del centro.
+        temperamentDeclaredByTutor:
+          type: boolean
+          description: Procedencia del dato interno del centro.
         allergies:
           type: array
           description: Una lista vacía significa que no hay datos registrados, no que se confirme ausencia de alergias.
           items:
-            type: string
-            maxLength: 1000
+            $ref: '#/components/schemas/ReceptionDogAllergyDto'
         medications:
           type: array
           description: Medicación y pautas registradas, solo para consulta.
           items:
             $ref: '#/components/schemas/MedicationDto'
+    ReceptionDogAllergyDto:
+      type: object
+      required: [description, declaredByTutor]
+      properties:
+        description:
+          type: string
+          maxLength: 1000
+        declaredByTutor:
+          type: boolean
+          description: Procedencia; no implica revisión.
     ReceptionTutorDto:
       type: object
       required: [name, phone]
@@ -2157,7 +2311,7 @@ components:
           maxLength: 1000
     MedicationDto:
       type: object
-      required: [id, medication, instructions]
+      required: [id, medication, instructions, declaredByTutor]
       properties:
         id:
           type: integer
@@ -2173,6 +2327,9 @@ components:
         instructions:
           type: string
           maxLength: 1000
+        declaredByTutor:
+          type: boolean
+          description: Procedencia; no implica revisión ni administración.
     IncompatibilityDto:
       type: object
       required: [id, incompatibleDogId, incompatibleDogName]
@@ -2235,7 +2392,7 @@ components:
           description: Observaciones de llegada y descripción libre de pertenencias, si las hay.
     AuthorizedPersonDto:
       type: object
-      required: [id, name]
+      required: [id, name, phone]
       properties:
         id:
           type: integer
@@ -2244,6 +2401,9 @@ components:
         name:
           type: string
           maxLength: 120
+        phone:
+          type: string
+          maxLength: 30
     ReceptionDepartureDataDto:
       type: object
       required: [reservationId, date, modality, reservationStatus, dogName, presenceStatus, authorizedPersons]
