@@ -7,6 +7,9 @@ import com.campusdual.cd2026mnd1g1.model.exception.CapacityExceededException;
 import com.campusdual.cd2026mnd1g1.model.exception.DuplicateReservationException;
 import com.campusdual.cd2026mnd1g1.model.exception.ResourceNotFoundException;
 import com.campusdual.cd2026mnd1g1.model.exception.OperationalUserNotFoundException;
+import com.campusdual.cd2026mnd1g1.model.exception.TutorAccountInconsistentException;
+import com.campusdual.cd2026mnd1g1.model.exception.TutorAccountNotLinkedException;
+import com.campusdual.cd2026mnd1g1.model.exception.DuplicateTutorDogSubmissionException;
 import com.campusdual.cd2026mnd1g1.model.exception.ReservationDateNotAllowedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +22,9 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -30,6 +36,7 @@ import java.util.Locale;
 @RestControllerAdvice
 public class RestExceptionHandler {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(RestExceptionHandler.class);
     private static final ZoneId ERROR_TIMESTAMP_ZONE = ZoneOffset.UTC;
 
     /**
@@ -69,6 +76,40 @@ public class RestExceptionHandler {
     }
 
     /**
+     * Distingue una cuenta de tutor aún no vinculada de una lista vacía.
+     *
+     * @param exception cuenta sin relación explícita
+     * @return respuesta de configuración requerida
+     */
+    @ExceptionHandler(TutorAccountNotLinkedException.class)
+    public ResponseEntity<Map<String, Object>> handleTutorAccountNotLinked(
+            TutorAccountNotLinkedException exception
+    ) {
+        return buildErrorResponse(
+                HttpStatus.CONFLICT,
+                "TUTOR_ACCOUNT_NOT_LINKED",
+                exception.getMessage()
+        );
+    }
+
+    /**
+     * Informa de una relación interna incoherente sin exponer IDs ni datos personales.
+     *
+     * @param exception configuración incoherente
+     * @return respuesta de incidencia de configuración
+     */
+    @ExceptionHandler(TutorAccountInconsistentException.class)
+    public ResponseEntity<Map<String, Object>> handleTutorAccountInconsistent(
+            TutorAccountInconsistentException exception
+    ) {
+        return buildErrorResponse(
+                HttpStatus.CONFLICT,
+                "TUTOR_ACCOUNT_INCONSISTENT",
+                exception.getMessage()
+        );
+    }
+
+    /**
      * Mapea errores de validacion de parametros o payload.
      *
      * @param exception excepcion de validacion
@@ -97,6 +138,31 @@ public class RestExceptionHandler {
     }
 
     /**
+     * Informa cuando la carga supera los límites configurados del servidor.
+     *
+     * @param exception límite excedido
+     * @return respuesta HTTP 413
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleUploadTooLarge(MaxUploadSizeExceededException exception) {
+        return buildErrorResponse(HttpStatus.PAYLOAD_TOO_LARGE, "La foto no puede superar 5 MB");
+    }
+
+    /**
+     * Registra el fallo técnico de almacenamiento sin devolver rutas ni trazas.
+     *
+     * @param exception error interno de almacenamiento
+     * @return respuesta HTTP 500
+     */
+    @ExceptionHandler(TutorDogPhotoStorageException.class)
+    public ResponseEntity<Map<String, Object>> handlePhotoStorageFailure(
+            TutorDogPhotoStorageException exception
+    ) {
+        LOGGER.error("Fallo al almacenar o limpiar una foto de perro", exception);
+        return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "No se pudo procesar la foto del perro");
+    }
+
+    /**
      * Mapea conflictos por reglas de negocio.
      *
      * @param exception excepcion de estado incompatible
@@ -105,6 +171,19 @@ public class RestExceptionHandler {
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, Object>> handleConflict(IllegalStateException exception) {
         return buildErrorResponse(HttpStatus.CONFLICT, exception.getMessage());
+    }
+
+    /**
+     * Mapea el uso de una clave idempotente con datos diferentes.
+     *
+     * @param exception conflicto de clave de envío
+     * @return respuesta HTTP 409
+     */
+    @ExceptionHandler(DuplicateTutorDogSubmissionException.class)
+    public ResponseEntity<Map<String, Object>> handleDuplicateTutorDogSubmission(
+            DuplicateTutorDogSubmissionException exception
+    ) {
+        return buildErrorResponse(HttpStatus.CONFLICT, "IDEMPOTENCY_KEY_REUSED", exception.getMessage());
     }
 
     /**
@@ -204,6 +283,7 @@ public class RestExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGenericException(Exception exception) {
+        LOGGER.error("Error REST no controlado: {}", exception.getClass().getName(), exception);
         return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Error interno no controlado");
     }
 

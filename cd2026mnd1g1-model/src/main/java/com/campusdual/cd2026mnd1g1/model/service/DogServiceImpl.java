@@ -165,6 +165,7 @@ public class DogServiceImpl implements DogService {
         dog.setSize(size);
         dog.setBirthDate(request.birthDate());
         dog.setActive(true);
+        dog.setInformationDeclaredByTutor(false);
         dog.setCreatedAt(LocalDateTime.now(this.receptionClock));
         return mapToDto(this.dogRepository.save(dog));
     }

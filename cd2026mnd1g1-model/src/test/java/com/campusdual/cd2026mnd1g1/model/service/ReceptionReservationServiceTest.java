@@ -203,6 +203,7 @@ class ReceptionReservationServiceTest {
         tutor.setFirstName("Ana");
         tutor.setLastName("Núñez");
         tutor.setPhone("981000101");
+        tutor.setCenter(center);
         dog.setTutor(tutor);
 
         ReservationEntity reservation = new ReservationEntity();
@@ -226,6 +227,10 @@ class ReceptionReservationServiceTest {
         record.setType(type);
         record.setOccurredAt(LocalDateTime.parse(occurredAt));
         record.setPetCondition("Buen estado");
+        UserEntity user = new UserEntity();
+        user.setFirstName("Recepción");
+        user.setLastName("Demo");
+        record.setUser(user);
         return record;
     }
 }

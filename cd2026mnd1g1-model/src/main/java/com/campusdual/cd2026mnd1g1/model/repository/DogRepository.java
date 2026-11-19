@@ -17,6 +17,49 @@ import java.util.Optional;
 @Repository
 public interface DogRepository extends JpaRepository<DogEntity, Long> {
 
+    /**
+     * Recupera una página de perros del tutor con los datos mínimos del portal.
+     *
+     * @param tutorId tutor vinculado a la cuenta
+     * @param centerId centro de la cuenta autenticada
+     * @param pageable orden y página
+     * @return página del portal sin entidades internas
+     */
+    @Query("""
+            SELECT dog FROM DogEntity dog
+            WHERE dog.tutor.id = :tutorId
+              AND dog.center.id = :centerId
+              AND dog.tutor.center.id = :centerId
+            """)
+    Page<DogEntity> findTutorPortalDogs(
+            @Param("tutorId") Long tutorId,
+            @Param("centerId") Long centerId,
+            Pageable pageable
+    );
+
+    /**
+     * Busca un perro solo si pertenece al tutor y al centro autenticados.
+     *
+     * @param dogId identificador solicitado
+     * @param tutorId tutor vinculado a la cuenta
+     * @param centerId centro de la cuenta autenticada
+     * @return perro accesible si existe
+     */
+    @EntityGraph(attributePaths = "tutor")
+    @Query("""
+            SELECT dog FROM DogEntity dog
+            JOIN dog.tutor tutor
+            WHERE dog.id = :dogId
+              AND tutor.id = :tutorId
+              AND dog.center.id = :centerId
+              AND tutor.center.id = :centerId
+            """)
+    Optional<DogEntity> findTutorPortalDog(
+            @Param("dogId") Long dogId,
+            @Param("tutorId") Long tutorId,
+            @Param("centerId") Long centerId
+    );
+
     @EntityGraph(attributePaths = "tutor")
     @Query("""
             SELECT dog FROM DogEntity dog LEFT JOIN dog.tutor tutor

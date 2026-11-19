@@ -145,6 +145,7 @@ public class ReceptionReservationServiceImpl implements ReceptionReservationServ
                         dog.getBirthDate(),
                         dog.getTemperament(),
                         dog.getFeedingInstructions(),
+                        Boolean.TRUE.equals(dog.getInformationDeclaredByTutor()),
                         this.allergyRepository.findByDog_Id(dog.getId()).stream()
                                 .map(AllergyEntity::getDescription)
                                 .toList(),

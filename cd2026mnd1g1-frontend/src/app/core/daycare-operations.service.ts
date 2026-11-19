@@ -27,7 +27,11 @@ import {
   Tutor,
   TutorPage,
   TutorRequest,
-  TutorVersionedResponse
+  TutorVersionedResponse,
+  TutorDogPage,
+  TutorDogDetail,
+  TutorAuthorizedPerson,
+  TutorDogCreateRequest
 } from './operational.models';
 import { AuthService } from './auth.service';
 
@@ -41,6 +45,7 @@ export class DaycareOperationsService {
   private readonly receptionPath: string = '/api/recepcion';
   private readonly tutorsPath: string = '/api/recepcion/tutores';
   private readonly dogsPath: string = '/api/recepcion/perros';
+  private readonly tutorDogsPath: string = '/api/tutor/mis-perros';
 
   constructor(
     private readonly http: HttpClient,
@@ -50,6 +55,48 @@ export class DaycareOperationsService {
   getDailyReservations(): Observable<DailyReservation[]> {
     return this.http.get<DailyReservation[]>(this.reservationsPath, {
       headers: this.getAuthHeaders()
+    });
+  }
+
+  getMyDogs(page: number, size: number): Observable<TutorDogPage> {
+    const params: HttpParams = new HttpParams().set('page', page).set('size', size);
+    return this.http.get<TutorDogPage>(this.tutorDogsPath, {
+      headers: this.getAuthHeaders(),
+      params
+    });
+  }
+
+  getMyDog(dogId: number): Observable<TutorDogDetail> {
+    return this.http.get<TutorDogDetail>(`${this.tutorDogsPath}/${dogId}`, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  getMyDogPhoto(dogId: number): Observable<Blob> {
+    return this.http.get(`${this.tutorDogsPath}/${dogId}/foto`, {
+      headers: this.getAuthHeaders(),
+      responseType: 'blob'
+    });
+  }
+
+  getMyAuthorizedPersons(): Observable<TutorAuthorizedPerson[]> {
+    return this.http.get<TutorAuthorizedPerson[]>(`${this.tutorDogsPath}/personas-autorizadas`, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  createMyDog(
+    request: TutorDogCreateRequest,
+    photo: File | null,
+    idempotencyKey: string
+  ): Observable<TutorDogDetail> {
+    const formData: FormData = new FormData();
+    formData.append('request', new Blob([JSON.stringify(request)], { type: 'application/json' }));
+    if (photo !== null) {
+      formData.append('photo', photo, photo.name);
+    }
+    return this.http.post<TutorDogDetail>(this.tutorDogsPath, formData, {
+      headers: this.getAuthHeaders().set('Idempotency-Key', idempotencyKey)
     });
   }
 

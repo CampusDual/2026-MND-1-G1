@@ -56,6 +56,9 @@ public class DogEntity {
     @Column(name = "activo", nullable = false)
     private Boolean active;
 
+    @Column(name = "informacion_declarada_por_tutor", nullable = false)
+    private Boolean informationDeclaredByTutor;
+
     @Column(name = "creado_en", nullable = false)
     private LocalDateTime createdAt;
 
@@ -81,6 +84,10 @@ public class DogEntity {
     public void setPhotoUrl(String photoUrl) { this.photoUrl = photoUrl; }
     public Boolean getActive() { return active; }
     public void setActive(Boolean active) { this.active = active; }
+    public Boolean getInformationDeclaredByTutor() { return informationDeclaredByTutor; }
+    public void setInformationDeclaredByTutor(Boolean informationDeclaredByTutor) {
+        this.informationDeclaredByTutor = informationDeclaredByTutor;
+    }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

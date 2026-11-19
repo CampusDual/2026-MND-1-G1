@@ -9,6 +9,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.OneToOne;
 
 import java.time.LocalDateTime;
 
@@ -27,6 +28,10 @@ public class UserEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "rol_id", nullable = false)
     private RoleEntity role;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tutor_id", unique = true)
+    private TutorEntity tutor;
 
     @Column(name = "nombre", nullable = false, length = 120)
     private String firstName;
@@ -61,6 +66,8 @@ public class UserEntity {
     public void setCenter(CenterEntity center) { this.center = center; }
     public RoleEntity getRole() { return role; }
     public void setRole(RoleEntity role) { this.role = role; }
+    public TutorEntity getTutor() { return tutor; }
+    public void setTutor(TutorEntity tutor) { this.tutor = tutor; }
     public String getFirstName() { return firstName; }
     public void setFirstName(String firstName) { this.firstName = firstName; }
     public String getLastName() { return lastName; }

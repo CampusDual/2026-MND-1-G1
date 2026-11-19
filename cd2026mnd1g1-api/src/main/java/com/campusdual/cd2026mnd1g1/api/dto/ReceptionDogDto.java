@@ -14,6 +14,7 @@ public record ReceptionDogDto(
         LocalDate birthDate,
         String temperament,
         String feedingInstructions,
+        boolean informationDeclaredByTutor,
         List<String> allergies,
         List<MedicationDto> medications
 ) {

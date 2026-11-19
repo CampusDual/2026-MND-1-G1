@@ -15,6 +15,14 @@ public interface UserService {
     List<UserDto> findAll();
 
     /**
+     * Recupera los datos de la cuenta autenticada por su nombre de acceso.
+     *
+     * @param username nombre de acceso autenticado
+     * @return usuario encontrado
+     */
+    UserDto findByUsername(String username);
+
+    /**
      * Recupera un usuario por su identificador.
      *
      * @param id identificador del usuario
@@ -46,4 +54,3 @@ public interface UserService {
      */
     void delete(Long id);
 }
-

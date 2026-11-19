@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.security.Principal;
 import java.util.List;
 
 @Validated
@@ -36,8 +37,20 @@ public class UserController {
      * @return lista de usuarios
      */
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserDto>> getAll() {
         return ResponseEntity.ok(this.userService.findAll());
+    }
+
+    /**
+     * Devuelve la identidad y el rol de la cuenta autenticada.
+     *
+     * @param principal usuario autenticado
+     * @return identidad de la sesión HTTP Basic
+     */
+    @GetMapping("/me")
+    public ResponseEntity<UserDto> getCurrentUser(Principal principal) {
+        return ResponseEntity.ok(this.userService.findByUsername(principal.getName()));
     }
 
     /**
@@ -47,6 +60,7 @@ public class UserController {
      * @return usuario encontrado
      */
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserDto> getById(@PathVariable Long id) {
         return ResponseEntity.ok(this.userService.findById(id));
     }
@@ -90,4 +104,3 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 }
-

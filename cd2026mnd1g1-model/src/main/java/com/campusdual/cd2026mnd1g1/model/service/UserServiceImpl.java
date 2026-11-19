@@ -52,6 +52,17 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
+    public UserDto findByUsername(String username) {
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("El usuario autenticado no es válido");
+        }
+        UserEntity userEntity = this.userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("No se ha encontrado la cuenta autenticada"));
+        return mapToDto(userEntity);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public UserDto findById(Long id) {
         validateId(id);
         UserEntity userEntity = this.userRepository.findById(id)

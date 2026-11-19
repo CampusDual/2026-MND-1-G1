@@ -64,6 +64,9 @@
 
           <section class="detail-card">
             <h2>Información de cuidados registrada</h2>
+            @if (item.dog.informationDeclaredByTutor) {
+              <p class="warning">Información inicial declarada por el tutor; no consta revisión o aprobación del centro.</p>
+            }
             <h3>Temperamento</h3>
             <p>{{ item.dog.temperament || 'No hay datos de temperamento registrados.' }}</p>
             <h3>Pautas de alimentación</h3>

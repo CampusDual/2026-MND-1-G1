@@ -1,0 +1,8 @@
+ALTER TABLE USUARIOS
+    ADD COLUMN tutor_id BIGINT;
+
+ALTER TABLE USUARIOS
+    ADD CONSTRAINT uq_usuarios_tutor UNIQUE (tutor_id);
+
+ALTER TABLE USUARIOS
+    ADD CONSTRAINT fk_usuarios_tutor FOREIGN KEY (tutor_id) REFERENCES tutor (id);

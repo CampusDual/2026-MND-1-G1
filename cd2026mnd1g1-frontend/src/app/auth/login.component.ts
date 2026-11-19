@@ -46,7 +46,10 @@ export class LoginComponent {
     this.authService.login(username, password).subscribe({
       next: (isAuthenticated: boolean) => {
         if (isAuthenticated) {
-          this.router.navigateByUrl(this.getSafeReturnUrl());
+          const destination: string = this.authService.hasRole('TUTOR')
+            ? '/mis-perros'
+            : this.getSafeReturnUrl();
+          this.router.navigateByUrl(destination);
           return;
         }
 

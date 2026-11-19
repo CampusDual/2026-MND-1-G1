@@ -9,5 +9,7 @@ import java.util.List;
 @Repository
 public interface AllergyRepository extends JpaRepository<AllergyEntity, Long> {
 
+    List<AllergyEntity> findByDog_IdOrderByIdAsc(Long dogId);
+
     List<AllergyEntity> findByDog_Id(Long dogId);
 }

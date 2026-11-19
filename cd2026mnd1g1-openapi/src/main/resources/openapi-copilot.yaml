@@ -22,6 +22,273 @@ tags:
   - name: Perros
     description: Búsqueda y mantenimiento de fichas básicas de perros del centro autorizado.
 paths:
+  /api/users/me:
+    get:
+      tags: [Users]
+      summary: Obtiene la identidad de la cuenta autenticada
+      description: Devuelve el nombre de usuario y rol sin listar otras cuentas.
+      operationId: getCurrentUser
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Identidad autenticada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/tutor/mis-perros:
+    get:
+      tags: [Tutors]
+      summary: Lista los perros de la ficha vinculada al tutor autenticado
+      description: >
+        Requiere rol TUTOR. La cuenta se resuelve desde Basic Auth y la consulta
+        limita los perros por tutor y centro; no acepta tutor_id ni centro_id.
+        El orden es estable por nombre e identificador.
+      operationId: listMyDogs
+      security:
+        - basicAuth: []
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - in: query
+          name: size
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: Página de perros propios con campos mínimos de listado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TutorDogPageDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags: [Tutors]
+      summary: Registra un perro y datos asociados para el tutor autenticado
+      description: >
+        Obtiene tutor y centro desde la sesión; no acepta sus identificadores ni
+        datos internos. La operación de base de datos es transaccional. Las
+        personas autorizadas quedan vinculadas al tutor para sus perros actuales
+        y futuros. La información de cuidados se marca como declarada por el
+        tutor y no revisada por el centro. Requiere una clave UUID estable para
+        proteger reintentos; repetir la misma clave y datos devuelve el resultado
+        anterior sin crear otro registro.
+      operationId: createMyDog
+      security:
+        - basicAuth: []
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          description: UUID nuevo por alta y reutilizado al reintentar la misma solicitud.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [request]
+              properties:
+                request:
+                  $ref: '#/components/schemas/TutorDogCreateRequestDto'
+                photo:
+                  type: string
+                  format: binary
+                  description: Imagen JPEG o PNG opcional de hasta 5 MiB.
+            encoding:
+              request:
+                contentType: application/json
+      responses:
+        '201':
+          description: Perro y datos asociados creados.
+          headers:
+            Location:
+              description: Ruta de la ficha creada.
+              schema:
+                type: string
+            Idempotency-Replayed:
+              description: No presente cuando es un alta nueva.
+              schema:
+                type: boolean
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TutorDogDetailDto'
+        '200':
+          description: Se devolvió el resultado persistido de un reintento idéntico.
+          headers:
+            Idempotency-Replayed:
+              description: Indica que no se creó otro perro.
+              schema:
+                type: boolean
+                enum: [true]
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TutorDogDetailDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/tutor/mis-perros/personas-autorizadas:
+    get:
+      tags: [Tutors]
+      summary: Lista las autorizaciones generales del tutor autenticado
+      description: >
+        Devuelve solo nombre y teléfono de las personas autorizadas para recoger
+        cualquiera de los perros actuales o futuros del tutor. No permite
+        modificar ni revocar autorizaciones.
+      operationId: listMyAuthorizedPersons
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Personas autorizadas generales del tutor.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TutorAuthorizedPersonDto'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/tutor/mis-perros/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        description: Identificador del perro; solo se resuelven perros del tutor autenticado.
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+    get:
+      tags: [Tutors]
+      summary: Consulta una ficha propia en modo lectura
+      description: Los campos internos, peso, incidencias y relaciones de terceros no se incluyen.
+      operationId: getMyDog
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Ficha con los campos permitidos para el tutor.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TutorDogDetailDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/tutor/mis-perros/{id}/foto:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        description: Identificador del perro; la autorización se vuelve a comprobar.
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+    get:
+      tags: [Tutors]
+      summary: Sirve la foto local privada de un perro propio
+      description: >
+        Solo admite nombres de archivo locales desde DOG_PHOTOS_DIR. No descarga
+        URLs, no expone rutas del servidor y no publica el directorio.
+      operationId: getMyDogPhoto
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Foto accesible del perro propio.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/gif:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /api/recepcion/tutores:
     get:
       security:
@@ -1098,6 +1365,12 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+    PayloadTooLarge:
+      description: La carga supera el límite configurado para la foto.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
     InternalServerError:
       description: Error interno no controlado.
       content:
@@ -1105,6 +1378,212 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
   schemas:
+    TutorDogPageDto:
+      type: object
+      required: [items, page, size, totalElements, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TutorDogSummaryDto'
+        page:
+          type: integer
+          minimum: 0
+        size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        totalElements:
+          type: integer
+          format: int64
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+    TutorDogSummaryDto:
+      type: object
+      required: [id, name, size, photoAvailable]
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 0
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        breed:
+          type: string
+          nullable: true
+          maxLength: 120
+        size:
+          type: string
+          enum: [PEQUENO, MEDIANO, GRANDE]
+        photoAvailable:
+          type: boolean
+          description: Hay una referencia de foto; su acceso se autoriza en un endpoint privado.
+    TutorDogDetailDto:
+      type: object
+      required: [id, name, size, photoAvailable, allergies, medications, authorizedPersons]
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 0
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        breed:
+          type: string
+          nullable: true
+          maxLength: 120
+        size:
+          type: string
+          enum: [PEQUENO, MEDIANO, GRANDE]
+        birthDate:
+          type: string
+          format: date
+          nullable: true
+        photoAvailable:
+          type: boolean
+        feedingInstructions:
+          type: string
+          nullable: true
+          maxLength: 1000
+          description: Campo acordado como compartible con el tutor; no guardar aquí notas internas.
+        temperament:
+          type: string
+          nullable: true
+          maxLength: 1000
+          description: Campo acordado como compartible con el tutor; no guardar aquí evaluaciones privadas.
+        allergies:
+          type: array
+          description: Lista de descripciones registradas; una lista vacía no afirma que no existan alergias.
+          items:
+            type: string
+            maxLength: 1000
+        medications:
+          type: array
+          description: Pautas registradas, no dosis administradas ni tratamientos activos.
+          items:
+            $ref: '#/components/schemas/TutorMedicationDto'
+        authorizedPersons:
+          type: array
+          description: Autorizaciones generales del tutor, no exclusivas de este perro.
+          items:
+            $ref: '#/components/schemas/TutorAuthorizedPersonDto'
+    TutorDogCreateRequestDto:
+      type: object
+      required: [name, size]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        breed:
+          type: string
+          nullable: true
+          maxLength: 120
+        size:
+          type: string
+          enum: [PEQUENO, MEDIANO, GRANDE]
+        birthDate:
+          type: string
+          format: date
+          nullable: true
+          description: No puede ser posterior a la fecha actual del centro.
+        feedingInstructions:
+          type: string
+          nullable: true
+          maxLength: 1000
+        temperament:
+          type: string
+          nullable: true
+          maxLength: 1000
+          description: Información declarada por el tutor, nunca una evaluación interna.
+        allergies:
+          type: array
+          items:
+            $ref: '#/components/schemas/TutorDogAllergyInputDto'
+        medications:
+          type: array
+          description: Datos declarados; no se consideran revisados ni administrados.
+          items:
+            $ref: '#/components/schemas/TutorDogMedicationInputDto'
+        authorizedPersons:
+          type: array
+          description: Nuevas personas autorizadas generales; filas vacías se omiten.
+          items:
+            $ref: '#/components/schemas/TutorDogAuthorizedPersonInputDto'
+    TutorDogAllergyInputDto:
+      type: object
+      required: [description]
+      additionalProperties: false
+      properties:
+        description:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    TutorDogMedicationInputDto:
+      type: object
+      required: [medication, instructions]
+      additionalProperties: false
+      properties:
+        medication:
+          type: string
+          minLength: 1
+          maxLength: 160
+        dosage:
+          type: string
+          nullable: true
+          maxLength: 255
+        instructions:
+          type: string
+          minLength: 1
+          maxLength: 1000
+    TutorDogAuthorizedPersonInputDto:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          nullable: true
+          maxLength: 120
+        phone:
+          type: string
+          nullable: true
+          maxLength: 30
+      description: Si alguno se aporta, ambos son obligatorios; si ambos se omiten o vacían, la fila no se guarda.
+    TutorAuthorizedPersonDto:
+      type: object
+      required: [name, phone]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        phone:
+          type: string
+          minLength: 1
+          maxLength: 30
+    TutorMedicationDto:
+      type: object
+      required: [medication, instructions]
+      properties:
+        medication:
+          type: string
+          minLength: 1
+          maxLength: 160
+        dosage:
+          type: string
+          nullable: true
+          maxLength: 255
+        instructions:
+          type: string
+          minLength: 1
+          maxLength: 1000
     DogDto:
       type: object
       required: [id, name, size, tutorId, tutorName, tutorNationalId]
@@ -2059,8 +2538,14 @@ components:
         code:
           type: string
           nullable: true
-          description: Código funcional opcional para conflictos de reserva.
-          enum: [DUPLICATE_RESERVATION, CAPACITY_FULL, CAPACITY_NOT_CONFIGURED, DATE_NOT_ALLOWED]
+          description: Código funcional opcional para conflictos de reserva o de configuración del portal.
+          enum:
+            - DUPLICATE_RESERVATION
+            - CAPACITY_FULL
+            - CAPACITY_NOT_CONFIGURED
+            - DATE_NOT_ALLOWED
+            - TUTOR_ACCOUNT_NOT_LINKED
+            - TUTOR_ACCOUNT_INCONSISTENT
         errors:
           type: array
           description: Detalle opcional de errores de validacion por campo.

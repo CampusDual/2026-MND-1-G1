@@ -1,0 +1,293 @@
+<main class="tutor-page">
+  <header class="topbar">
+    <a class="brand" routerLink="/mis-perros" aria-label="PawCare, mis perros">
+      <span class="brand-mark" aria-hidden="true">P</span>
+      <span>PawCare <span class="brand-divider">·</span> <strong>Portal tutor</strong></span>
+    </a>
+    <nav class="main-nav" aria-label="Navegación principal">
+      <a routerLink="/mis-perros" aria-current="page">Mis perros</a>
+    </nav>
+    <button class="logout-button" type="button" (click)="logout()">Cerrar sesión</button>
+  </header>
+
+  <section class="content">
+    @if (loading) {
+      <div class="state-card" role="status">Cargando...</div>
+    } @else if (configurationMessage) {
+      <div class="notice error" role="alert">{{ configurationMessage }}</div>
+    } @else if (errorMessage) {
+      <div class="notice error" role="alert">
+        <p>{{ errorMessage }}</p>
+        <button type="button" class="secondary-button" (click)="retry()">Reintentar</button>
+        @if (isDetail) {
+          <button type="button" class="secondary-button" (click)="backToList()">Volver a Mis perros</button>
+        }
+      </div>
+    } @else if (isCreate) {
+      <button class="back-button" type="button" (click)="cancelCreate()">← Cancelar y volver a Mis perros</button>
+      <div class="heading">
+        <div>
+          <p class="eyebrow">NUEVA FICHA</p>
+          <h1>Añadir perro</h1>
+          <p class="subtitle">La ficha quedará asociada a tu cuenta. No confirma una reserva ni una admisión.</p>
+        </div>
+      </div>
+      @if (createErrorMessage) {
+        <div class="notice error" role="alert">
+          <p>{{ createErrorMessage }}</p>
+          @if (retryRequired) {
+            <button type="button" class="secondary-button" [disabled]="isSaving" (click)="submitCreate()">
+              {{ isSaving ? 'Reintentando...' : 'Reintentar el mismo envío' }}
+            </button>
+          }
+        </div>
+      }
+      @if (formErrorMessage) {
+        <div class="notice error" role="alert">{{ formErrorMessage }}</div>
+      }
+      <form class="dog-create-form" (ngSubmit)="submitCreate()">
+        <fieldset [disabled]="isSaving || retryRequired">
+          <section class="detail-card">
+            <h2>Datos básicos</h2>
+            <label for="dog-name">Nombre <span>*</span></label>
+            <input id="dog-name" name="name" required maxlength="120" [(ngModel)]="dogName">
+            <label for="dog-breed">Raza</label>
+            <input id="dog-breed" name="breed" maxlength="120" [(ngModel)]="breed">
+            <label for="dog-size">Tamaño <span>*</span></label>
+            <select id="dog-size" name="size" required [(ngModel)]="size">
+              <option value="">Selecciona un tamaño</option>
+              @for (option of sizes; track option.value) {
+                <option [value]="option.value">{{ option.label }}</option>
+              }
+            </select>
+            <label for="dog-birth-date">Fecha de nacimiento</label>
+            <input id="dog-birth-date" name="birthDate" type="date" [max]="today" [(ngModel)]="birthDate">
+          </section>
+
+          <section class="detail-card">
+            <h2>Foto (opcional)</h2>
+            <label for="dog-photo">Imagen JPEG o PNG, máximo 5 MB</label>
+            <input id="dog-photo" name="photo" type="file" accept="image/jpeg,image/png" (change)="selectPhoto($event)">
+            @if (photoErrorMessage) { <p class="field-error" role="alert">{{ photoErrorMessage }}</p> }
+            @if (photoPreviewUrl) {
+              <div class="photo-preview">
+                <img [src]="photoPreviewUrl" alt="Vista previa de la foto del perro">
+                <button type="button" class="secondary-button" (click)="removePhoto()">Retirar foto</button>
+              </div>
+            }
+          </section>
+
+          <section class="detail-card">
+            <h2>Alimentación (opcional)</h2>
+            <label for="feeding">Pautas e instrucciones</label>
+            <textarea id="feeding" name="feeding" maxlength="1000" rows="3" [(ngModel)]="feedingInstructions"></textarea>
+          </section>
+
+          <section class="detail-card">
+            <h2>Temperamento (opcional)</h2>
+            <label for="temperament">Información que quieras compartir con el centro</label>
+            <textarea id="temperament" name="temperament" maxlength="1000" rows="3" [(ngModel)]="temperament"></textarea>
+          </section>
+
+          <section class="detail-card">
+            <div class="section-heading">
+              <h2>Alergias (opcional)</h2>
+              <button type="button" class="secondary-button" (click)="addAllergy()">Añadir alergia</button>
+            </div>
+            @for (description of allergyRows; track $index; let index = $index) {
+              <div class="repeat-row">
+                <label [for]="'allergy-' + index">Descripción <span>*</span></label>
+                <textarea [id]="'allergy-' + index" [name]="'allergy-' + index" required maxlength="1000"
+                          rows="2" [(ngModel)]="allergyRows[index]"></textarea>
+                <button type="button" class="remove-button" (click)="removeAllergy(index)">Retirar</button>
+              </div>
+            }
+            <p class="empty-note">Dejar esta sección vacía significa que no se han aportado datos; no declara que no haya alergias.</p>
+          </section>
+
+          <section class="detail-card">
+            <div class="section-heading">
+              <h2>Medicación (opcional)</h2>
+              <button type="button" class="secondary-button" (click)="addMedication()">Añadir pauta</button>
+            </div>
+            @for (item of medicationRows; track $index; let index = $index) {
+              <div class="repeat-row">
+                <label [for]="'medication-' + index">Medicamento <span>*</span></label>
+                <input [id]="'medication-' + index" [name]="'medication-' + index" required maxlength="160"
+                       [(ngModel)]="item.medication">
+                <label [for]="'dosage-' + index">Dosis indicada</label>
+                <input [id]="'dosage-' + index" [name]="'dosage-' + index" maxlength="255" [(ngModel)]="item.dosage">
+                <label [for]="'instructions-' + index">Pauta o instrucciones <span>*</span></label>
+                <textarea [id]="'instructions-' + index" [name]="'instructions-' + index" required maxlength="1000"
+                          rows="2" [(ngModel)]="item.instructions"></textarea>
+                <button type="button" class="remove-button" (click)="removeMedication(index)">Retirar</button>
+              </div>
+            }
+            <p class="empty-note">La información enviada será una declaración del tutor, no una pauta revisada ni una dosis administrada.</p>
+          </section>
+
+          <section class="detail-card">
+            <div class="section-heading">
+              <h2>Personas autorizadas para recoger a cualquiera de tus perros (opcional)</h2>
+              <button type="button" class="secondary-button" (click)="addAuthorizedPerson()">Añadir persona</button>
+            </div>
+            @if (existingAuthorizedPersons.length > 0) {
+              <p class="empty-note">Autorizaciones generales ya registradas; no se modificarán ni se volverán a crear automáticamente.</p>
+              <ul class="existing-authorizations">
+                @for (person of existingAuthorizedPersons; track $index) {
+                  <li>{{ person.name }} · {{ person.phone }}</li>
+                }
+              </ul>
+            }
+            @for (person of authorizedPersonRows; track $index; let index = $index) {
+              <div class="repeat-row">
+                <label [for]="'authorized-name-' + index">Nombre completo <span>*</span></label>
+                <input [id]="'authorized-name-' + index" [name]="'authorized-name-' + index"
+                       maxlength="120" [(ngModel)]="person.name">
+                <label [for]="'authorized-phone-' + index">Teléfono <span>*</span></label>
+                <input [id]="'authorized-phone-' + index" [name]="'authorized-phone-' + index"
+                       maxlength="30" [(ngModel)]="person.phone">
+                <button type="button" class="remove-button" (click)="removeAuthorizedPerson(index)">Retirar</button>
+              </div>
+            }
+            <p class="empty-note">Quedarán disponibles para recepción en el ámbito general de tu ficha de tutor. No crean una cuenta ni autorizan acceso al portal.</p>
+          </section>
+        </fieldset>
+        <div class="form-actions">
+          <button type="button" class="secondary-button" [disabled]="isSaving" (click)="cancelCreate()">Cancelar</button>
+          @if (!retryRequired) {
+            <button type="submit" class="primary-button" [disabled]="isSaving">
+              {{ isSaving ? 'Guardando...' : 'Guardar y abrir ficha' }}
+            </button>
+          }
+        </div>
+      </form>
+    } @else if (isDetail && dog) {
+      <button class="back-button" type="button" (click)="backToList()">← Volver a Mis perros</button>
+      <div class="heading">
+        <div>
+          <p class="eyebrow">FICHA DE CONSULTA</p>
+          <h1>{{ dog.name }}</h1>
+        </div>
+      </div>
+      <section class="detail-card" aria-labelledby="basic-heading">
+        <h2 id="basic-heading">Datos básicos</h2>
+        <div class="dog-photo detail-photo">
+          @if (getPhotoUrl(dog.id); as photoUrl) {
+            <img [src]="photoUrl" [alt]="'Foto de ' + dog.name" (error)="onPhotoError(dog.id)">
+          } @else {
+            <div class="photo-placeholder" role="img" [attr.aria-label]="'Foto no disponible para ' + dog.name">P</div>
+          }
+        </div>
+        <dl>
+          <div><dt>Nombre</dt><dd>{{ dog.name }}</dd></div>
+          <div><dt>Raza</dt><dd>{{ dog.breed || 'No indicada' }}</dd></div>
+          <div><dt>Tamaño</dt><dd>{{ sizeLabel(dog.size) }}</dd></div>
+          <div><dt>Fecha de nacimiento</dt><dd>{{ dog.birthDate ? (dog.birthDate | date:'longDate') : 'No indicada' }}</dd></div>
+        </dl>
+      </section>
+
+      <section class="detail-card" aria-labelledby="feeding-heading">
+        <h2 id="feeding-heading">Alimentación</h2>
+        @if (dog.feedingInstructions?.trim()) {
+          <p class="shared-text">{{ dog.feedingInstructions }}</p>
+        } @else {
+          <p class="empty-note">Sin pautas de alimentación registradas</p>
+        }
+      </section>
+
+      <section class="detail-card" aria-labelledby="temperament-heading">
+        <h2 id="temperament-heading">Temperamento</h2>
+        @if (dog.temperament?.trim()) {
+          <p class="shared-text">{{ dog.temperament }}</p>
+        } @else {
+          <p class="empty-note">Sin información de temperamento registrada</p>
+        }
+      </section>
+
+      <section class="detail-card" aria-labelledby="allergies-heading">
+        <h2 id="allergies-heading">Alergias</h2>
+        @if (dog.allergies.length > 0) {
+          <ul>@for (allergy of dog.allergies; track $index) { <li>{{ allergy }}</li> }</ul>
+        } @else {
+          <p class="empty-note">No hay alergias registradas</p>
+        }
+      </section>
+
+      <section class="detail-card" aria-labelledby="medications-heading">
+        <h2 id="medications-heading">Pautas de medicación</h2>
+        @if (dog.medications.length > 0) {
+          @for (medication of dog.medications; track $index) {
+            <article class="medication-item">
+              <h3>{{ medication.medication }}</h3>
+              @if (medication.dosage) { <p><strong>Dosis indicada:</strong> {{ medication.dosage }}</p> }
+              <p><strong>Pauta:</strong> {{ medication.instructions }}</p>
+            </article>
+          }
+        } @else {
+          <p class="empty-note">No hay pautas de medicación registradas</p>
+        }
+      </section>
+      <section class="detail-card" aria-labelledby="authorized-heading">
+        <h2 id="authorized-heading">Personas autorizadas para recoger a cualquiera de tus perros</h2>
+        @if (dog.authorizedPersons.length > 0) {
+          <ul>
+            @for (person of dog.authorizedPersons; track $index) {
+              <li>{{ person.name }} · {{ person.phone }}</li>
+            }
+          </ul>
+        } @else {
+          <p class="empty-note">No hay personas autorizadas registradas para tu ficha de tutor.</p>
+        }
+      </section>
+    } @else {
+      <div class="heading">
+        <div>
+          <p class="eyebrow">PORTAL DEL TUTOR</p>
+          <h1>Mis perros</h1>
+          <p class="subtitle">Consulta los perros asociados a tu cuenta y sus fichas.</p>
+        </div>
+      </div>
+      @if (totalElements === 0) {
+        <section class="state-card">
+          <div class="photo-placeholder" aria-hidden="true">P</div>
+          <h2>Todavía no tienes perros registrados</h2>
+          <a class="primary-button" routerLink="/mis-perros/nuevo">Añadir perro</a>
+        </section>
+      } @else {
+        <a class="primary-button add-dog-button" routerLink="/mis-perros/nuevo">Añadir perro</a>
+        <p class="result-count">{{ totalElements }} {{ totalElements === 1 ? 'perro' : 'perros' }}</p>
+        <div class="dog-grid">
+          @for (item of dogs; track item.id) {
+            <article class="dog-card">
+              <div class="dog-photo">
+                @if (getPhotoUrl(item.id); as photoUrl) {
+                  <img [src]="photoUrl" [alt]="'Foto de ' + item.name" (error)="onPhotoError(item.id)">
+                } @else {
+                  <div class="photo-placeholder" role="img" [attr.aria-label]="'Foto no disponible para ' + item.name">P</div>
+                }
+              </div>
+              <div class="dog-card-content">
+                <h2>{{ item.name }}</h2>
+                @if (getDuplicateReference(item); as reference) {
+                  <p class="dog-reference">{{ reference }}</p>
+                }
+                <p>{{ item.breed || 'Raza no indicada' }} · {{ sizeLabel(item.size) }}</p>
+                <a class="primary-button" [routerLink]="['/mis-perros', item.id]">Ver ficha</a>
+              </div>
+            </article>
+          }
+        </div>
+        @if (totalPages > 1) {
+          <nav class="pagination" aria-label="Páginas de Mis perros">
+            <button type="button" class="secondary-button" [disabled]="page === 0"
+                    (click)="changePage(page - 1)">Anterior</button>
+            <span>Página {{ page + 1 }} de {{ totalPages }}</span>
+            <button type="button" class="secondary-button" [disabled]="page + 1 >= totalPages"
+                    (click)="changePage(page + 1)">Siguiente</button>
+          </nav>
+        }
+      }
+    }
+  </section>
+</main>

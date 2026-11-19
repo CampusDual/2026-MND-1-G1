@@ -2,6 +2,7 @@ package com.campusdual.cd2026mnd1g1.model.repository;
 
 import com.campusdual.cd2026mnd1g1.model.entity.UserEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -16,6 +17,15 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
      * @return usuario encontrado si existe
      */
     Optional<UserEntity> findByUsername(String username);
+
+    /**
+     * Recupera la cuenta autenticada y su vínculo explícito con tutor y centro.
+     *
+     * @param username nombre de acceso autenticado
+     * @return cuenta encontrada si existe
+     */
+    @EntityGraph(attributePaths = {"tutor", "center", "tutor.center"})
+    Optional<UserEntity> findPortalAccountByUsername(String username);
 
     /**
      * Busca una cuenta con el nombre de acceso o el email indicado.

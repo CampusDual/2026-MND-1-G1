@@ -10,6 +10,8 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
+import java.time.LocalDateTime;
+
 /**
  * Persona registrada por un tutor como autorizada para recoger sus perros.
  */
@@ -31,6 +33,13 @@ public class AuthorizedPersonEntity {
     @Column(name = "telefono", nullable = false, length = 30)
     private String phone;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "registrado_por_usuario_id")
+    private UserEntity createdBy;
+
+    @Column(name = "creado_en")
+    private LocalDateTime createdAt;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public TutorEntity getTutor() { return tutor; }
@@ -39,4 +48,8 @@ public class AuthorizedPersonEntity {
     public void setName(String name) { this.name = name; }
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
+    public UserEntity getCreatedBy() { return createdBy; }
+    public void setCreatedBy(UserEntity createdBy) { this.createdBy = createdBy; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 }

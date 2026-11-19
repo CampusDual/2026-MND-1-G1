@@ -105,6 +105,7 @@ export interface ReceptionDog {
   birthDate: string | null;
   temperament: string | null;
   feedingInstructions: string | null;
+  informationDeclaredByTutor: boolean;
   allergies: string[];
   medications: Medication[];
 }
@@ -307,4 +308,57 @@ export interface DogDetailVersionedResponse {
   dog: Dog;
   authorizedPersons: AuthorizedPerson[];
   etag: string;
+}
+
+export interface TutorDogSummary {
+  id: number;
+  name: string;
+  breed: string | null;
+  size: DogSize;
+  photoAvailable: boolean;
+}
+
+export interface TutorDogPage {
+  items: TutorDogSummary[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export interface TutorMedication {
+  medication: string;
+  dosage: string | null;
+  instructions: string;
+}
+
+export interface TutorAuthorizedPerson {
+  name: string;
+  phone: string;
+}
+
+export interface TutorDogDetail {
+  id: number;
+  name: string;
+  breed: string | null;
+  size: DogSize;
+  birthDate: string | null;
+  photoAvailable: boolean;
+  feedingInstructions: string | null;
+  temperament: string | null;
+  allergies: string[];
+  medications: TutorMedication[];
+  authorizedPersons: TutorAuthorizedPerson[];
+}
+
+export interface TutorDogCreateRequest {
+  name: string;
+  breed: string | null;
+  size: DogSize;
+  birthDate: string | null;
+  feedingInstructions: string | null;
+  temperament: string | null;
+  allergies: { description: string }[];
+  medications: TutorMedication[];
+  authorizedPersons: { name: string; phone: string }[];
 }
