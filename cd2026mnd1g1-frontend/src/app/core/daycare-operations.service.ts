@@ -3,7 +3,6 @@ import { Injectable } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import {
   CheckRecordRequest,
-  DailyRecordRequest,
   DailyReservation,
   Dog,
   DogCreateRequest,
@@ -24,6 +23,10 @@ import {
   ReceptionReservationCreated,
   ReceptionReservationDetail,
   ReceptionReservationPage,
+  CaregiverDogPage,
+  CaregiverDogDetail,
+  DailyRecord,
+  DailyRecordRequest,
   Tutor,
   TutorPage,
   TutorRequest,
@@ -48,6 +51,7 @@ export class DaycareOperationsService {
   private readonly tutorsPath: string = '/api/recepcion/tutores';
   private readonly dogsPath: string = '/api/recepcion/perros';
   private readonly tutorDogsPath: string = '/api/tutor/mis-perros';
+  private readonly caregiverDogsPath: string = '/api/cuidador/mis-perros-hoy';
 
   constructor(
     private readonly http: HttpClient,
@@ -66,6 +70,45 @@ export class DaycareOperationsService {
       headers: this.getAuthHeaders(),
       params
     });
+  }
+
+  getCaregiverTodayDogs(page: number, size: number): Observable<CaregiverDogPage> {
+    const params: HttpParams = new HttpParams().set('page', page).set('size', size);
+    return this.http.get<CaregiverDogPage>(this.caregiverDogsPath, {
+      headers: this.getAuthHeaders(),
+      params
+    });
+  }
+
+  getCaregiverTodayDog(reservationId: number): Observable<CaregiverDogDetail> {
+    return this.http.get<CaregiverDogDetail>(`${this.caregiverDogsPath}/${reservationId}`, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  getCaregiverTodayDogPhoto(reservationId: number): Observable<Blob> {
+    return this.http.get(`${this.caregiverDogsPath}/${reservationId}/foto`, {
+      headers: this.getAuthHeaders(),
+      responseType: 'blob'
+    });
+  }
+
+  getCaregiverDailyRecords(reservationId: number): Observable<DailyRecord[]> {
+    return this.http.get<DailyRecord[]>(
+      `${this.caregiverDogsPath}/${reservationId}/registros-diarios`,
+      { headers: this.getAuthHeaders() }
+    );
+  }
+
+  createCaregiverDailyRecord(
+    reservationId: number,
+    request: DailyRecordRequest
+  ): Observable<DailyRecord> {
+    return this.http.post<DailyRecord>(
+      `${this.caregiverDogsPath}/${reservationId}/registros-diarios`,
+      request,
+      { headers: this.getAuthHeaders() }
+    );
   }
 
   getMyDog(dogId: number): Observable<TutorDogVersionedResponse> {

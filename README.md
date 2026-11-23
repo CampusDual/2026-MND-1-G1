@@ -410,6 +410,32 @@ Los scripts usan `dev_fixture_registry`, una tabla auxiliar exclusiva de las bas
 - Comprobaciones ejecutadas: `mvn test-compile` y `mvn -pl cd2026mnd1g1-boot -am test` desde la raíz finalizaron correctamente; la suite backend ejecutó 43 pruebas, con 0 fallos y 0 errores. También pasó `mvn -pl cd2026mnd1g1-boot -am '-Dtest=ReceptionReservationControllerITTest' '-Dsurefire.failIfNoSpecifiedTests=false' test` (18 pruebas) y `npm run build` desde `cd2026mnd1g1-frontend`. Una ejecución previa de la suite completa falló de forma aislada en la prueba concurrente de salidas; tanto la clase focalizada como una repetición completa posterior pasaron. El build Angular terminó correctamente con advertencias existentes de presupuesto SCSS.
 - No existe automatización E2E de navegador para login, navegación, error/fallback de imagen ni cierre de sesión entre cuentas; esos recorridos quedan como pasos manuales reproducibles.
 
+## Consulta de perros de hoy para cuidadores
+
+- **Plan aplicado:** el cuidador responsable se asigna una vez al grupo mediante `grupo.cuidador_id`. No se añade una tabla separada ni planificación de turnos. V13 crea la relación, el índice operativo y el rol `CUIDADOR`; no modifica migraciones aplicadas.
+- “Hoy” usa `Europe/Madrid`. Una reserva aparece únicamente si pertenece a un grupo del cuidador autenticado, está `EN_CURSO`, tiene una entrada registrada hoy y todavía no tiene salida.
+- El listado devuelve identificador de reserva y perro, nombre, raza, tamaño, foto disponible, hora de entrada, estado de estancia y grupo. El detalle añade nacimiento, alimentación, temperamento, alergias, pautas de medicación e incompatibilidades internas.
+- La ficha completa añade nombre y teléfono del tutor asociado. No expone DNI, email ni datos de otros tutores. Las pautas de medicación muestran su procedencia (tutor o centro), pero no se presentan como autorizadas ni administradas; el esquema no tiene vigencia ni estado activo/finalizado.
+- No existe un modelo de notas internas de cuidado. La ficha no inventa notas ni alertas clínicas; las incompatibilidades son registros explícitos existentes y se muestran por nombre y motivo.
+- No se muestran tutor, datos personales de usuarios, incidencias, registros diarios ni datos de otras reservas. Las pautas de medicación son únicamente información registrada; no representan dosis administradas.
+- Las fotos siguen almacenadas en el directorio privado existente y solo se sirven si la reserva activa pertenece al cuidador. Esta entrega no permite subir, sustituir ni eliminar fotos.
+- Para datos locales, ejecuta manualmente `scripts/dev/seed-reception-demo.sql` y después `scripts/dev/seed-caregiver-portal-demo.sql`. Crea cuentas `cuidador-a` a `cuidador-d` con la contraseña demo existente `admin1234`, sin cambiar contraseñas existentes.
+- Escenarios: A tiene dos perros activos en su grupo, B tiene uno distinto, C no tiene grupos asignados y recibe lista vacía, D representa un cuidador sin asignación válida según los datos de fixture. Manipular el ID de reserva ajeno debe devolver `404`.
+
+### Recuperación de una ejecución fallida de V13
+
+- V13 fue corregida para comprobar si la columna, la FK, el índice y el rol ya existen. No se debe editar una migración que haya terminado con `success=true`; en una ejecución fallida solo se elimina la fila fallida y se inicia nuevamente la aplicación.
+- La base persistente local ya fue corregida retirando únicamente `flyway_schema_history` con `installed_rank=13`, `version=13` y `success=false`. La columna `grupo.cuidador_id`, la FK y el índice existentes se conservan; V13 Java los reconocerá al próximo arranque sin duplicarlos.
+- No se utilizó `flyway repair` ni se borraron tablas, perros, reservas, usuarios o grupos.
+
+## Registro diario del cuidador
+
+- Se reutiliza `registro_diario`, vinculado a una reserva y al usuario cuidador autenticado. Permite varios registros por estancia y usa los tipos `COMIDA`, `PASEO`, `JUEGO`, `DESCANSO` y `OTRO`.
+- El tipo es obligatorio. Las observaciones son opcionales, aceptan hasta 2000 caracteres y una cadena vacía se guarda como ausencia de observaciones.
+- Los endpoints son `POST` y `GET /api/cuidador/mis-perros-hoy/{reservationId}/registros-diarios`. Solo se permite la reserva asignada al cuidador para hoy, en estado `EN_CURSO`, con entrada y sin salida.
+- La hora se obtiene del servidor en `Europe/Madrid`. No se crean incidencias, resúmenes, notificaciones ni registros de administración de medicación.
+- El formulario de la ficha permite registrar un cuidado y consultar el historial interno. Cancelar no guarda; el envío conserva el formulario ante errores y bloquea envíos simultáneos.
+
 ## Alimentación y comportamiento en recepción
 
 - **Plan aplicado (alcance aprobado por el usuario):** recepción, administración y gerencia pueden introducir y editar las pautas de alimentación y el comportamiento en la misma ficha de `perro`. Se reutilizan las columnas existentes; no se añade una migración ni se crea un registro paralelo.

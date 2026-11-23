@@ -61,6 +61,14 @@ export interface DailyRecordRequest {
   notes?: string;
 }
 
+export interface DailyRecord {
+  id: number;
+  reservationId: number;
+  type: DailyRecordType;
+  dateTime: string;
+  notes: string | null;
+}
+
 export interface IncidentRequest {
   severity: IncidentSeverity;
   description: string;
@@ -320,6 +328,45 @@ export interface DogDetailVersionedResponse {
   dog: Dog;
   authorizedPersons: AuthorizedPerson[];
   etag: string;
+}
+
+export interface CaregiverDogSummary {
+  reservationId: number;
+  id: number;
+  name: string;
+  breed: string | null;
+  size: DogSize;
+  photoAvailable: boolean;
+  arrivalAt: string | null;
+  stayStatus: string;
+  groupName: string | null;
+}
+
+export interface CaregiverDogPage {
+  items: CaregiverDogSummary[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export interface CaregiverDogDetail {
+  reservationId: number;
+  id: number;
+  name: string;
+  breed: string | null;
+  size: DogSize;
+  birthDate: string | null;
+  tutor: { name: string; phone: string } | null;
+  photoAvailable: boolean;
+  arrivalAt: string | null;
+  stayStatus: string;
+  groupName: string | null;
+  feedingInstructions: string | null;
+  temperament: string | null;
+  allergies: { description: string }[];
+  medications: { id: number; medication: string; dosage: string | null; instructions: string; declaredByTutor: boolean }[];
+  incompatibilities: { incompatibleDogName: string; reason: string | null }[];
 }
 
 export interface TutorDogSummary {

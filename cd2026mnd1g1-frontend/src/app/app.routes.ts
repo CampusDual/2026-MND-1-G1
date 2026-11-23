@@ -10,11 +10,14 @@ import { ReservationCreateComponent } from './main/reservation-create.component'
 import { ReceptionArrivalComponent } from './main/reception-arrival.component';
 import { ReceptionDepartureComponent } from './main/reception-departure.component';
 import { TutorDogsComponent } from './main/tutor-dogs.component';
+import { CaregiverDogsComponent } from './main/caregiver-dogs.component';
 
 const receptionRoles: string[] = ['RECEPCIONISTA', 'ADMIN', 'GERENTE'];
 
 export const routes: Routes = [
 	{ path: 'login', component: LoginComponent },
+	{ path: 'mis-perros-hoy', component: CaregiverDogsComponent, canActivate: [authGuard, roleGuard], data: { roles: ['CUIDADOR'] } },
+	{ path: 'mis-perros-hoy/:reservationId', component: CaregiverDogsComponent, canActivate: [authGuard, roleGuard], data: { roles: ['CUIDADOR'] } },
 	{ path: 'mis-perros/nuevo', component: TutorDogsComponent, canActivate: [authGuard, roleGuard], data: { roles: ['TUTOR'] } },
 	{ path: 'mis-perros/:id/editar', component: TutorDogsComponent, canActivate: [authGuard, roleGuard], data: { roles: ['TUTOR'] } },
 	{ path: 'mis-perros', component: TutorDogsComponent, canActivate: [authGuard, roleGuard], data: { roles: ['TUTOR'] } },

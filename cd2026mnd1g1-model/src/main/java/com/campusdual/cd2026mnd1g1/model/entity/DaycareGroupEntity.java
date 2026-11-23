@@ -33,6 +33,10 @@ public class DaycareGroupEntity {
     @Column(name = "capacidad_max", nullable = false)
     private Integer maxCapacity;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cuidador_id")
+    private UserEntity caregiver;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public CenterEntity getCenter() { return center; }
@@ -43,4 +47,6 @@ public class DaycareGroupEntity {
     public void setRoom(String room) { this.room = room; }
     public Integer getMaxCapacity() { return maxCapacity; }
     public void setMaxCapacity(Integer maxCapacity) { this.maxCapacity = maxCapacity; }
+    public UserEntity getCaregiver() { return caregiver; }
+    public void setCaregiver(UserEntity caregiver) { this.caregiver = caregiver; }
 }
