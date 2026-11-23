@@ -13,6 +13,20 @@ public class IncidentDto {
     public IncidentDto() {
     }
 
+    public IncidentDto(
+            Long id,
+            Long reservationId,
+            IncidentSeverityDto severity,
+            String description,
+            LocalDateTime dateTime
+    ) {
+        this.id = id;
+        this.reservationId = reservationId;
+        this.severity = severity;
+        this.description = description;
+        this.dateTime = dateTime;
+    }
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public Long getReservationId() { return reservationId; }

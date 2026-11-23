@@ -101,6 +101,62 @@ class CaregiverPortalControllerITTest {
                                 """))
                 .andExpect(status().isNotFound());
 
+        this.mockMvc.perform(post("/api/cuidador/mis-perros-hoy/{reservationId}/resumen", reservationId)
+                        .header("Authorization", basicAuthorization(caregiver))
+                        .contentType("application/json")
+                        .content("""
+                                {"text":"Comió con normalidad y realizó paseos tranquilos."}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.reservationId").value(reservationId))
+                .andExpect(jsonPath("$.status").value("PUBLICADO"))
+                .andExpect(jsonPath("$.text").value("Comió con normalidad y realizó paseos tranquilos."));
+
+        this.mockMvc.perform(get("/api/cuidador/mis-perros-hoy/{reservationId}/resumen", reservationId)
+                        .header("Authorization", basicAuthorization(caregiver)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.text").value("Comió con normalidad y realizó paseos tranquilos."));
+
+        this.mockMvc.perform(post("/api/cuidador/mis-perros-hoy/{reservationId}/resumen", reservationId)
+                        .header("Authorization", basicAuthorization(caregiver))
+                        .contentType("application/json")
+                        .content("""
+                                {"text":"Intento de sustitución"}
+                                """))
+                .andExpect(status().isConflict());
+
+        this.mockMvc.perform(post("/api/cuidador/mis-perros-hoy/{reservationId}/resumen", otherReservationId)
+                        .header("Authorization", basicAuthorization(caregiver))
+                        .contentType("application/json")
+                        .content("""
+                                {"text":"Resumen ajeno"}
+                                """))
+                .andExpect(status().isNotFound());
+
+        this.mockMvc.perform(post("/api/cuidador/mis-perros-hoy/{reservationId}/incidencias", reservationId)
+                        .header("Authorization", basicAuthorization(caregiver))
+                        .contentType("application/json")
+                        .content("""
+                                {"severity":"MODERADA","description":"Se observó incomodidad durante el paseo"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.reservationId").value(reservationId))
+                .andExpect(jsonPath("$.severity").value("MODERADA"))
+                .andExpect(jsonPath("$.description").value("Se observó incomodidad durante el paseo"));
+
+        this.mockMvc.perform(get("/api/cuidador/mis-perros-hoy/{reservationId}/incidencias", reservationId)
+                        .header("Authorization", basicAuthorization(caregiver)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
+
+        this.mockMvc.perform(post("/api/cuidador/mis-perros-hoy/{reservationId}/incidencias", otherReservationId)
+                        .header("Authorization", basicAuthorization(caregiver))
+                        .contentType("application/json")
+                        .content("""
+                                {"severity":"GRAVE","description":"Incidencia ajena"}
+                                """))
+                .andExpect(status().isNotFound());
+
         this.mockMvc.perform(get("/api/cuidador/mis-perros-hoy")
                         .header("Authorization", basicAuthorization("recepcionista")))
                 .andExpect(status().isForbidden());

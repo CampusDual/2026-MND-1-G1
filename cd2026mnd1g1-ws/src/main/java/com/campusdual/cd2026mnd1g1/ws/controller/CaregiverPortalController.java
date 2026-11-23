@@ -5,6 +5,10 @@ import com.campusdual.cd2026mnd1g1.api.dto.CaregiverDogPageDto;
 import com.campusdual.cd2026mnd1g1.api.service.CaregiverPortalService;
 import com.campusdual.cd2026mnd1g1.api.dto.DailyRecordDto;
 import com.campusdual.cd2026mnd1g1.api.dto.DailyRecordRequestDto;
+import com.campusdual.cd2026mnd1g1.api.dto.CaregiverDailySummaryDto;
+import com.campusdual.cd2026mnd1g1.api.dto.CaregiverDailySummaryRequestDto;
+import com.campusdual.cd2026mnd1g1.api.dto.IncidentDto;
+import com.campusdual.cd2026mnd1g1.api.dto.IncidentRequestDto;
 import jakarta.validation.Valid;
 import com.campusdual.cd2026mnd1g1.model.exception.ResourceNotFoundException;
 import jakarta.validation.constraints.Max;
@@ -108,6 +112,72 @@ public class CaregiverPortalController {
                 principal.getName()
         );
         return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(record);
+    }
+
+    /**
+     * Consulta el resumen publicado de una estancia asignada.
+     */
+    @GetMapping("/{reservationId}/resumen")
+    @PreAuthorize("hasRole('CUIDADOR')")
+    public ResponseEntity<CaregiverDailySummaryDto> getTodaySummary(
+            @PathVariable @Min(0) Long reservationId,
+            Principal principal
+    ) {
+        CaregiverDailySummaryDto summary =
+                this.caregiverPortalService.findTodaySummary(reservationId, principal.getName());
+        return summary == null ? ResponseEntity.ok().build() : ResponseEntity.ok(summary);
+    }
+
+    /**
+     * Publica una vez el resumen diario de una estancia asignada.
+     */
+    @PostMapping("/{reservationId}/resumen")
+    @PreAuthorize("hasRole('CUIDADOR')")
+    public ResponseEntity<CaregiverDailySummaryDto> publishTodaySummary(
+            @PathVariable @Min(0) Long reservationId,
+            @Valid @RequestBody CaregiverDailySummaryRequestDto request,
+            Principal principal
+    ) {
+        CaregiverDailySummaryDto summary =
+                this.caregiverPortalService.publishTodaySummary(
+                        reservationId,
+                        request,
+                        principal.getName()
+                );
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(summary);
+    }
+
+    /**
+     * Consulta las incidencias internas de una estancia asignada.
+     */
+    @GetMapping("/{reservationId}/incidencias")
+    @PreAuthorize("hasRole('CUIDADOR')")
+    public ResponseEntity<List<IncidentDto>> getTodayIncidents(
+            @PathVariable @Min(0) Long reservationId,
+            Principal principal
+    ) {
+        return ResponseEntity.ok(
+                this.caregiverPortalService.findTodayIncidents(reservationId, principal.getName())
+        );
+    }
+
+    /**
+     * Registra una incidencia interna en una estancia asignada.
+     */
+    @PostMapping("/{reservationId}/incidencias")
+    @PreAuthorize("hasRole('CUIDADOR')")
+    public ResponseEntity<IncidentDto> createTodayIncident(
+            @PathVariable @Min(0) Long reservationId,
+            @Valid @RequestBody IncidentRequestDto request,
+            Principal principal
+    ) {
+        IncidentDto incident =
+                this.caregiverPortalService.createTodayIncident(
+                        reservationId,
+                        request,
+                        principal.getName()
+                );
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(incident);
     }
 
     /**

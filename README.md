@@ -436,6 +436,20 @@ Los scripts usan `dev_fixture_registry`, una tabla auxiliar exclusiva de las bas
 - La hora se obtiene del servidor en `Europe/Madrid`. No se crean incidencias, resúmenes, notificaciones ni registros de administración de medicación.
 - El formulario de la ficha permite registrar un cuidado y consultar el historial interno. Cancelar no guarda; el envío conserva el formulario ante errores y bloquea envíos simultáneos.
 
+## Resumen diario publicado para el tutor
+
+- V14 amplía `resumen_diario` con autor cuidador, centro, estado `PUBLICADO` y fecha de publicación. Conserva `reserva_id`, `destinatario=TUTOR`, `texto_ia` y `generado_en`.
+- Solo el cuidador asignado hoy puede publicar mediante `POST /api/cuidador/mis-perros-hoy/{reservationId}/resumen`. El texto es obligatorio y tiene máximo 4000 caracteres.
+- Existe un único resumen publicado por reserva/destinatario. No hay borrador ni edición posterior en esta entrega. Repetir la publicación devuelve `409`.
+- `GET` devuelve el resumen publicado o una respuesta vacía si aún no existe. El contenido se redacta manualmente a partir de información autorizada; no incluye incompatibilidades, incidencias, notas internas ni administración de medicación.
+- No se envían notificaciones ni se implementa consulta del tutor. Publicar no modifica registros diarios, reservas, llegadas, salidas, fichas ni aforo.
+
+## Incidencias internas del cuidador
+
+- Se reutiliza `incidencia`, vinculada a la reserva y al usuario cuidador. Permite varias incidencias por estancia y conserva gravedad `LEVE`, `MODERADA` o `GRAVE`, descripción y hora.
+- Los endpoints son `POST` y `GET /api/cuidador/mis-perros-hoy/{reservationId}/incidencias`. Solo admiten reservas asignadas al cuidador hoy, en estado `EN_CURSO`, con entrada y sin salida.
+- No existen tipos adicionales, estados de revisión, comunicación al tutor, fotos ni edición/borrado. Registrar una incidencia no modifica el resumen diario ni envía notificaciones.
+
 ## Alimentación y comportamiento en recepción
 
 - **Plan aplicado (alcance aprobado por el usuario):** recepción, administración y gerencia pueden introducir y editar las pautas de alimentación y el comportamiento en la misma ficha de `perro`. Se reutilizan las columnas existentes; no se añade una migración ni se crea un registro paralelo.

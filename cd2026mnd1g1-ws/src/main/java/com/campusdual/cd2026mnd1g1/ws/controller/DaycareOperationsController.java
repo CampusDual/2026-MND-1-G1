@@ -106,6 +106,7 @@ public class DaycareOperationsController {
      * @return incidencia creada
      */
     @PostMapping("/{id}/incidencias")
+    @PreAuthorize("hasRole('CUIDADOR')")
     public ResponseEntity<IncidentDto> createIncident(
             @PathVariable @Positive Long id,
             @Valid @RequestBody IncidentRequestDto request,

@@ -7,6 +7,11 @@ import com.campusdual.cd2026mnd1g1.api.dto.CaregiverDogMedicationDto;
 import com.campusdual.cd2026mnd1g1.api.dto.CaregiverDogPageDto;
 import com.campusdual.cd2026mnd1g1.api.dto.CaregiverDogSummaryDto;
 import com.campusdual.cd2026mnd1g1.api.dto.CaregiverTutorContactDto;
+import com.campusdual.cd2026mnd1g1.api.dto.CaregiverDailySummaryDto;
+import com.campusdual.cd2026mnd1g1.api.dto.CaregiverDailySummaryRequestDto;
+import com.campusdual.cd2026mnd1g1.api.dto.IncidentDto;
+import com.campusdual.cd2026mnd1g1.api.dto.IncidentRequestDto;
+import com.campusdual.cd2026mnd1g1.api.dto.IncidentSeverityDto;
 import com.campusdual.cd2026mnd1g1.api.dto.DailyRecordDto;
 import com.campusdual.cd2026mnd1g1.api.dto.DailyRecordRequestDto;
 import com.campusdual.cd2026mnd1g1.api.dto.DailyRecordTypeDto;
@@ -18,6 +23,9 @@ import com.campusdual.cd2026mnd1g1.model.entity.IncompatibilityEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.ReservationEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.DailyRecordEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.DailyRecordType;
+import com.campusdual.cd2026mnd1g1.model.entity.DailySummaryEntity;
+import com.campusdual.cd2026mnd1g1.model.entity.IncidentEntity;
+import com.campusdual.cd2026mnd1g1.model.entity.IncidentSeverity;
 import com.campusdual.cd2026mnd1g1.model.entity.UserEntity;
 import com.campusdual.cd2026mnd1g1.model.exception.OperationalUserNotFoundException;
 import com.campusdual.cd2026mnd1g1.model.exception.ResourceNotFoundException;
@@ -27,6 +35,8 @@ import com.campusdual.cd2026mnd1g1.model.repository.IncompatibilityRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.MedicationRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.ReservationRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.DailyRecordRepository;
+import com.campusdual.cd2026mnd1g1.model.repository.DailySummaryRepository;
+import com.campusdual.cd2026mnd1g1.model.repository.IncidentRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -57,6 +67,8 @@ public class CaregiverPortalServiceImpl implements CaregiverPortalService {
     private final MedicationRepository medicationRepository;
     private final IncompatibilityRepository incompatibilityRepository;
     private final DailyRecordRepository dailyRecordRepository;
+    private final DailySummaryRepository dailySummaryRepository;
+    private final IncidentRepository incidentRepository;
     private final Clock receptionClock;
 
     public CaregiverPortalServiceImpl(
@@ -67,6 +79,8 @@ public class CaregiverPortalServiceImpl implements CaregiverPortalService {
             MedicationRepository medicationRepository,
             IncompatibilityRepository incompatibilityRepository,
             DailyRecordRepository dailyRecordRepository,
+            DailySummaryRepository dailySummaryRepository,
+            IncidentRepository incidentRepository,
             Clock receptionClock
     ) {
         this.userRepository = userRepository;
@@ -76,6 +90,8 @@ public class CaregiverPortalServiceImpl implements CaregiverPortalService {
         this.medicationRepository = medicationRepository;
         this.incompatibilityRepository = incompatibilityRepository;
         this.dailyRecordRepository = dailyRecordRepository;
+        this.dailySummaryRepository = dailySummaryRepository;
+        this.incidentRepository = incidentRepository;
         this.receptionClock = receptionClock;
     }
 
@@ -174,6 +190,113 @@ public class CaregiverPortalServiceImpl implements CaregiverPortalService {
         record.setOccurredAt(LocalDateTime.now(this.receptionClock));
         record.setNotes(normalizeOptionalNotes(request.getNotes()));
         return mapDailyRecord(this.dailyRecordRepository.save(record));
+    }
+
+    @Override
+    public CaregiverDailySummaryDto findTodaySummary(Long reservationId, String username) {
+        validateReservationId(reservationId);
+        findAuthorizedReservation(reservationId, username);
+        return this.dailySummaryRepository
+                .findByReservation_IdAndRecipientAndStatus(reservationId, "TUTOR", "PUBLICADO")
+                .map(this::mapDailySummary)
+                .orElse(null);
+    }
+
+    @Override
+    @Transactional
+    public CaregiverDailySummaryDto publishTodaySummary(
+            Long reservationId,
+            CaregiverDailySummaryRequestDto request,
+            String username
+    ) {
+        validateReservationId(reservationId);
+        if (request == null || request.text() == null || request.text().isBlank()) {
+            throw new IllegalArgumentException("El resumen diario es obligatorio");
+        }
+        if (request.text().length() > 4000) {
+            throw new IllegalArgumentException("El resumen no puede superar 4000 caracteres");
+        }
+        ReservationEntity reservation = findAuthorizedReservation(reservationId, username);
+        UserEntity caregiver = findActiveCaregiver(username);
+        if (this.dailySummaryRepository.findByReservation_IdAndRecipientAndStatus(
+                reservationId,
+                "TUTOR",
+                "PUBLICADO"
+        ).isPresent()) {
+            throw new IllegalStateException("Ya existe un resumen publicado para esta estancia");
+        }
+        LocalDateTime now = LocalDateTime.now(this.receptionClock);
+        DailySummaryEntity summary = new DailySummaryEntity();
+        summary.setReservation(reservation);
+        summary.setRecipient("TUTOR");
+        summary.setText(request.text().trim());
+        summary.setCaregiver(caregiver);
+        summary.setCenter(caregiver.getCenter());
+        summary.setStatus("PUBLICADO");
+        summary.setGeneratedAt(now);
+        summary.setPublishedAt(now);
+        return mapDailySummary(this.dailySummaryRepository.save(summary));
+    }
+
+    private CaregiverDailySummaryDto mapDailySummary(DailySummaryEntity summary) {
+        return new CaregiverDailySummaryDto(
+                summary.getId(),
+                summary.getReservation().getId(),
+                summary.getText(),
+                summary.getStatus(),
+                summary.getPublishedAt()
+        );
+    }
+
+    @Override
+    public List<IncidentDto> findTodayIncidents(Long reservationId, String username) {
+        validateReservationId(reservationId);
+        findAuthorizedReservation(reservationId, username);
+        return this.incidentRepository
+                .findByReservation_IdOrderByOccurredAtDescIdDesc(reservationId)
+                .stream()
+                .map(this::mapIncident)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public IncidentDto createTodayIncident(
+            Long reservationId,
+            IncidentRequestDto request,
+            String username
+    ) {
+        validateReservationId(reservationId);
+        if (request == null
+                || request.getSeverity() == null
+                || request.getDescription() == null
+                || request.getDescription().isBlank()) {
+            throw new IllegalArgumentException("La gravedad y la descripción de la incidencia son obligatorias");
+        }
+        if (request.getDescription().length() > 2000) {
+            throw new IllegalArgumentException("La descripción no puede superar 2000 caracteres");
+        }
+        ReservationEntity reservation = findAuthorizedReservation(reservationId, username);
+        UserEntity caregiver = findActiveCaregiver(username);
+        IncidentEntity incident = new IncidentEntity();
+        incident.setReservation(reservation);
+        incident.setUser(caregiver);
+        incident.setSeverity(IncidentSeverity.valueOf(request.getSeverity().name()));
+        incident.setDescription(request.getDescription().trim());
+        incident.setOccurredAt(LocalDateTime.now(this.receptionClock));
+        return mapIncident(this.incidentRepository.save(incident));
+    }
+
+    private IncidentDto mapIncident(IncidentEntity incident) {
+        return new IncidentDto(
+                incident.getId(),
+                incident.getReservation().getId(),
+                incident.getSeverity() == null
+                        ? null
+                        : IncidentSeverityDto.valueOf(incident.getSeverity().name()),
+                incident.getDescription(),
+                incident.getOccurredAt()
+        );
     }
 
     private void validateReservationId(Long reservationId) {

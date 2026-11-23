@@ -27,6 +27,9 @@ import {
   CaregiverDogDetail,
   DailyRecord,
   DailyRecordRequest,
+  CaregiverDailySummary,
+  Incident,
+  IncidentSeverity,
   Tutor,
   TutorPage,
   TutorRequest,
@@ -107,6 +110,43 @@ export class DaycareOperationsService {
     return this.http.post<DailyRecord>(
       `${this.caregiverDogsPath}/${reservationId}/registros-diarios`,
       request,
+      { headers: this.getAuthHeaders() }
+    );
+  }
+
+  getCaregiverDailySummary(reservationId: number): Observable<CaregiverDailySummary | null> {
+    return this.http.get<CaregiverDailySummary | null>(
+      `${this.caregiverDogsPath}/${reservationId}/resumen`,
+      { headers: this.getAuthHeaders() }
+    );
+  }
+
+  publishCaregiverDailySummary(
+    reservationId: number,
+    text: string
+  ): Observable<CaregiverDailySummary> {
+    return this.http.post<CaregiverDailySummary>(
+      `${this.caregiverDogsPath}/${reservationId}/resumen`,
+      { text },
+      { headers: this.getAuthHeaders() }
+    );
+  }
+
+  getCaregiverIncidents(reservationId: number): Observable<Incident[]> {
+    return this.http.get<Incident[]>(
+      `${this.caregiverDogsPath}/${reservationId}/incidencias`,
+      { headers: this.getAuthHeaders() }
+    );
+  }
+
+  createCaregiverIncident(
+    reservationId: number,
+    severity: IncidentSeverity,
+    description: string
+  ): Observable<Incident> {
+    return this.http.post<Incident>(
+      `${this.caregiverDogsPath}/${reservationId}/incidencias`,
+      { severity, description },
       { headers: this.getAuthHeaders() }
     );
   }

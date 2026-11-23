@@ -69,6 +69,22 @@ export interface DailyRecord {
   notes: string | null;
 }
 
+export interface CaregiverDailySummary {
+  id: number;
+  reservationId: number;
+  text: string;
+  status: 'PUBLICADO';
+  publishedAt: string;
+}
+
+export interface Incident {
+  id: number;
+  reservationId: number;
+  severity: IncidentSeverity;
+  description: string;
+  dateTime: string;
+}
+
 export interface IncidentRequest {
   severity: IncidentSeverity;
   description: string;

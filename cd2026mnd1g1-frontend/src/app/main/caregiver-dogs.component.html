@@ -22,8 +22,38 @@
           <p class="eyebrow">FICHA DEL PERRO</p>
           <h1>{{ dog.name }}</h1>
         </div>
-        <button type="button" class="primary-button" (click)="openRecordForm()">Registrar cuidados</button>
+        <div class="heading-actions">
+          <button type="button" class="secondary-button" (click)="openRecordForm()">Registrar cuidados</button>
+          <button type="button" class="secondary-button" (click)="openIncidentForm()">Registrar incidencia</button>
+          @if (summary) {
+            <button type="button" class="primary-button" disabled>Resumen publicado</button>
+          } @else {
+            <button type="button" class="primary-button" (click)="openSummaryForm()">Preparar resumen</button>
+          }
+        </div>
       </div>
+
+      @if (showSummaryForm) {
+        <section class="detail-card">
+          <h2>Resumen diario para el tutor</h2>
+          <p>Redacta únicamente información autorizada y útil para el tutor. No se incluirán incompatibilidades ni datos internos.</p>
+          <form (ngSubmit)="publishSummary()">
+            <label for="summary-text">Resumen <span>*</span></label>
+            <textarea id="summary-text" name="summaryText" required maxlength="4000" rows="6"
+                      [(ngModel)]="summaryText"></textarea>
+            @if (errorMessage) {
+              <div class="notice error" role="alert">{{ errorMessage }}</div>
+            }
+            <div class="form-actions">
+              <button type="button" class="secondary-button" [disabled]="isPublishingSummary" (click)="cancelSummary()">Cancelar</button>
+              <button type="submit" class="primary-button"
+                      [disabled]="summaryText.trim().length === 0 || isPublishingSummary">
+                {{ isPublishingSummary ? 'Publicando...' : 'Publicar resumen' }}
+              </button>
+            </div>
+          </form>
+        </section>
+      }
 
       @if (showRecordForm) {
         <section class="detail-card">
@@ -46,6 +76,34 @@
               <button type="button" class="secondary-button" [disabled]="isSaving" (click)="cancelRecord()">Cancelar</button>
               <button type="submit" class="primary-button" [disabled]="recordType === null || isSaving">
                 {{ isSaving ? 'Guardando...' : 'Guardar' }}
+              </button>
+            </div>
+          </form>
+        </section>
+      }
+
+      @if (showIncidentForm) {
+        <section class="detail-card">
+          <h2>Nueva incidencia</h2>
+          <form (ngSubmit)="saveIncident()">
+            <label for="incident-severity">Gravedad <span>*</span></label>
+            <select id="incident-severity" name="incidentSeverity" required [(ngModel)]="incidentSeverity">
+              <option [ngValue]="null">Selecciona la gravedad</option>
+              <option [ngValue]="'LEVE'">Leve</option>
+              <option [ngValue]="'MODERADA'">Moderada</option>
+              <option [ngValue]="'GRAVE'">Grave</option>
+            </select>
+            <label for="incident-description">Descripción <span>*</span></label>
+            <textarea id="incident-description" name="incidentDescription" required maxlength="2000" rows="5"
+                      [(ngModel)]="incidentDescription"></textarea>
+            @if (errorMessage) {
+              <div class="notice error" role="alert">{{ errorMessage }}</div>
+            }
+            <div class="form-actions">
+              <button type="button" class="secondary-button" [disabled]="isSavingIncident" (click)="cancelIncident()">Cancelar</button>
+              <button type="submit" class="primary-button"
+                      [disabled]="incidentSeverity === null || incidentDescription.trim().length === 0 || isSavingIncident">
+                {{ isSavingIncident ? 'Guardando...' : 'Guardar incidencia' }}
               </button>
             </div>
           </form>
@@ -135,6 +193,32 @@
               </li>
             }
           </ul>
+        }
+      </section>
+
+      <section class="detail-card">
+        <h2>Incidencias internas</h2>
+        @if (incidents.length === 0) {
+          <p>No hay incidencias registradas.</p>
+        } @else {
+          <ul>
+            @for (incident of incidents; track incident.id) {
+              <li>
+                <strong>{{ incident.severity }}</strong> — {{ incident.dateTime }}
+                <p>{{ incident.description }}</p>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+
+      <section class="detail-card">
+        <h2>Resumen publicado</h2>
+        @if (summary) {
+          <p>{{ summary.text }}</p>
+          <small>Publicado el {{ summary.publishedAt }}</small>
+        } @else {
+          <p>Todavía no hay un resumen publicado.</p>
         }
       </section>
     } @else {

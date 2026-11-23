@@ -9,6 +9,9 @@ import { DaycareOperationsService } from '../core/daycare-operations.service';
 import {
   CaregiverDogDetail,
   CaregiverDogSummary,
+  CaregiverDailySummary,
+  Incident,
+  IncidentSeverity,
   DailyRecord,
   DailyRecordType,
   DogSize
@@ -42,6 +45,15 @@ export class CaregiverDogsComponent implements OnInit, OnDestroy {
   isSaving: boolean = false;
   recordType: DailyRecordType | null = null;
   recordNotes: string = '';
+  summary: CaregiverDailySummary | null = null;
+  showSummaryForm: boolean = false;
+  summaryText: string = '';
+  isPublishingSummary: boolean = false;
+  incidents: Incident[] = [];
+  showIncidentForm: boolean = false;
+  incidentSeverity: IncidentSeverity | null = null;
+  incidentDescription: string = '';
+  isSavingIncident: boolean = false;
 
   readonly dailyRecordTypes: { value: DailyRecordType; label: string }[] = [
     { value: 'COMIDA', label: 'Comida' },
@@ -79,6 +91,13 @@ export class CaregiverDogsComponent implements OnInit, OnDestroy {
       this.showRecordForm = false;
       this.recordType = null;
       this.recordNotes = '';
+      this.summary = null;
+      this.showSummaryForm = false;
+      this.summaryText = '';
+      this.incidents = [];
+      this.showIncidentForm = false;
+      this.incidentSeverity = null;
+      this.incidentDescription = '';
       if (reservationIdValue === null || !Number.isSafeInteger(reservationId) || reservationId < 0) {
         this.loadList();
       } else {
@@ -181,6 +200,102 @@ export class CaregiverDogsComponent implements OnInit, OnDestroy {
     return this.dailyRecordTypes.find((item) => item.value === type)?.label ?? type;
   }
 
+  openSummaryForm(): void {
+    if (this.summary !== null) {
+      return;
+    }
+    this.showSummaryForm = true;
+    this.errorMessage = '';
+  }
+
+  cancelSummary(): void {
+    if (this.isPublishingSummary) {
+      return;
+    }
+    this.showSummaryForm = false;
+    this.summaryText = '';
+  }
+
+  publishSummary(): void {
+    if (this.isPublishingSummary || this.dog === null || this.summary !== null) {
+      return;
+    }
+    const normalized: string = this.summaryText.trim();
+    if (normalized.length === 0) {
+      this.errorMessage = 'El resumen diario es obligatorio.';
+      return;
+    }
+    if (normalized.length > 4000) {
+      this.errorMessage = 'El resumen no puede superar 4000 caracteres.';
+      return;
+    }
+    this.isPublishingSummary = true;
+    this.errorMessage = '';
+    this.subscriptions.add(this.operationsService.publishCaregiverDailySummary(
+      this.dog.reservationId,
+      normalized
+    ).subscribe({
+      next: (summary) => {
+        this.summary = summary;
+        this.summaryText = '';
+        this.showSummaryForm = false;
+        this.isPublishingSummary = false;
+      },
+      error: (error: HttpErrorResponse) => {
+        this.isPublishingSummary = false;
+        this.handleError(error);
+      }
+    }));
+  }
+
+  openIncidentForm(): void {
+    this.showIncidentForm = true;
+    this.errorMessage = '';
+  }
+
+  cancelIncident(): void {
+    if (this.isSavingIncident) {
+      return;
+    }
+    this.showIncidentForm = false;
+    this.incidentSeverity = null;
+    this.incidentDescription = '';
+  }
+
+  saveIncident(): void {
+    if (this.isSavingIncident || this.dog === null || this.incidentSeverity === null) {
+      return;
+    }
+    const description: string = this.incidentDescription.trim();
+    if (description.length === 0) {
+      this.errorMessage = 'La descripción de la incidencia es obligatoria.';
+      return;
+    }
+    if (description.length > 2000) {
+      this.errorMessage = 'La descripción no puede superar 2000 caracteres.';
+      return;
+    }
+    this.isSavingIncident = true;
+    this.errorMessage = '';
+    this.subscriptions.add(this.operationsService.createCaregiverIncident(
+      this.dog.reservationId,
+      this.incidentSeverity,
+      description
+    ).subscribe({
+      next: (incident) => {
+        this.incidents = [incident, ...this.incidents];
+        this.isSavingIncident = false;
+        this.showIncidentForm = false;
+        this.incidentSeverity = null;
+        this.incidentDescription = '';
+      },
+      error: (error: HttpErrorResponse) => {
+        this.isSavingIncident = false;
+        this.handleError(error);
+      }
+    }));
+  }
+
   private loadList(): void {
     this.isLoading = true;
     this.errorMessage = '';
@@ -211,6 +326,8 @@ export class CaregiverDogsComponent implements OnInit, OnDestroy {
           this.isLoading = false;
           this.loadPhoto(reservationId);
           this.loadRecords(reservationId);
+          this.loadSummary(reservationId);
+          this.loadIncidents(reservationId);
         },
         error: (error: HttpErrorResponse) => this.handleError(error)
       }));
@@ -243,6 +360,24 @@ export class CaregiverDogsComponent implements OnInit, OnDestroy {
       .getCaregiverDailyRecords(reservationId)
       .subscribe({
         next: (records) => this.records = records,
+        error: (error: HttpErrorResponse) => this.handleError(error)
+      }));
+  }
+
+  private loadSummary(reservationId: number): void {
+    this.subscriptions.add(this.operationsService
+      .getCaregiverDailySummary(reservationId)
+      .subscribe({
+        next: (summary) => this.summary = summary,
+        error: (error: HttpErrorResponse) => this.handleError(error)
+      }));
+  }
+
+  private loadIncidents(reservationId: number): void {
+    this.subscriptions.add(this.operationsService
+      .getCaregiverIncidents(reservationId)
+      .subscribe({
+        next: (incidents) => this.incidents = incidents,
         error: (error: HttpErrorResponse) => this.handleError(error)
       }));
   }
