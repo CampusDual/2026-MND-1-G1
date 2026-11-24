@@ -17,6 +17,7 @@ import { AuthService } from '../core/auth.service';
 export class LoginComponent {
   isLoading: boolean = false;
   errorMessage: string = '';
+  showPassword: boolean = false;
 
   readonly loginForm;
 
