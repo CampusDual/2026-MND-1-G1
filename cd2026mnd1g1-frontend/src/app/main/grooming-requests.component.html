@@ -1,0 +1,116 @@
+<main class="appointments-page">
+  <header class="topbar">
+    <a class="brand" routerLink="/tablero-diario" aria-label="PawCare, tablero de recepción">
+      <span class="brand-mark" aria-hidden="true">P</span>
+      <span>PawCare <span class="brand-divider">·</span> <strong>Recepción</strong></span>
+    </a>
+    <a class="nav-link" routerLink="/tablero-diario">Tablero diario</a>
+    <button class="logout-button" type="button" (click)="logout()">Cerrar sesión</button>
+  </header>
+
+  <section class="content">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow">PELUQUERÍA</p>
+        <h1>Citas de peluquería</h1>
+        <p class="subtitle">Consulta su origen, perro, servicios y horario programado.</p>
+      </div>
+      <button class="secondary-button" type="button" [disabled]="isLoading" (click)="loadAppointments()">
+        Actualizar
+      </button>
+    </div>
+
+    <section class="filters" aria-label="Filtros de citas">
+      <label>
+        Origen
+        <select [(ngModel)]="origin">
+          <option value="">Todos</option>
+          <option value="INTERNA">Interna</option>
+          <option value="B2B">B2B · Guardería cliente</option>
+        </select>
+      </label>
+      <label>
+        Estado
+        <select [(ngModel)]="status">
+          <option value="">Todos</option>
+          @for (option of statuses; track option) {
+            <option [value]="option">{{ statusLabel(option) }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        Desde
+        <input type="date" [(ngModel)]="fromDate">
+      </label>
+      <label>
+        Hasta
+        <input type="date" [(ngModel)]="toDate">
+      </label>
+      <button class="primary-button" type="button" [disabled]="isLoading" (click)="applyFilters()">
+        Aplicar filtros
+      </button>
+    </section>
+
+    @if (hasAccessError) {
+      <section class="state-card error" role="alert">
+        <h2>Sección no autorizada</h2>
+        <p>Tu cuenta no tiene permiso para consultar citas de peluquería.</p>
+      </section>
+    } @else if (isLoading) {
+      <div class="state-card" role="status">Cargando citas de peluquería...</div>
+    } @else if (errorMessage) {
+      <section class="state-card error" role="alert">
+        <p>{{ errorMessage }}</p>
+        <button class="secondary-button" type="button" (click)="loadAppointments()">Reintentar</button>
+      </section>
+    } @else if (totalElements === 0) {
+      <section class="state-card empty-state">
+        <h2>No hay citas de peluquería que cumplan los filtros aplicados</h2>
+      </section>
+    } @else {
+      <p class="results-count">{{ totalElements }} {{ totalElements === 1 ? 'cita' : 'citas' }}</p>
+      <section class="request-list" aria-label="Citas de peluquería">
+        @for (appointment of appointments; track appointment.id) {
+          <article class="request-card">
+            <div class="request-heading">
+              <div>
+                <h2>{{ appointment.dogName }}</h2>
+                <p>{{ appointment.customerName || (appointment.origin === 'B2B' ? 'Guardería no indicada' : 'Tutor no asociado') }}</p>
+              </div>
+              <span class="origin-badge" [class.b2b]="appointment.origin === 'B2B'">{{ originLabel(appointment.origin) }}</span>
+            </div>
+            <dl>
+              <div>
+                <dt>Servicios</dt>
+                <dd>{{ appointment.serviceNames.length ? appointment.serviceNames.join(', ') : 'Servicio no indicado' }}</dd>
+              </div>
+              <div>
+                <dt>Fecha y hora</dt>
+                <dd>{{ formatDate(appointment.date, appointment.time) }}</dd>
+              </div>
+              <div>
+                <dt>Estado</dt>
+                <dd><span class="status-badge">{{ statusLabel(appointment.status) }}</span></dd>
+              </div>
+              <div><dt>Duración</dt><dd>{{ appointment.durationMinutes }} min</dd></div>
+              <div><dt>Lugar</dt><dd>{{ locationLabel(appointment.location) }}</dd></div>
+            </dl>
+            <a class="detail-link" [routerLink]="['/citas-peluqueria', appointment.id]">
+              Ver detalle <span aria-hidden="true">→</span>
+            </a>
+          </article>
+        }
+      </section>
+
+      @if (totalPages > 1) {
+        <nav class="pagination" aria-label="Páginas de citas">
+          <button class="secondary-button" type="button" [disabled]="currentPage === 0"
+                  (click)="changePage(currentPage - 1)">Anterior</button>
+          <span>Página {{ currentPage + 1 }} de {{ totalPages }}</span>
+          <button class="secondary-button" type="button" [disabled]="currentPage + 1 >= totalPages"
+                  (click)="changePage(currentPage + 1)">Siguiente</button>
+        </nav>
+      }
+    }
+  </section>
+</main>

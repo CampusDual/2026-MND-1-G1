@@ -1,0 +1,21 @@
+package com.campusdual.cd2026mnd1g1.api.dto;
+
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.List;
+
+/**
+ * Datos de consulta de una solicitud de peluquería.
+ */
+public record GroomingRequestDetailDto(
+        Long id,
+        String dogName,
+        String customerName,
+        List<String> serviceNames,
+        LocalDate requestedDate,
+        LocalTime requestedTime,
+        GroomingRequestStatusDto status,
+        GroomingRequestOriginDto origin,
+        String notes
+) {
+}

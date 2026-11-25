@@ -122,6 +122,34 @@ export interface ReceptionReservationPage {
   totalPages: number;
 }
 
+export type GroomingRequestOrigin = 'INTERNA' | 'B2B';
+export type GroomingRequestStatus = 'SOLICITADA' | 'CONFIRMADA' | 'COMPLETADA' | 'CANCELADA';
+
+export interface GroomingAppointment {
+  id: number;
+  dogName: string;
+  customerName: string | null;
+  serviceNames: string[];
+  date: string;
+  time: string;
+  durationMinutes: number;
+  location: 'EN_INSTALACIONES' | 'DESPLAZADO';
+  status: GroomingRequestStatus;
+  origin: GroomingRequestOrigin;
+}
+
+export interface GroomingAppointmentPage {
+  items: GroomingAppointment[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export interface GroomingAppointmentDetail extends GroomingAppointment {
+  notes: string | null;
+}
+
 export interface ReceptionDog {
   id: number;
   name: string;

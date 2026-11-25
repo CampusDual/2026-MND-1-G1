@@ -28,6 +28,11 @@ import {
   DailyRecord,
   DailyRecordRequest,
   CaregiverDailySummary,
+  GroomingAppointment,
+  GroomingAppointmentDetail,
+  GroomingRequestOrigin,
+  GroomingAppointmentPage,
+  GroomingRequestStatus,
   Incident,
   IncidentSeverity,
   Tutor,
@@ -50,6 +55,7 @@ import { AuthService } from './auth.service';
 export class DaycareOperationsService {
   private readonly reservationsPath: string = '/api/reservas';
   private readonly receptionReservationsPath: string = '/api/recepcion/reservas';
+  private readonly groomingAppointmentsPath: string = '/api/recepcion/citas-peluqueria';
   private readonly receptionPath: string = '/api/recepcion';
   private readonly tutorsPath: string = '/api/recepcion/tutores';
   private readonly dogsPath: string = '/api/recepcion/perros';
@@ -219,6 +225,41 @@ export class DaycareOperationsService {
       `${this.receptionReservationsPath}/${reservationId}`,
       { headers: this.getAuthHeaders() }
     );
+  }
+
+  getReceptionGroomingAppointments(
+    filters: {
+      origin: GroomingRequestOrigin | '';
+      status: GroomingRequestStatus | '';
+      from: string;
+      to: string;
+    },
+    page: number,
+    size: number
+  ): Observable<GroomingAppointmentPage> {
+    let params: HttpParams = new HttpParams().set('page', page).set('size', size);
+    if (filters.origin) {
+      params = params.set('origin', filters.origin);
+    }
+    if (filters.status) {
+      params = params.set('status', filters.status);
+    }
+    if (filters.from) {
+      params = params.set('from', filters.from);
+    }
+    if (filters.to) {
+      params = params.set('to', filters.to);
+    }
+    return this.http.get<GroomingAppointmentPage>(this.groomingAppointmentsPath, {
+      headers: this.getAuthHeaders(),
+      params
+    });
+  }
+
+  getReceptionGroomingAppointment(appointmentId: number): Observable<GroomingAppointmentDetail> {
+    return this.http.get<GroomingAppointmentDetail>(`${this.groomingAppointmentsPath}/${appointmentId}`, {
+      headers: this.getAuthHeaders()
+    });
   }
 
   registerReceptionArrival(

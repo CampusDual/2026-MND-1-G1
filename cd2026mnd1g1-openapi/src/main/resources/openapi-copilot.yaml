@@ -19,6 +19,8 @@ tags:
     description: Consultas y registros diarios de reservas.
   - name: Recepcion
     description: Consultas, disponibilidad y reservas del centro del usuario autenticado.
+  - name: Peluquería
+    description: Consultas de solo lectura de solicitudes dentro del ámbito del centro autenticado.
   - name: Tutores
     description: Búsqueda y mantenimiento de fichas de tutores del centro autorizado.
   - name: Perros
@@ -985,6 +987,181 @@ paths:
           $ref: '#/components/responses/UnprocessableEntity'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /api/recepcion/citas-peluqueria:
+    get:
+      security:
+        - basicAuth: []
+      tags: [Peluquería]
+      summary: Lista citas de peluquería para recepción
+      description: >
+        Solo Recepcionista, Admin y Gerente. Consulta citas persistidas, no solicitudes;
+        el centro se obtiene de la sesión. El origen se deriva del centro asociado al perro
+        (PROPIA=INTERNA, CLIENTE=B2B). Los resultados requieren servicios coherentes del
+        centro autenticado y se ordenan por fecha y hora ascendente, después por identificador.
+        No modifica solicitudes ni citas.
+      operationId: listReceptionGroomingAppointments
+      parameters:
+        - in: query
+          name: origin
+          required: false
+          schema:
+            type: string
+            enum: [INTERNA, B2B]
+        - in: query
+          name: status
+          required: false
+          schema:
+            $ref: '#/components/schemas/GroomingRequestStatusDto'
+        - in: query
+          name: from
+          required: false
+          description: Fecha inicial inclusiva.
+          schema: { type: string, format: date }
+        - in: query
+          name: to
+          required: false
+          description: Fecha final inclusiva; debe ser igual o posterior a from.
+          schema: { type: string, format: date }
+        - in: query
+          name: page
+          required: false
+          schema: { type: integer, minimum: 0, default: 0 }
+        - in: query
+          name: size
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        '200':
+          description: Página de citas de peluquería.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroomingAppointmentPageDto'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+  /api/recepcion/citas-peluqueria/{id}:
+    get:
+      security:
+        - basicAuth: []
+      tags: [Peluquería]
+      summary: Consulta el detalle de una cita de peluquería
+      description: >
+        Solo Recepcionista, Admin y Gerente. Una cita inexistente, incoherente o asociada
+        a otro centro responde como no encontrada.
+      operationId: getReceptionGroomingAppointment
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64, minimum: 0 }
+      responses:
+        '200':
+          description: Datos explícitos de la cita, perro, cliente, servicios y observaciones.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroomingAppointmentDetailDto'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+  /api/recepcion/solicitudes-peluqueria:
+    get:
+      security:
+        - basicAuth: []
+      tags: [Peluquería]
+      summary: Lista solicitudes de peluquería para recepción
+      description: >
+        Solo Recepcionista, Admin y Gerente. El centro de servicio se obtiene de la
+        sesión. El origen se deriva del centro asociado al perro (PROPIA=INTERNA,
+        CLIENTE=B2B). Las solicitudes heredadas sin perro o servicio no se incluyen.
+        No modifica solicitudes ni citas.
+      operationId: listReceptionGroomingRequests
+      parameters:
+        - in: query
+          name: origin
+          required: false
+          schema:
+            type: string
+            enum: [INTERNA, B2B]
+        - in: query
+          name: status
+          required: false
+          schema:
+            $ref: '#/components/schemas/GroomingRequestStatusDto'
+        - in: query
+          name: from
+          required: false
+          description: Fecha inicial inclusiva.
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: to
+          required: false
+          description: Fecha final inclusiva; debe ser igual o posterior a from.
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: page
+          required: false
+          schema: { type: integer, minimum: 0, default: 0 }
+        - in: query
+          name: size
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        '200':
+          description: Solicitudes ordenadas por fecha descendente e identificador descendente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroomingRequestPageDto'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+  /api/recepcion/solicitudes-peluqueria/{id}:
+    get:
+      security:
+        - basicAuth: []
+      tags: [Peluquería]
+      summary: Consulta el detalle de una solicitud de peluquería
+      description: >
+        Solo Recepcionista, Admin y Gerente. Una solicitud inexistente, incompleta,
+        incoherente o asociada a otro centro responde como no encontrada.
+      operationId: getReceptionGroomingRequest
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64, minimum: 0 }
+      responses:
+        '200':
+          description: Datos explícitos de la solicitud, perro, cliente, servicios y observaciones.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroomingRequestDetailDto'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
   /api/recepcion/reservas:
     get:
       security:
@@ -2275,6 +2452,84 @@ components:
           format: email
           minLength: 1
           maxLength: 254
+    GroomingRequestStatusDto:
+      type: string
+      enum: [SOLICITADA, CONFIRMADA, COMPLETADA, CANCELADA]
+    GroomingRequestOriginDto:
+      type: string
+      enum: [INTERNA, B2B]
+    GroomingRequestPageDto:
+      type: object
+      required: [items, page, size, totalElements, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroomingRequestDto'
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1, maximum: 100 }
+        totalElements: { type: integer, format: int64, minimum: 0 }
+        totalPages: { type: integer, minimum: 0 }
+    GroomingRequestDto:
+      type: object
+      required: [id, dogName, serviceNames, requestedDate, status, origin]
+      properties:
+        id: { type: integer, format: int64, minimum: 0 }
+        dogName: { type: string, maxLength: 120 }
+        customerName: { type: string, nullable: true, maxLength: 280 }
+        serviceNames:
+          type: array
+          items: { type: string, maxLength: 120 }
+        requestedDate: { type: string, format: date }
+        requestedTime: { type: string, format: time, nullable: true }
+        status:
+          $ref: '#/components/schemas/GroomingRequestStatusDto'
+        origin:
+          $ref: '#/components/schemas/GroomingRequestOriginDto'
+    GroomingRequestDetailDto:
+      allOf:
+        - $ref: '#/components/schemas/GroomingRequestDto'
+        - type: object
+          properties:
+            notes: { type: string, nullable: true, maxLength: 2000 }
+    GroomingAppointmentPageDto:
+      type: object
+      required: [items, page, size, totalElements, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroomingAppointmentDto'
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1, maximum: 100 }
+        totalElements: { type: integer, format: int64, minimum: 0 }
+        totalPages: { type: integer, minimum: 0 }
+    GroomingAppointmentDto:
+      type: object
+      required: [id, dogName, serviceNames, date, time, durationMinutes, location, status, origin]
+      properties:
+        id: { type: integer, format: int64, minimum: 0 }
+        dogName: { type: string, maxLength: 120 }
+        customerName: { type: string, nullable: true, maxLength: 280 }
+        serviceNames:
+          type: array
+          items: { type: string, maxLength: 120 }
+        date: { type: string, format: date }
+        time: { type: string, format: time }
+        durationMinutes: { type: integer, minimum: 1 }
+        location:
+          type: string
+          enum: [EN_INSTALACIONES, DESPLAZADO]
+        status:
+          $ref: '#/components/schemas/GroomingRequestStatusDto'
+        origin:
+          $ref: '#/components/schemas/GroomingRequestOriginDto'
+    GroomingAppointmentDetailDto:
+      allOf:
+        - $ref: '#/components/schemas/GroomingAppointmentDto'
+        - type: object
+          properties:
+            notes: { type: string, nullable: true, maxLength: 2000 }
     ReceptionReservationPageDto:
       type: object
       required: [items, page, size, totalElements, totalPages]
