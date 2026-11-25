@@ -410,9 +410,77 @@ Los scripts usan `dev_fixture_registry`, una tabla auxiliar exclusiva de las bas
 - Comprobaciones ejecutadas: `mvn test-compile` y `mvn -pl cd2026mnd1g1-boot -am test` desde la raíz finalizaron correctamente; la suite backend ejecutó 43 pruebas, con 0 fallos y 0 errores. También pasó `mvn -pl cd2026mnd1g1-boot -am '-Dtest=ReceptionReservationControllerITTest' '-Dsurefire.failIfNoSpecifiedTests=false' test` (18 pruebas) y `npm run build` desde `cd2026mnd1g1-frontend`. Una ejecución previa de la suite completa falló de forma aislada en la prueba concurrente de salidas; tanto la clase focalizada como una repetición completa posterior pasaron. El build Angular terminó correctamente con advertencias existentes de presupuesto SCSS.
 - No existe automatización E2E de navegador para login, navegación, error/fallback de imagen ni cierre de sesión entre cuentas; esos recorridos quedan como pasos manuales reproducibles.
 
+## Consulta de perros de hoy para cuidadores
+
+- **Plan aplicado:** el cuidador responsable se asigna una vez al grupo mediante `grupo.cuidador_id`. No se añade una tabla separada ni planificación de turnos. V13 crea la relación, el índice operativo y el rol `CUIDADOR`; no modifica migraciones aplicadas.
+- “Hoy” usa `Europe/Madrid`. Una reserva aparece únicamente si pertenece a un grupo del cuidador autenticado, está `EN_CURSO`, tiene una entrada registrada hoy y todavía no tiene salida.
+- El listado devuelve identificador de reserva y perro, nombre, raza, tamaño, foto disponible, hora de entrada, estado de estancia y grupo. El detalle añade nacimiento, alimentación, temperamento, alergias, pautas de medicación e incompatibilidades internas.
+- La ficha completa añade nombre y teléfono del tutor asociado. No expone DNI, email ni datos de otros tutores. Las pautas de medicación muestran su procedencia (tutor o centro), pero no se presentan como autorizadas ni administradas; el esquema no tiene vigencia ni estado activo/finalizado.
+- No existe un modelo de notas internas de cuidado. La ficha no inventa notas ni alertas clínicas; las incompatibilidades son registros explícitos existentes y se muestran por nombre y motivo.
+- No se muestran tutor, datos personales de usuarios, incidencias, registros diarios ni datos de otras reservas. Las pautas de medicación son únicamente información registrada; no representan dosis administradas.
+- Las fotos siguen almacenadas en el directorio privado existente y solo se sirven si la reserva activa pertenece al cuidador. Esta entrega no permite subir, sustituir ni eliminar fotos.
+- Para datos locales, ejecuta manualmente `scripts/dev/seed-reception-demo.sql` y después `scripts/dev/seed-caregiver-portal-demo.sql`. Crea cuentas `cuidador-a` a `cuidador-d` con la contraseña demo existente `admin1234`, sin cambiar contraseñas existentes.
+- Escenarios: A tiene dos perros activos en su grupo, B tiene uno distinto, C no tiene grupos asignados y recibe lista vacía, D representa un cuidador sin asignación válida según los datos de fixture. Manipular el ID de reserva ajeno debe devolver `404`.
+
+### Recuperación de una ejecución fallida de V13
+
+- V13 fue corregida para comprobar si la columna, la FK, el índice y el rol ya existen. No se debe editar una migración que haya terminado con `success=true`; en una ejecución fallida solo se elimina la fila fallida y se inicia nuevamente la aplicación.
+- La base persistente local ya fue corregida retirando únicamente `flyway_schema_history` con `installed_rank=13`, `version=13` y `success=false`. La columna `grupo.cuidador_id`, la FK y el índice existentes se conservan; V13 Java los reconocerá al próximo arranque sin duplicarlos.
+- No se utilizó `flyway repair` ni se borraron tablas, perros, reservas, usuarios o grupos.
+
+## Registro diario del cuidador
+
+- Se reutiliza `registro_diario`, vinculado a una reserva y al usuario cuidador autenticado. Permite varios registros por estancia y usa los tipos `COMIDA`, `PASEO`, `JUEGO`, `DESCANSO` y `OTRO`.
+- El tipo es obligatorio. Las observaciones son opcionales, aceptan hasta 2000 caracteres y una cadena vacía se guarda como ausencia de observaciones.
+- Los endpoints son `POST` y `GET /api/cuidador/mis-perros-hoy/{reservationId}/registros-diarios`. Solo se permite la reserva asignada al cuidador para hoy, en estado `EN_CURSO`, con entrada y sin salida.
+- La hora se obtiene del servidor en `Europe/Madrid`. No se crean incidencias, resúmenes, notificaciones ni registros de administración de medicación.
+- El formulario de la ficha permite registrar un cuidado y consultar el historial interno. Cancelar no guarda; el envío conserva el formulario ante errores y bloquea envíos simultáneos.
+
+## Resumen diario publicado para el tutor
+
+- V14 amplía `resumen_diario` con autor cuidador, centro, estado `PUBLICADO` y fecha de publicación. Conserva `reserva_id`, `destinatario=TUTOR`, `texto_ia` y `generado_en`.
+- Solo el cuidador asignado hoy puede publicar mediante `POST /api/cuidador/mis-perros-hoy/{reservationId}/resumen`. El texto es obligatorio y tiene máximo 4000 caracteres.
+- Existe un único resumen publicado por reserva/destinatario. No hay borrador ni edición posterior en esta entrega. Repetir la publicación devuelve `409`.
+- `GET` devuelve el resumen publicado o una respuesta vacía si aún no existe. El contenido se redacta manualmente a partir de información autorizada; no incluye incompatibilidades, incidencias, notas internas ni administración de medicación.
+- No se envían notificaciones ni se implementa consulta del tutor. Publicar no modifica registros diarios, reservas, llegadas, salidas, fichas ni aforo.
+
+## Incidencias internas del cuidador
+
+- Se reutiliza `incidencia`, vinculada a la reserva y al usuario cuidador. Permite varias incidencias por estancia y conserva gravedad `LEVE`, `MODERADA` o `GRAVE`, descripción y hora.
+- Los endpoints son `POST` y `GET /api/cuidador/mis-perros-hoy/{reservationId}/incidencias`. Solo admiten reservas asignadas al cuidador hoy, en estado `EN_CURSO`, con entrada y sin salida.
+- No existen tipos adicionales, estados de revisión, comunicación al tutor, fotos ni edición/borrado. Registrar una incidencia no modifica el resumen diario ni envía notificaciones.
+
 ## Alimentación y comportamiento en recepción
 
 - **Plan aplicado (alcance aprobado por el usuario):** recepción, administración y gerencia pueden introducir y editar las pautas de alimentación y el comportamiento en la misma ficha de `perro`. Se reutilizan las columnas existentes; no se añade una migración ni se crea un registro paralelo.
 - El detalle interno permite consultar y editar ambos campos, con un máximo de 1000 caracteres. En una actualización versionada (`If-Match`/`ETag`), los campos omitidos o nulos se conservan; se vacían con el valor vacío o las marcas `clearFeedingInstructions` y `clearTemperament`. El ETag incluye ambos valores para detectar cambios concurrentes.
 - El comportamiento sigue siendo interno y no se devuelve en las respuestas del portal tutor. El tutor puede consultar la alimentación, pero no modificarla; los permisos de las rutas internas no cambian.
 - Comprobación manual: como usuario de recepción, crea un perro e introduce ambos campos; abre la ficha, edita y guarda los valores; vuelve a editar y vacía uno de ellos. Comprueba en una cuenta tutor que la alimentación aparece solo como lectura y el comportamiento no se muestra.
+
+## Consulta de solicitudes de peluquería en recepción
+
+- **Plan aplicado (aprobado por el usuario):** consulta paginada de solo lectura, filtros de origen/estado/fecha y detalle. La solicitud se asocia a un perro y a uno o varios servicios; la hora solicitada es opcional para conservar solicitudes heredadas. V15 añade esos campos sin editar migraciones existentes ni inferir valores para registros previos.
+- El origen se deriva del centro asociado al perro: `PROPIA` se presenta como **Interna** y `CLIENTE` como **B2B**. Para ser visible, la solicitud debe tener perro, al menos un servicio del centro autenticado y una relación coherente entre el centro de la solicitud y el centro del perro. Las solicitudes antiguas incompletas o inconsistentes no se muestran; el detalle responde como no encontrado.
+- Los estados reales son `SOLICITADA` (solicitada), `CONFIRMADA` (confirmada), `COMPLETADA` (completada) y `CANCELADA` (cancelada). No existe `RECHAZADA`; no se agrega ni se interpreta un estado nuevo. La consulta no asigna peluquero ni muestra modalidad, y no modifica citas ni solicitudes.
+- `GET /api/recepcion/solicitudes-peluqueria` lista resultados; admite `origin`, `status`, `from`, `to`, `page` y `size`. Ordena por fecha solicitada descendente e identificador descendente. `GET /api/recepcion/solicitudes-peluqueria/{id}` devuelve el detalle. Ambos endpoints autorizan Recepcionista, Admin y Gerente y derivan el centro del usuario de la sesión.
+- En desarrollo local ejecuta primero `scripts/dev/seed-reception-demo.sql` y después `scripts/dev/seed-grooming-requests-demo.sql`. El segundo es manual e idempotente por claves de fixture y por registros existentes, no borra ni sobrescribe registros, y no debe usarse en producción ni en una base compartida. Crea a Luna (interna, solicitada y confirmada), a Rizo (B2B, completada y cancelada), todos con el servicio demo repetido, y a Lola para un centro de peluquería ajeno. Las solicitudes internas usan fechas relativas a `CURRENT_DATE` (+1 y +2 días); B2B usa +3 y +4. La cuenta disponible es `recepcionista` (contraseña local preexistente `admin1234`); el fixture no cambia contraseñas.
+- Comprobación manual: inicia sesión como `recepcionista`, entra desde el tablero en **Solicitudes de peluquería**, aplica filtros por origen, estado y rango de fechas, abre un detalle y vuelve al listado. Comprueba tutor/guardería, servicios y observaciones. Consulta un rango de fechas sin registros para el mensaje vacío. El listado de Lola no debe aparecer y su detalle no debe ser accesible cambiando el ID. Solo se puede consultar; no hay controles para confirmar, rechazar, asignar, reprogramar o cancelar.
+- Pruebas automatizadas: `ReceptionGroomingRequestControllerITTest` cubre acceso sin sesión, denegación a tutor, listado ordenado, filtros, detalle, solicitudes incompletas, fecha inválida y aislamiento de otro centro. Esta entrega no añade automatización E2E de navegador.
+- Validación ejecutada: `mvn -pl cd2026mnd1g1-boot -am '-Dtest=ReceptionGroomingRequestControllerITTest,ReceptionReservationControllerITTest' '-Dsurefire.failIfNoSpecifiedTests=false' test` terminó correctamente (24 pruebas, 0 fallos); `npm run build` terminó correctamente con advertencias de presupuesto de bundle/SCSS; OpenAPI se validó con `js-yaml` y `git diff --check` no detectó errores.
+
+## Consulta de citas de peluquería en recepción
+
+- La pantalla **Citas de peluquería** consulta `cita_peluqueria` y `cita_servicio`, no `solicitud_peluqueria`. Las solicitudes se mantienen como un recurso de consulta independiente; una solicitud todavía no constituye una cita programada.
+- `GET /api/recepcion/citas-peluqueria` y `GET /api/recepcion/citas-peluqueria/{id}` exponen citas persistidas dentro del centro del usuario de recepción autenticado. La fecha/hora proviene de `cita_peluqueria.inicio`; perro y servicios se leen de sus relaciones; estado, duración y lugar usan los campos reales del esquema. El origen se determina por el tipo de centro del perro (`PROPIA` = Interna, `CLIENTE` = B2B).
+- La búsqueda admite origen, estado y rango inclusivo de fechas, ordenando por inicio ascendente e identificador ascendente. El peluquero y los servicios deben pertenecer al centro del servicio. Una solicitud asociada es opcional: si su perro o centro no coincide, la cita sigue visible por sus relaciones propias, pero no se exponen las observaciones de esa solicitud. Las consultas son de solo lectura y no aceptan centro desde el navegador.
+- `scripts/dev/seed-grooming-requests-demo.sql` añade de forma idempotente tres citas para el 25/11/2026: dos internas (Luna y Bruno) y una B2B (Rizo), con horas, estados y modalidades diferentes. Ejecuta primero `scripts/dev/seed-reception-demo.sql` y después este fixture, solo sobre HSQLDB local/desarrollo; no borra ni modifica datos existentes. Si el fixture ya se había cargado, vuelve a ejecutarlo para añadir las citas nuevas.
+- Prueba manual: accede como `recepcionista` a **Citas de peluquería**, filtra por 25/11/2026, origen y estado, abre detalles y verifica que aparecen las tres citas demo. Comprueba también el registro anterior vinculado a una solicitud incoherente: la cita debe aparecer, pero sus observaciones no. No se incluyen acciones de confirmación, rechazo, asignación, reprogramación o cancelación.
+
+## Decisión de solicitudes de peluquería en recepción
+
+- **Plan aplicado (aprobado por el usuario):** se mantiene la consulta de solicitudes y se añaden únicamente las transiciones `SOLICITADA → CONFIRMADA` y `SOLICITADA → RECHAZADA`. Se conservan permisos de `RECEPCIONISTA`, `ADMIN` y `GERENTE` del flujo de consulta. No hay motivo de rechazo en el modelo; las observaciones existentes no se reutilizan como motivo. No se crean citas ni se asignan peluqueros.
+- La migración `V16__allow_rejected_grooming_requests.sql` amplía el `CHECK` de estado de `solicitud_peluqueria`; no modifica migraciones aplicadas ni añade columnas. Se separan los enums de estados de solicitud y cita para que `RECHAZADA` no pase a ser válido para una cita.
+- `POST /api/recepcion/solicitudes-peluqueria/{id}/confirmar` y `/rechazar` derivan el centro de la identidad autenticada, no aceptan cuerpo con campos de dominio y devuelven el detalle actualizado. Solo se permite actuar sobre solicitudes visibles y pendientes; la fila se bloquea durante la transición y una repetición devuelve `409 GROOMING_REQUEST_NOT_PENDING`. Las solicitudes de otro centro responden como no encontradas.
+- La interfaz dispone de **Solicitudes de peluquería**, filtros por origen/estado/fecha, detalle, confirmación en pantalla, estado de envío y errores. Las acciones solo aparecen para `SOLICITADA`; después de persistirse, se muestra el nuevo estado. Las rutas de citas permanecen separadas.
+- Para pruebas manuales locales, ejecutar `scripts/dev/seed-reception-demo.sql` y después `scripts/dev/seed-grooming-requests-demo.sql`. El fixture deja una solicitud interna y una B2B pendientes para decidir, además de solicitudes gestionadas para probar que no admiten una segunda acción. No ejecutar en producción ni en una base compartida; la carga es repetible y no borra registros.
+- Comprobación manual: acceder como `recepcionista`, abrir las solicitudes internas y B2B pendientes, confirmar una y rechazar la otra; volver a abrir cada detalle y verificar el estado. Reintentar una decisión debe mostrar conflicto y no cambiar ni duplicar datos. Confirmadas, rechazadas, canceladas o completadas no deben ofrecer acciones. También se deben verificar una sesión caducada y el acceso denegado desde un tutor.

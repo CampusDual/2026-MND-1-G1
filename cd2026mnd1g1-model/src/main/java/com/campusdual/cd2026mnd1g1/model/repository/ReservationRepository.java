@@ -3,6 +3,7 @@ package com.campusdual.cd2026mnd1g1.model.repository;
 import com.campusdual.cd2026mnd1g1.model.entity.ReservationEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.ReservationModality;
 import com.campusdual.cd2026mnd1g1.model.entity.ReservationStatus;
+import com.campusdual.cd2026mnd1g1.model.entity.CheckRecordType;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -46,6 +47,63 @@ public interface ReservationRepository extends JpaRepository<ReservationEntity, 
     );
 
     List<ReservationEntity> findByDateAndDog_Center_Id(LocalDate date, Long centerId);
+
+    @EntityGraph(attributePaths = {"dog", "group"})
+    @Query("""
+            SELECT reservation FROM ReservationEntity reservation
+            JOIN reservation.group group
+            JOIN group.caregiver caregiver
+            WHERE caregiver.id = :caregiverId
+              AND caregiver.center.id = :centerId
+              AND reservation.dog.center.id = :centerId
+              AND reservation.date = :today
+              AND reservation.status = com.campusdual.cd2026mnd1g1.model.entity.ReservationStatus.EN_CURSO
+              AND EXISTS (
+                  SELECT entry.id FROM CheckRecordEntity entry
+                  WHERE entry.reservation.id = reservation.id
+                    AND entry.type = com.campusdual.cd2026mnd1g1.model.entity.CheckRecordType.ENTRADA
+              )
+              AND NOT EXISTS (
+                  SELECT exit.id FROM CheckRecordEntity exit
+                  WHERE exit.reservation.id = reservation.id
+                    AND exit.type = com.campusdual.cd2026mnd1g1.model.entity.CheckRecordType.SALIDA
+              )
+            """)
+    Page<ReservationEntity> findCaregiverTodayReservations(
+            @Param("caregiverId") Long caregiverId,
+            @Param("centerId") Long centerId,
+            @Param("today") LocalDate today,
+            Pageable pageable
+    );
+
+    @EntityGraph(attributePaths = {"dog", "dog.tutor", "group"})
+    @Query("""
+            SELECT reservation FROM ReservationEntity reservation
+            JOIN reservation.group group
+            JOIN group.caregiver caregiver
+            WHERE reservation.id = :reservationId
+              AND caregiver.id = :caregiverId
+              AND caregiver.center.id = :centerId
+              AND reservation.dog.center.id = :centerId
+              AND reservation.status = com.campusdual.cd2026mnd1g1.model.entity.ReservationStatus.EN_CURSO
+              AND reservation.date = :today
+              AND EXISTS (
+                  SELECT entry.id FROM CheckRecordEntity entry
+                  WHERE entry.reservation.id = reservation.id
+                    AND entry.type = com.campusdual.cd2026mnd1g1.model.entity.CheckRecordType.ENTRADA
+              )
+              AND NOT EXISTS (
+                  SELECT exit.id FROM CheckRecordEntity exit
+                  WHERE exit.reservation.id = reservation.id
+                    AND exit.type = com.campusdual.cd2026mnd1g1.model.entity.CheckRecordType.SALIDA
+              )
+            """)
+    Optional<ReservationEntity> findCaregiverTodayReservation(
+            @Param("reservationId") Long reservationId,
+            @Param("caregiverId") Long caregiverId,
+            @Param("centerId") Long centerId,
+            @Param("today") LocalDate today
+    );
 
     List<ReservationEntity> findByDateAndDog_Center_IdAndGroup_Id(LocalDate date, Long centerId, Long groupId);
 

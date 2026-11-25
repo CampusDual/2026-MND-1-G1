@@ -86,6 +86,7 @@ public class DaycareOperationsController {
      * @return registro diario creado
      */
     @PostMapping("/{id}/registros-diarios")
+    @PreAuthorize("hasRole('CUIDADOR')")
     public ResponseEntity<DailyRecordDto> createDailyRecord(
             @PathVariable @Positive Long id,
             @Valid @RequestBody DailyRecordRequestDto request,
@@ -105,6 +106,7 @@ public class DaycareOperationsController {
      * @return incidencia creada
      */
     @PostMapping("/{id}/incidencias")
+    @PreAuthorize("hasRole('CUIDADOR')")
     public ResponseEntity<IncidentDto> createIncident(
             @PathVariable @Positive Long id,
             @Valid @RequestBody IncidentRequestDto request,

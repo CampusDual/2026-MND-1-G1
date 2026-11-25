@@ -1,0 +1,29 @@
+.caregiver-page { min-height: 100vh; background: #f7f8f5; color: #18312b; }
+.topbar { display:flex; align-items:center; justify-content:space-between; padding:16px 32px; background:#fff; border-bottom:1px solid #dde5df; }
+.brand { display:flex; align-items:center; gap:10px; color:inherit; text-decoration:none; }
+.brand-mark { display:grid; place-items:center; width:34px; height:34px; border-radius:50%; background:#205c4a; color:#fff; }
+.brand-divider { color:#96a69f; }
+.logout-button, .secondary-button, .back-button { border:1px solid #bdc9c2; background:#fff; color:#18312b; border-radius:8px; padding:8px 12px; cursor:pointer; }
+.content { max-width:1100px; margin:0 auto; padding:32px; }
+.heading { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+.eyebrow { color:#638078; font-size:12px; font-weight:700; letter-spacing:.08em; }
+.subtitle, .result-count { color:#5d716a; }
+.notice.error, .state-card, .detail-card, .dog-card { background:#fff; border:1px solid #dde5df; border-radius:12px; }
+.notice.error { padding:16px; color:#8b2d2d; }
+.state-card { padding:32px; text-align:center; }
+.detail-card { margin-bottom:16px; padding:24px; }
+.detail-card dl div { display:grid; grid-template-columns:180px 1fr; gap:16px; padding:8px 0; border-bottom:1px solid #edf1ee; }
+.detail-card dt { font-weight:700; }
+.dog-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:16px; }
+.dog-card { padding:18px; }
+.dog-avatar, .dog-card img, .dog-photo { width:96px; height:96px; border-radius:50%; object-fit:cover; }
+.dog-avatar { display:grid; place-items:center; background:#dfeae5; color:#205c4a; font-size:32px; font-weight:700; }
+.dog-card img { display:block; }
+.text-link { color:#205c4a; font-weight:700; text-decoration:none; }
+.pagination { display:flex; gap:16px; align-items:center; margin-top:20px; }
+.primary-button { border:1px solid #205c4a; background:#205c4a; color:#fff; border-radius:8px; padding:8px 12px; cursor:pointer; }
+.primary-button:disabled, .secondary-button:disabled { opacity:.55; cursor:not-allowed; }
+form label { display:block; margin-top:14px; font-weight:700; }
+form select, form textarea { width:100%; box-sizing:border-box; margin-top:6px; border:1px solid #bdc9c2; border-radius:8px; padding:10px; }
+.form-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:16px; }
+.heading-actions { display:flex; gap:10px; }

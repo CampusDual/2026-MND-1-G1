@@ -1,0 +1,266 @@
+<main class="caregiver-page">
+  <header class="topbar">
+    <a class="brand" routerLink="/mis-perros-hoy" aria-label="PawCare, mis perros de hoy">
+      <span class="brand-mark" aria-hidden="true">P</span>
+      <span>PawCare <span class="brand-divider">·</span> <strong>Cuidado</strong></span>
+    </a>
+    <button class="logout-button" type="button" (click)="logout()">Cerrar sesión</button>
+  </header>
+
+  <section class="content">
+    @if (isLoading) {
+      <div class="state-card" role="status">Cargando...</div>
+    } @else if (errorMessage) {
+      <div class="notice error" role="alert">
+        <p>{{ errorMessage }}</p>
+        <button type="button" class="secondary-button" (click)="retry()">Reintentar</button>
+      </div>
+    } @else if (isDetail && dog) {
+      <button type="button" class="back-button" (click)="backToList()">← Volver a Mis perros de hoy</button>
+      <div class="heading">
+        <div>
+          <p class="eyebrow">FICHA DEL PERRO</p>
+          <h1>{{ dog.name }}</h1>
+        </div>
+        <div class="heading-actions">
+          <button type="button" class="secondary-button" (click)="openRecordForm()">Registrar cuidados</button>
+          <button type="button" class="secondary-button" (click)="openIncidentForm()">Registrar incidencia</button>
+          @if (summary) {
+            <button type="button" class="primary-button" disabled>Resumen publicado</button>
+          } @else {
+            <button type="button" class="primary-button" (click)="openSummaryForm()">Preparar resumen</button>
+          }
+        </div>
+      </div>
+
+      @if (showSummaryForm) {
+        <section class="detail-card">
+          <h2>Resumen diario para el tutor</h2>
+          <p>Redacta únicamente información autorizada y útil para el tutor. No se incluirán incompatibilidades ni datos internos.</p>
+          <form (ngSubmit)="publishSummary()">
+            <label for="summary-text">Resumen <span>*</span></label>
+            <textarea id="summary-text" name="summaryText" required maxlength="4000" rows="6"
+                      [(ngModel)]="summaryText"></textarea>
+            @if (errorMessage) {
+              <div class="notice error" role="alert">{{ errorMessage }}</div>
+            }
+            <div class="form-actions">
+              <button type="button" class="secondary-button" [disabled]="isPublishingSummary" (click)="cancelSummary()">Cancelar</button>
+              <button type="submit" class="primary-button"
+                      [disabled]="summaryText.trim().length === 0 || isPublishingSummary">
+                {{ isPublishingSummary ? 'Publicando...' : 'Publicar resumen' }}
+              </button>
+            </div>
+          </form>
+        </section>
+      }
+
+      @if (showRecordForm) {
+        <section class="detail-card">
+          <h2>Nuevo registro diario</h2>
+          <form (ngSubmit)="saveRecord()">
+            <label for="record-type">Tipo de cuidado <span>*</span></label>
+            <select id="record-type" name="recordType" required [(ngModel)]="recordType">
+              <option [ngValue]="null">Selecciona un tipo</option>
+              @for (type of dailyRecordTypes; track type.value) {
+                <option [ngValue]="type.value">{{ type.label }}</option>
+              }
+            </select>
+            <label for="record-notes">Observaciones</label>
+            <textarea id="record-notes" name="recordNotes" maxlength="2000" rows="4"
+                      [(ngModel)]="recordNotes"></textarea>
+            @if (errorMessage) {
+              <div class="notice error" role="alert">{{ errorMessage }}</div>
+            }
+            <div class="form-actions">
+              <button type="button" class="secondary-button" [disabled]="isSaving" (click)="cancelRecord()">Cancelar</button>
+              <button type="submit" class="primary-button" [disabled]="recordType === null || isSaving">
+                {{ isSaving ? 'Guardando...' : 'Guardar' }}
+              </button>
+            </div>
+          </form>
+        </section>
+      }
+
+      @if (showIncidentForm) {
+        <section class="detail-card">
+          <h2>Nueva incidencia</h2>
+          <form (ngSubmit)="saveIncident()">
+            <label for="incident-severity">Gravedad <span>*</span></label>
+            <select id="incident-severity" name="incidentSeverity" required [(ngModel)]="incidentSeverity">
+              <option [ngValue]="null">Selecciona la gravedad</option>
+              <option [ngValue]="'LEVE'">Leve</option>
+              <option [ngValue]="'MODERADA'">Moderada</option>
+              <option [ngValue]="'GRAVE'">Grave</option>
+            </select>
+            <label for="incident-description">Descripción <span>*</span></label>
+            <textarea id="incident-description" name="incidentDescription" required maxlength="2000" rows="5"
+                      [(ngModel)]="incidentDescription"></textarea>
+            @if (errorMessage) {
+              <div class="notice error" role="alert">{{ errorMessage }}</div>
+            }
+            <div class="form-actions">
+              <button type="button" class="secondary-button" [disabled]="isSavingIncident" (click)="cancelIncident()">Cancelar</button>
+              <button type="submit" class="primary-button"
+                      [disabled]="incidentSeverity === null || incidentDescription.trim().length === 0 || isSavingIncident">
+                {{ isSavingIncident ? 'Guardando...' : 'Guardar incidencia' }}
+              </button>
+            </div>
+          </form>
+        </section>
+      }
+
+      <section class="detail-card">
+        @if (dog.photoAvailable && getPhotoUrl(dog.reservationId) && !hasPhotoFailed(dog.reservationId)) {
+          <img class="dog-photo" [src]="getPhotoUrl(dog.reservationId)" [alt]="dog.name">
+        } @else {
+          <div class="dog-avatar" aria-label="Foto no disponible">{{ dog.name.charAt(0) }}</div>
+        }
+        <dl>
+          <div><dt>Nombre</dt><dd>{{ dog.name }}</dd></div>
+          <div><dt>Identificación operativa</dt><dd>Ficha {{ dog.id }} · Reserva {{ dog.reservationId }}</dd></div>
+          <div><dt>Raza</dt><dd>{{ dog.breed || 'No indicada' }}</dd></div>
+          <div><dt>Tamaño</dt><dd>{{ sizeLabel(dog.size) }}</dd></div>
+          <div><dt>Fecha de nacimiento</dt><dd>{{ dog.birthDate || 'No indicada' }}</dd></div>
+          <div><dt>Grupo</dt><dd>{{ dog.groupName || 'No indicado' }}</dd></div>
+          <div><dt>Hora de llegada</dt><dd>{{ dog.arrivalAt || 'No disponible' }}</dd></div>
+          <div><dt>Estado de estancia</dt><dd>En el centro</dd></div>
+        </dl>
+      </section>
+
+      <section class="detail-card">
+        <h2>Tutor y contacto operativo</h2>
+        @if (dog.tutor) {
+          <dl>
+            <div><dt>Nombre</dt><dd>{{ dog.tutor.name }}</dd></div>
+            <div><dt>Teléfono</dt><dd>{{ dog.tutor.phone }}</dd></div>
+          </dl>
+        } @else {
+          <p>No hay un tutor asociado a esta ficha.</p>
+        }
+      </section>
+
+      <section class="detail-card">
+        <h2>Información de cuidados</h2>
+        <dl>
+          <div><dt>Pautas de alimentación</dt><dd>{{ dog.feedingInstructions || 'Sin pautas de alimentación registradas' }}</dd></div>
+          <div><dt>Temperamento</dt><dd>{{ dog.temperament || 'Sin información de temperamento registrada' }}</dd></div>
+        </dl>
+        <h3>Alergias</h3>
+        @if (dog.allergies.length === 0) {
+          <p>No hay alergias registradas</p>
+        } @else {
+          <ul>@for (allergy of dog.allergies; track allergy.description) { <li>{{ allergy.description }}</li> }</ul>
+        }
+        <h3>Pautas de medicación</h3>
+        @if (dog.medications.length === 0) {
+          <p>No hay pautas de medicación registradas</p>
+        } @else {
+          <ul>
+            @for (medication of dog.medications; track medication.id) {
+              <li><strong>{{ medication.medication }}</strong>
+                @if (medication.dosage) { — {{ medication.dosage }} }<br>{{ medication.instructions }}</li>
+              <small>Pauta registrada{{ medication.declaredByTutor ? ' por el tutor' : ' por el centro' }}. No indica autorización clínica ni dosis administrada.</small>
+            }
+          </ul>
+        }
+      </section>
+
+      <section class="detail-card">
+        <h2>Información operativa interna</h2>
+        @if (dog.incompatibilities.length === 0) {
+          <p>No hay incompatibilidades registradas</p>
+        } @else {
+          <ul>
+            @for (item of dog.incompatibilities; track item.incompatibleDogName) {
+              <li><strong>{{ item.incompatibleDogName }}</strong>{{ item.reason ? ': ' + item.reason : '' }}</li>
+            }
+          </ul>
+        }
+      </section>
+
+      <section class="detail-card">
+        <h2>Registros diarios</h2>
+        @if (records.length === 0) {
+          <p>No hay registros de cuidados guardados.</p>
+        } @else {
+          <ul>
+            @for (record of records; track record.id) {
+              <li>
+                <strong>{{ recordTypeLabel(record.type) }}</strong>
+                — {{ record.dateTime }}
+                @if (record.notes) {<p>{{ record.notes }}</p>}
+              </li>
+            }
+          </ul>
+        }
+      </section>
+
+      <section class="detail-card">
+        <h2>Incidencias internas</h2>
+        @if (incidents.length === 0) {
+          <p>No hay incidencias registradas.</p>
+        } @else {
+          <ul>
+            @for (incident of incidents; track incident.id) {
+              <li>
+                <strong>{{ incident.severity }}</strong> — {{ incident.dateTime }}
+                <p>{{ incident.description }}</p>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+
+      <section class="detail-card">
+        <h2>Resumen publicado</h2>
+        @if (summary) {
+          <p>{{ summary.text }}</p>
+          <small>Publicado el {{ summary.publishedAt }}</small>
+        } @else {
+          <p>Todavía no hay un resumen publicado.</p>
+        }
+      </section>
+    } @else {
+      <div class="heading">
+        <div>
+          <p class="eyebrow">ESTANCIAS DE HOY</p>
+          <h1>Mis perros de hoy</h1>
+        </div>
+      </div>
+      @if (totalElements === 0) {
+        <section class="state-card">
+          <h2>No tienes perros asignados para hoy</h2>
+        </section>
+      } @else {
+        <p class="result-count">{{ totalElements }} {{ totalElements === 1 ? 'perro' : 'perros' }}</p>
+        <div class="dog-grid">
+          @for (dog of dogs; track dog.reservationId) {
+            <article class="dog-card">
+              @if (dog.photoAvailable && getPhotoUrl(dog.reservationId) && !hasPhotoFailed(dog.reservationId)) {
+                <img [src]="getPhotoUrl(dog.reservationId)" [alt]="dog.name">
+              } @else {
+                <div class="dog-avatar" aria-label="Foto no disponible">{{ dog.name.charAt(0) }}</div>
+              }
+              <h2>{{ dog.name }}</h2>
+              <p>{{ dog.breed || 'Raza no indicada' }} · {{ sizeLabel(dog.size) }}</p>
+              <p>{{ dog.groupName || 'Grupo no indicado' }}</p>
+              <p>Entrada: {{ dog.arrivalAt || 'No disponible' }}</p>
+              <a class="text-link" [routerLink]="['/mis-perros-hoy', dog.reservationId]"
+                 [queryParams]="{ page: page }">Ver ficha</a>
+            </article>
+          }
+        </div>
+        @if (totalPages > 1) {
+          <nav class="pagination" aria-label="Páginas de perros">
+            <button type="button" class="secondary-button" [disabled]="page === 0"
+                    (click)="changePage(page - 1)">Anterior</button>
+            <span>Página {{ page + 1 }} de {{ totalPages }}</span>
+            <button type="button" class="secondary-button" [disabled]="page + 1 >= totalPages"
+                    (click)="changePage(page + 1)">Siguiente</button>
+          </nav>
+        }
+      }
+    }
+  </section>
+</main>

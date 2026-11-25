@@ -16,6 +16,9 @@ export const roleGuard: CanActivateFn = (route) => {
   if (authService.hasRole('TUTOR')) {
     return router.createUrlTree(['/mis-perros']);
   }
+  if (authService.hasRole('CUIDADOR')) {
+    return router.createUrlTree(['/mis-perros-hoy']);
+  }
   if (authService.hasRole('RECEPCIONISTA')
       || authService.hasRole('ADMIN')
       || authService.hasRole('GERENTE')) {

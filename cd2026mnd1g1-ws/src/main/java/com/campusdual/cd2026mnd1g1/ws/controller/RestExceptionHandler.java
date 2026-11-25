@@ -10,6 +10,7 @@ import com.campusdual.cd2026mnd1g1.model.exception.OperationalUserNotFoundExcept
 import com.campusdual.cd2026mnd1g1.model.exception.TutorAccountInconsistentException;
 import com.campusdual.cd2026mnd1g1.model.exception.TutorAccountNotLinkedException;
 import com.campusdual.cd2026mnd1g1.model.exception.DuplicateTutorDogSubmissionException;
+import com.campusdual.cd2026mnd1g1.model.exception.GroomingRequestTransitionConflictException;
 import com.campusdual.cd2026mnd1g1.model.exception.ReservationDateNotAllowedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -197,6 +198,23 @@ public class RestExceptionHandler {
             CheckRecordConflictException exception
     ) {
         return buildErrorResponse(HttpStatus.CONFLICT, exception.getCode(), exception.getMessage());
+    }
+
+    /**
+     * Mapea decisiones repetidas o no permitidas sobre solicitudes de peluquería.
+     *
+     * @param exception conflicto de transición
+     * @return respuesta HTTP 409
+     */
+    @ExceptionHandler(GroomingRequestTransitionConflictException.class)
+    public ResponseEntity<Map<String, Object>> handleGroomingRequestTransitionConflict(
+            GroomingRequestTransitionConflictException exception
+    ) {
+        return buildErrorResponse(
+                HttpStatus.CONFLICT,
+                "GROOMING_REQUEST_NOT_PENDING",
+                exception.getMessage()
+        );
     }
 
     /**

@@ -1,0 +1,100 @@
+<main class="detail-page">
+  <header class="topbar">
+    <a class="brand" routerLink="/tablero-diario" aria-label="PawCare, recepción">
+      <span class="brand-mark" aria-hidden="true">P</span>
+      <span>PawCare <span class="brand-divider">·</span> <strong>Recepción</strong></span>
+    </a>
+    <a class="nav-link" routerLink="/solicitudes-peluqueria">Solicitudes de peluquería</a>
+    <button class="logout-button" type="button" (click)="logout()">Cerrar sesión</button>
+  </header>
+
+  <section class="content">
+    <button class="back-button" type="button" (click)="backToList()">← Volver a solicitudes</button>
+    @if (isLoading) {
+      <div class="state-card" role="status">Cargando el detalle de la solicitud...</div>
+    } @else if (hasAccessError) {
+      <div class="state-card error" role="alert">Tu cuenta no tiene permiso para consultar esta solicitud.</div>
+    } @else if (errorMessage) {
+      <div class="state-card error" role="alert">
+        <p>{{ errorMessage }}</p>
+        <button class="secondary-button" type="button" (click)="loadRequest()">Reintentar</button>
+      </div>
+    } @else {
+      @if (request; as item) {
+      <p class="eyebrow">SOLICITUD DE PELUQUERÍA</p>
+      <h1>Solicitud #{{ item.id }}</h1>
+      <p class="date">{{ formatDate(item.requestedDate, item.requestedTime) }}</p>
+
+      @if (successMessage) {
+        <div class="state-card success" role="status">{{ successMessage }}</div>
+      }
+      @if (actionError) {
+        <div class="state-card error" role="alert">{{ actionError }}</div>
+      }
+
+      <section class="detail-card">
+        <h2>Solicitud</h2>
+        <dl>
+          <div><dt>Origen</dt><dd>{{ originLabel(item.origin) }}</dd></div>
+          <div><dt>Estado</dt><dd><span class="status">{{ statusLabel(item.status) }}</span></dd></div>
+          <div><dt>Fecha solicitada</dt><dd>{{ formatDate(item.requestedDate, item.requestedTime) }}</dd></div>
+        </dl>
+      </section>
+
+      <section class="detail-card">
+        <h2>Perro</h2>
+        <dl><div><dt>Nombre</dt><dd>{{ item.dogName }}</dd></div></dl>
+      </section>
+
+      <section class="detail-card">
+        <h2>{{ item.origin === 'B2B' ? 'Guardería cliente' : 'Tutor' }}</h2>
+        <p>{{ item.customerName || (item.origin === 'B2B' ? 'Guardería no indicada' : 'Tutor no asociado') }}</p>
+      </section>
+
+      <section class="detail-card">
+        <h2>Servicios solicitados</h2>
+        <ul>
+          @for (service of item.serviceNames; track service) {
+            <li>{{ service }}</li>
+          }
+        </ul>
+      </section>
+
+      @if (item.notes) {
+        <section class="detail-card">
+          <h2>Observaciones</h2>
+          <p class="notes">{{ item.notes }}</p>
+        </section>
+      }
+
+      @if (item.status === 'SOLICITADA') {
+        <section class="decision-actions" aria-label="Decidir solicitud">
+          <button class="confirm-button" type="button" [disabled]="isSubmitting"
+                  (click)="askForDecision('CONFIRMAR')">Confirmar</button>
+          <button class="reject-button" type="button" [disabled]="isSubmitting"
+                  (click)="askForDecision('RECHAZAR')">Rechazar</button>
+        </section>
+      }
+
+      @if (pendingAction) {
+        <section class="decision-confirmation" role="alertdialog" aria-modal="true"
+                 aria-labelledby="decision-title" aria-describedby="decision-description">
+          <h2 id="decision-title">{{ pendingAction === 'CONFIRMAR' ? 'Confirmar solicitud' : 'Rechazar solicitud' }}</h2>
+          <p id="decision-description">
+            ¿Seguro que quieres {{ pendingAction === 'CONFIRMAR' ? 'confirmar' : 'rechazar' }} esta solicitud?
+            Esta decisión no se podrá repetir.
+          </p>
+          <div class="decision-buttons">
+            <button class="secondary-button" type="button" [disabled]="isSubmitting" (click)="cancelDecision()">
+              Volver
+            </button>
+            <button class="confirm-button" type="button" [disabled]="isSubmitting" (click)="applyDecision()">
+              {{ isSubmitting ? 'Guardando...' : 'Sí, ' + (pendingAction === 'CONFIRMAR' ? 'confirmar' : 'rechazar') }}
+            </button>
+          </div>
+        </section>
+      }
+      }
+    }
+  </section>
+</main>

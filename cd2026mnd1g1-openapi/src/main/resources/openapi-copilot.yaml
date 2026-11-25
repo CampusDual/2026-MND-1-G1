@@ -13,15 +13,209 @@ security:
 tags:
   - name: Users
     description: Operaciones de gestion de usuarios.
+  - name: Cuidadores
+    description: Consultas de solo lectura de las estancias asignadas al cuidador.
   - name: Operativa diaria
     description: Consultas y registros diarios de reservas.
   - name: Recepcion
     description: Consultas, disponibilidad y reservas del centro del usuario autenticado.
+  - name: Peluquería
+    description: Consultas de solo lectura de solicitudes dentro del ámbito del centro autenticado.
   - name: Tutores
     description: Búsqueda y mantenimiento de fichas de tutores del centro autorizado.
   - name: Perros
     description: Búsqueda y mantenimiento de fichas básicas de perros del centro autorizado.
 paths:
+  /api/cuidador/mis-perros-hoy:
+    get:
+      tags: [Cuidadores]
+      summary: Lista los perros asignados al cuidador para hoy
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 0, default: 0 }
+        - in: query
+          name: size
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        '200':
+          description: Página de estancias activas asignadas al cuidador.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaregiverDogPageDto'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+  /api/cuidador/mis-perros-hoy/{reservationId}:
+    parameters:
+      - in: path
+        name: reservationId
+        required: true
+        schema: { type: integer, format: int64, minimum: 0 }
+    get:
+      tags: [Cuidadores]
+      summary: Consulta una ficha si la reserva está asignada al cuidador
+      responses:
+        '200':
+          description: Ficha diaria orientada al cuidado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaregiverDogDetailDto'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+  /api/cuidador/mis-perros-hoy/{reservationId}/registros-diarios:
+    parameters:
+      - in: path
+        name: reservationId
+        required: true
+        schema: { type: integer, format: int64, minimum: 0 }
+    get:
+      tags: [Cuidadores]
+      summary: Consulta los registros diarios internos de una estancia asignada
+      responses:
+        '200':
+          description: Historial interno de registros diarios.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DailyRecordDto'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+    post:
+      tags: [Cuidadores]
+      summary: Añade un cuidado u observación interna a una estancia asignada
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DailyRecordRequestDto'
+      responses:
+        '201':
+          description: Registro diario creado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyRecordDto'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+  /api/cuidador/mis-perros-hoy/{reservationId}/resumen:
+    parameters:
+      - in: path
+        name: reservationId
+        required: true
+        schema: { type: integer, format: int64, minimum: 0 }
+    get:
+      tags: [Cuidadores]
+      summary: Consulta el resumen publicado de una estancia asignada
+      responses:
+        '200':
+          description: Resumen publicado o cuerpo vacío si todavía no existe.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaregiverDailySummaryDto'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+    post:
+      tags: [Cuidadores]
+      summary: Publica una vez el resumen diario autorizado
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaregiverDailySummaryRequestDto'
+      responses:
+        '201':
+          description: Resumen publicado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaregiverDailySummaryDto'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+  /api/cuidador/mis-perros-hoy/{reservationId}/incidencias:
+    parameters:
+      - in: path
+        name: reservationId
+        required: true
+        schema: { type: integer, format: int64, minimum: 0 }
+    get:
+      tags: [Cuidadores]
+      summary: Consulta las incidencias internas de una estancia asignada
+      responses:
+        '200':
+          description: Incidencias ordenadas por fecha descendente.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IncidentDto'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+    post:
+      tags: [Cuidadores]
+      summary: Registra una incidencia interna en una estancia asignada
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IncidentRequestDto'
+      responses:
+        '201':
+          description: Incidencia creada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IncidentDto'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+  /api/cuidador/mis-perros-hoy/{reservationId}/foto:
+    parameters:
+      - in: path
+        name: reservationId
+        required: true
+        schema: { type: integer, format: int64, minimum: 0 }
+    get:
+      tags: [Cuidadores]
+      summary: Sirve una foto privada protegida por la asignación de la reserva
+      responses:
+        '200':
+          description: Imagen JPEG, PNG, GIF o WebP existente.
+          content:
+            image/jpeg: {}
+            image/png: {}
+            image/gif: {}
+            image/webp: {}
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
   /api/users/me:
     get:
       tags: [Users]
@@ -793,6 +987,254 @@ paths:
           $ref: '#/components/responses/UnprocessableEntity'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /api/recepcion/citas-peluqueria:
+    get:
+      security:
+        - basicAuth: []
+      tags: [Peluquería]
+      summary: Lista citas de peluquería para recepción
+      description: >
+        Solo Recepcionista, Admin y Gerente. Consulta citas persistidas, no solicitudes;
+        el centro se obtiene de la sesión. El origen se deriva del centro asociado al perro
+        (PROPIA=INTERNA, CLIENTE=B2B). Los resultados requieren servicios coherentes del
+        centro autenticado y se ordenan por fecha y hora ascendente, después por identificador.
+        No modifica solicitudes ni citas.
+      operationId: listReceptionGroomingAppointments
+      parameters:
+        - in: query
+          name: origin
+          required: false
+          schema:
+            type: string
+            enum: [INTERNA, B2B]
+        - in: query
+          name: status
+          required: false
+          schema:
+            $ref: '#/components/schemas/GroomingRequestStatusDto'
+        - in: query
+          name: from
+          required: false
+          description: Fecha inicial inclusiva.
+          schema: { type: string, format: date }
+        - in: query
+          name: to
+          required: false
+          description: Fecha final inclusiva; debe ser igual o posterior a from.
+          schema: { type: string, format: date }
+        - in: query
+          name: page
+          required: false
+          schema: { type: integer, minimum: 0, default: 0 }
+        - in: query
+          name: size
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        '200':
+          description: Página de citas de peluquería.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroomingAppointmentPageDto'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+  /api/recepcion/citas-peluqueria/{id}:
+    get:
+      security:
+        - basicAuth: []
+      tags: [Peluquería]
+      summary: Consulta el detalle de una cita de peluquería
+      description: >
+        Solo Recepcionista, Admin y Gerente. Una cita inexistente, incoherente o asociada
+        a otro centro responde como no encontrada.
+      operationId: getReceptionGroomingAppointment
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64, minimum: 0 }
+      responses:
+        '200':
+          description: Datos explícitos de la cita, perro, cliente, servicios y observaciones.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroomingAppointmentDetailDto'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+  /api/recepcion/solicitudes-peluqueria:
+    get:
+      security:
+        - basicAuth: []
+      tags: [Peluquería]
+      summary: Lista solicitudes de peluquería para recepción
+      description: >
+        Solo Recepcionista, Admin y Gerente. El centro de servicio se obtiene de la
+        sesión. El origen se deriva del centro asociado al perro (PROPIA=INTERNA,
+        CLIENTE=B2B). Las solicitudes heredadas sin perro o servicio no se incluyen.
+        No modifica solicitudes ni citas.
+      operationId: listReceptionGroomingRequests
+      parameters:
+        - in: query
+          name: origin
+          required: false
+          schema:
+            type: string
+            enum: [INTERNA, B2B]
+        - in: query
+          name: status
+          required: false
+          schema:
+            $ref: '#/components/schemas/GroomingRequestStatusDto'
+        - in: query
+          name: from
+          required: false
+          description: Fecha inicial inclusiva.
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: to
+          required: false
+          description: Fecha final inclusiva; debe ser igual o posterior a from.
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: page
+          required: false
+          schema: { type: integer, minimum: 0, default: 0 }
+        - in: query
+          name: size
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        '200':
+          description: Solicitudes ordenadas por fecha descendente e identificador descendente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroomingRequestPageDto'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+  /api/recepcion/solicitudes-peluqueria/{id}:
+    get:
+      security:
+        - basicAuth: []
+      tags: [Peluquería]
+      summary: Consulta el detalle de una solicitud de peluquería
+      description: >
+        Solo Recepcionista, Admin y Gerente. Una solicitud inexistente, incompleta,
+        incoherente o asociada a otro centro responde como no encontrada.
+      operationId: getReceptionGroomingRequest
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64, minimum: 0 }
+      responses:
+        '200':
+          description: Datos explícitos de la solicitud, perro, cliente, servicios y observaciones.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroomingRequestDetailDto'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+  /api/recepcion/solicitudes-peluqueria/{id}/confirmar:
+    post:
+      security:
+        - basicAuth: []
+      tags: [Peluquería]
+      summary: Confirma una solicitud de peluquería pendiente
+      description: >
+        Solo Recepcionista, Admin y Gerente. El centro se deriva del usuario autenticado.
+        Solo cambia SOLICITADA a CONFIRMADA. No acepta cuerpo ni modifica otros campos,
+        crea citas, asigna peluquero o envía notificaciones. Una solicitud fuera del ámbito
+        responde como no encontrada; un estado distinto de SOLICITADA responde como conflicto.
+      operationId: confirmReceptionGroomingRequest
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64, minimum: 0 }
+      responses:
+        '200':
+          description: Solicitud confirmada; se devuelve su detalle actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroomingRequestDetailDto'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: La solicitud ya no está pendiente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+  /api/recepcion/solicitudes-peluqueria/{id}/rechazar:
+    post:
+      security:
+        - basicAuth: []
+      tags: [Peluquería]
+      summary: Rechaza una solicitud de peluquería pendiente
+      description: >
+        Solo Recepcionista, Admin y Gerente. El centro se deriva del usuario autenticado.
+        Solo cambia SOLICITADA a RECHAZADA. No acepta cuerpo ni modifica otros campos,
+        crea citas, asigna peluquero o envía notificaciones. El modelo no dispone de un campo
+        específico de motivo de rechazo. Una solicitud fuera del ámbito responde como no
+        encontrada; un estado distinto de SOLICITADA responde como conflicto.
+      operationId: rejectReceptionGroomingRequest
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64, minimum: 0 }
+      responses:
+        '200':
+          description: Solicitud rechazada; se devuelve su detalle actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroomingRequestDetailDto'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: La solicitud ya no está pendiente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
   /api/recepcion/reservas:
     get:
       security:
@@ -1453,6 +1895,106 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
   schemas:
+    CaregiverDogPageDto:
+      type: object
+      required: [items, page, size, totalElements, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CaregiverDogSummaryDto'
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1, maximum: 100 }
+        totalElements: { type: integer, format: int64, minimum: 0 }
+        totalPages: { type: integer, minimum: 0 }
+    CaregiverDogSummaryDto:
+      type: object
+      required: [reservationId, id, name, size, photoAvailable, stayStatus]
+      properties:
+        reservationId: { type: integer, format: int64, minimum: 0 }
+        id: { type: integer, format: int64, minimum: 0 }
+        name: { type: string, maxLength: 120 }
+        breed: { type: string, maxLength: 120, nullable: true }
+        size: { type: string, enum: [PEQUENO, MEDIANO, GRANDE] }
+        photoAvailable: { type: boolean }
+        arrivalAt: { type: string, format: date-time, nullable: true }
+        stayStatus: { type: string, enum: [EN_EL_CENTRO] }
+        groupName: { type: string, maxLength: 120, nullable: true }
+    CaregiverDogDetailDto:
+      type: object
+      required:
+        - reservationId
+        - id
+        - name
+        - size
+        - photoAvailable
+        - stayStatus
+        - allergies
+        - medications
+        - incompatibilities
+      properties:
+        reservationId: { type: integer, format: int64, minimum: 0 }
+        id: { type: integer, format: int64, minimum: 0 }
+        name: { type: string, maxLength: 120 }
+        breed: { type: string, maxLength: 120, nullable: true }
+        size: { type: string, enum: [PEQUENO, MEDIANO, GRANDE] }
+        birthDate: { type: string, format: date, nullable: true }
+        tutor:
+          allOf:
+            - $ref: '#/components/schemas/CaregiverTutorContactDto'
+          nullable: true
+        photoAvailable: { type: boolean }
+        arrivalAt: { type: string, format: date-time, nullable: true }
+        stayStatus: { type: string, enum: [EN_EL_CENTRO] }
+        groupName: { type: string, maxLength: 120, nullable: true }
+        feedingInstructions:
+          type: string
+          maxLength: 1000
+          nullable: true
+        temperament:
+          type: string
+          maxLength: 1000
+          nullable: true
+        allergies:
+          type: array
+          items:
+            $ref: '#/components/schemas/CaregiverDogAllergyDto'
+        medications:
+          type: array
+          items:
+            $ref: '#/components/schemas/CaregiverDogMedicationDto'
+        incompatibilities:
+          type: array
+          items:
+            $ref: '#/components/schemas/CaregiverDogIncompatibilityDto'
+    CaregiverDogAllergyDto:
+      type: object
+      required: [description]
+      properties:
+        description: { type: string, maxLength: 1000 }
+    CaregiverDogMedicationDto:
+      type: object
+      required: [id, medication, instructions, declaredByTutor]
+      properties:
+        id: { type: integer, format: int64, minimum: 0 }
+        medication: { type: string, maxLength: 160 }
+        dosage: { type: string, maxLength: 255, nullable: true }
+        instructions: { type: string, maxLength: 1000 }
+        declaredByTutor:
+          type: boolean
+          description: Indica procedencia de la pauta, no autorización clínica ni administración.
+    CaregiverTutorContactDto:
+      type: object
+      required: [name, phone]
+      properties:
+        name: { type: string, maxLength: 281 }
+        phone: { type: string, maxLength: 30 }
+    CaregiverDogIncompatibilityDto:
+      type: object
+      required: [incompatibleDogName]
+      properties:
+        incompatibleDogName: { type: string, maxLength: 120 }
+        reason: { type: string, maxLength: 1000, nullable: true }
     TutorDogPageDto:
       type: object
       required: [items, page, size, totalElements, totalPages]
@@ -1983,6 +2525,87 @@ components:
           format: email
           minLength: 1
           maxLength: 254
+    GroomingRequestStatusDto:
+      type: string
+      enum: [SOLICITADA, CONFIRMADA, RECHAZADA, COMPLETADA, CANCELADA]
+    GroomingAppointmentStatusDto:
+      type: string
+      enum: [SOLICITADA, CONFIRMADA, COMPLETADA, CANCELADA]
+    GroomingRequestOriginDto:
+      type: string
+      enum: [INTERNA, B2B]
+    GroomingRequestPageDto:
+      type: object
+      required: [items, page, size, totalElements, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroomingRequestDto'
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1, maximum: 100 }
+        totalElements: { type: integer, format: int64, minimum: 0 }
+        totalPages: { type: integer, minimum: 0 }
+    GroomingRequestDto:
+      type: object
+      required: [id, dogName, serviceNames, requestedDate, status, origin]
+      properties:
+        id: { type: integer, format: int64, minimum: 0 }
+        dogName: { type: string, maxLength: 120 }
+        customerName: { type: string, nullable: true, maxLength: 280 }
+        serviceNames:
+          type: array
+          items: { type: string, maxLength: 120 }
+        requestedDate: { type: string, format: date }
+        requestedTime: { type: string, format: time, nullable: true }
+        status:
+          $ref: '#/components/schemas/GroomingRequestStatusDto'
+        origin:
+          $ref: '#/components/schemas/GroomingRequestOriginDto'
+    GroomingRequestDetailDto:
+      allOf:
+        - $ref: '#/components/schemas/GroomingRequestDto'
+        - type: object
+          properties:
+            notes: { type: string, nullable: true, maxLength: 2000 }
+    GroomingAppointmentPageDto:
+      type: object
+      required: [items, page, size, totalElements, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroomingAppointmentDto'
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1, maximum: 100 }
+        totalElements: { type: integer, format: int64, minimum: 0 }
+        totalPages: { type: integer, minimum: 0 }
+    GroomingAppointmentDto:
+      type: object
+      required: [id, dogName, serviceNames, date, time, durationMinutes, location, status, origin]
+      properties:
+        id: { type: integer, format: int64, minimum: 0 }
+        dogName: { type: string, maxLength: 120 }
+        customerName: { type: string, nullable: true, maxLength: 280 }
+        serviceNames:
+          type: array
+          items: { type: string, maxLength: 120 }
+        date: { type: string, format: date }
+        time: { type: string, format: time }
+        durationMinutes: { type: integer, minimum: 1 }
+        location:
+          type: string
+          enum: [EN_INSTALACIONES, DESPLAZADO]
+        status:
+          $ref: '#/components/schemas/GroomingAppointmentStatusDto'
+        origin:
+          $ref: '#/components/schemas/GroomingRequestOriginDto'
+    GroomingAppointmentDetailDto:
+      allOf:
+        - $ref: '#/components/schemas/GroomingAppointmentDto'
+        - type: object
+          properties:
+            notes: { type: string, nullable: true, maxLength: 2000 }
     ReceptionReservationPageDto:
       type: object
       required: [items, page, size, totalElements, totalPages]
@@ -2542,6 +3165,23 @@ components:
           type: string
           maxLength: 281
           nullable: true
+    CaregiverDailySummaryRequestDto:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 4000
+    CaregiverDailySummaryDto:
+      type: object
+      required: [id, reservationId, text, status, publishedAt]
+      properties:
+        id: { type: integer, format: int64, minimum: 1 }
+        reservationId: { type: integer, format: int64, minimum: 1 }
+        text: { type: string, minLength: 1, maxLength: 4000 }
+        status: { type: string, enum: [PUBLICADO] }
+        publishedAt: { type: string, format: date-time }
     DailyRecordRequestDto:
       type: object
       required: [type]
@@ -2553,6 +3193,7 @@ components:
           type: string
           maxLength: 2000
           nullable: true
+          description: Observaciones opcionales; una cadena vacía se trata como ausencia.
     DailyRecordDto:
       type: object
       required: [id, reservationId, type, dateTime]

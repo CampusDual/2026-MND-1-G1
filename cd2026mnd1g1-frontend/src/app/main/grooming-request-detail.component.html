@@ -1,0 +1,72 @@
+<main class="detail-page">
+  <header class="topbar">
+    <a class="brand" routerLink="/tablero-diario" aria-label="PawCare, recepción">
+      <span class="brand-mark" aria-hidden="true">P</span>
+      <span>PawCare <span class="brand-divider">·</span> <strong>Recepción</strong></span>
+    </a>
+    <a class="nav-link" routerLink="/citas-peluqueria">Citas de peluquería</a>
+    <a class="nav-link" routerLink="/solicitudes-peluqueria">Solicitudes</a>
+    <button class="logout-button" type="button" (click)="logout()">Cerrar sesión</button>
+  </header>
+
+  <section class="content">
+    <button class="back-button" type="button" (click)="backToList()">← Volver a citas</button>
+    @if (isLoading) {
+      <div class="state-card" role="status">Cargando el detalle de la cita...</div>
+    } @else if (hasAccessError) {
+      <div class="state-card error" role="alert">Tu cuenta no tiene permiso para consultar esta cita.</div>
+    } @else if (errorMessage) {
+      <div class="state-card error" role="alert">
+        <p>{{ errorMessage }}</p>
+        <button class="secondary-button" type="button" (click)="loadAppointment()">Reintentar</button>
+      </div>
+    } @else {
+      @if (appointment; as item) {
+        <p class="eyebrow">DETALLE DE PELUQUERÍA</p>
+        <h1>Cita #{{ item.id }}</h1>
+        <p class="date">{{ formatDate(item.date, item.time) }}</p>
+
+      <section class="detail-card">
+        <h2>Cita</h2>
+        <dl>
+          <div><dt>Origen</dt><dd>{{ originLabel(item.origin) }}</dd></div>
+          <div><dt>Estado</dt><dd><span class="status">{{ statusLabel(item.status) }}</span></dd></div>
+          <div><dt>Fecha y hora</dt><dd>{{ formatDate(item.date, item.time) }}</dd></div>
+          <div><dt>Duración</dt><dd>{{ item.durationMinutes }} min</dd></div>
+          <div><dt>Lugar</dt><dd>{{ locationLabel(item.location) }}</dd></div>
+        </dl>
+      </section>
+
+      <section class="detail-card">
+        <h2>Perro</h2>
+        <dl><div><dt>Nombre</dt><dd>{{ item.dogName }}</dd></div></dl>
+      </section>
+
+      <section class="detail-card">
+        <h2>{{ item.origin === 'B2B' ? 'Guardería B2B' : 'Tutor' }}</h2>
+        <p>{{ item.customerName || (item.origin === 'B2B' ? 'Guardería no indicada' : 'Tutor no asociado') }}</p>
+      </section>
+
+      <section class="detail-card">
+        <h2>Servicios</h2>
+        @if (item.serviceNames.length > 0) {
+          <ul>
+            @for (service of item.serviceNames; track service) {
+              <li>{{ service }}</li>
+            }
+          </ul>
+        } @else {
+          <p>Servicio no indicado.</p>
+        }
+      </section>
+
+        @if (item.notes) {
+          <section class="detail-card">
+            <h2>Observaciones</h2>
+            <p class="notes">{{ item.notes }}</p>
+          </section>
+        }
+      }
+    }
+  </section>
+</main>

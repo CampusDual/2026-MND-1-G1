@@ -61,6 +61,30 @@ export interface DailyRecordRequest {
   notes?: string;
 }
 
+export interface DailyRecord {
+  id: number;
+  reservationId: number;
+  type: DailyRecordType;
+  dateTime: string;
+  notes: string | null;
+}
+
+export interface CaregiverDailySummary {
+  id: number;
+  reservationId: number;
+  text: string;
+  status: 'PUBLICADO';
+  publishedAt: string;
+}
+
+export interface Incident {
+  id: number;
+  reservationId: number;
+  severity: IncidentSeverity;
+  description: string;
+  dateTime: string;
+}
+
 export interface IncidentRequest {
   severity: IncidentSeverity;
   description: string;
@@ -96,6 +120,58 @@ export interface ReceptionReservationPage {
   size: number;
   totalElements: number;
   totalPages: number;
+}
+
+export type GroomingRequestOrigin = 'INTERNA' | 'B2B';
+export type GroomingRequestStatus = 'SOLICITADA' | 'CONFIRMADA' | 'RECHAZADA' | 'COMPLETADA' | 'CANCELADA';
+export type GroomingAppointmentStatus = 'SOLICITADA' | 'CONFIRMADA' | 'COMPLETADA' | 'CANCELADA';
+
+export interface GroomingRequest {
+  id: number;
+  dogName: string;
+  customerName: string | null;
+  serviceNames: string[];
+  requestedDate: string;
+  requestedTime: string | null;
+  status: GroomingRequestStatus;
+  origin: GroomingRequestOrigin;
+}
+
+export interface GroomingRequestPage {
+  items: GroomingRequest[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export interface GroomingRequestDetail extends GroomingRequest {
+  notes: string | null;
+}
+
+export interface GroomingAppointment {
+  id: number;
+  dogName: string;
+  customerName: string | null;
+  serviceNames: string[];
+  date: string;
+  time: string;
+  durationMinutes: number;
+  location: 'EN_INSTALACIONES' | 'DESPLAZADO';
+  status: GroomingAppointmentStatus;
+  origin: GroomingRequestOrigin;
+}
+
+export interface GroomingAppointmentPage {
+  items: GroomingAppointment[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export interface GroomingAppointmentDetail extends GroomingAppointment {
+  notes: string | null;
 }
 
 export interface ReceptionDog {
@@ -320,6 +396,45 @@ export interface DogDetailVersionedResponse {
   dog: Dog;
   authorizedPersons: AuthorizedPerson[];
   etag: string;
+}
+
+export interface CaregiverDogSummary {
+  reservationId: number;
+  id: number;
+  name: string;
+  breed: string | null;
+  size: DogSize;
+  photoAvailable: boolean;
+  arrivalAt: string | null;
+  stayStatus: string;
+  groupName: string | null;
+}
+
+export interface CaregiverDogPage {
+  items: CaregiverDogSummary[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export interface CaregiverDogDetail {
+  reservationId: number;
+  id: number;
+  name: string;
+  breed: string | null;
+  size: DogSize;
+  birthDate: string | null;
+  tutor: { name: string; phone: string } | null;
+  photoAvailable: boolean;
+  arrivalAt: string | null;
+  stayStatus: string;
+  groupName: string | null;
+  feedingInstructions: string | null;
+  temperament: string | null;
+  allergies: { description: string }[];
+  medications: { id: number; medication: string; dosage: string | null; instructions: string; declaredByTutor: boolean }[];
+  incompatibilities: { incompatibleDogName: string; reason: string | null }[];
 }
 
 export interface TutorDogSummary {

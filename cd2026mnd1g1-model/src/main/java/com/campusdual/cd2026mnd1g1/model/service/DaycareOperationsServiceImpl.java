@@ -241,7 +241,17 @@ public class DaycareOperationsServiceImpl implements DaycareOperationsService {
             throw new IllegalArgumentException("El tipo de actividad es obligatorio");
         }
         UserEntity user = findActiveUser(username);
-        ReservationEntity reservation = findReservationInCenter(reservationId, user);
+        if (user.getRole() == null || !"CUIDADOR".equals(user.getRole().getName())) {
+            throw new OperationalUserNotFoundException("El usuario operativo no está autorizado como cuidador");
+        }
+        ReservationEntity reservation = this.reservationRepository.findCaregiverTodayReservation(
+                reservationId,
+                user.getId(),
+                user.getCenter().getId(),
+                LocalDate.now(this.receptionClock)
+        ).orElseThrow(() -> new ResourceNotFoundException(
+                "No existe una estancia asignada a este cuidador"
+        ));
 
         DailyRecordEntity record = new DailyRecordEntity();
         record.setReservation(reservation);
@@ -259,7 +269,17 @@ public class DaycareOperationsServiceImpl implements DaycareOperationsService {
             throw new IllegalArgumentException("La gravedad y la descripción de la incidencia son obligatorias");
         }
         UserEntity user = findActiveUser(username);
-        ReservationEntity reservation = findReservationInCenter(reservationId, user);
+        if (user.getRole() == null || !"CUIDADOR".equals(user.getRole().getName())) {
+            throw new OperationalUserNotFoundException("El usuario operativo no está autorizado como cuidador");
+        }
+        ReservationEntity reservation = this.reservationRepository.findCaregiverTodayReservation(
+                reservationId,
+                user.getId(),
+                user.getCenter().getId(),
+                LocalDate.now(this.receptionClock)
+        ).orElseThrow(() -> new ResourceNotFoundException(
+                "No existe una estancia asignada a este cuidador"
+        ));
 
         IncidentEntity incident = new IncidentEntity();
         incident.setReservation(reservation);
