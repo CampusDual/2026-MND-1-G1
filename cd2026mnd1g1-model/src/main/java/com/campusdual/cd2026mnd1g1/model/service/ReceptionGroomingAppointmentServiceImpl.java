@@ -4,11 +4,11 @@ import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentDetailDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentPageDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingRequestOriginDto;
-import com.campusdual.cd2026mnd1g1.api.dto.GroomingRequestStatusDto;
+import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentStatusDto;
 import com.campusdual.cd2026mnd1g1.api.service.ReceptionGroomingAppointmentService;
 import com.campusdual.cd2026mnd1g1.model.entity.CenterType;
 import com.campusdual.cd2026mnd1g1.model.entity.GroomingAppointmentEntity;
-import com.campusdual.cd2026mnd1g1.model.entity.GroomingRequestStatus;
+import com.campusdual.cd2026mnd1g1.model.entity.GroomingAppointmentStatus;
 import com.campusdual.cd2026mnd1g1.model.entity.UserEntity;
 import com.campusdual.cd2026mnd1g1.model.exception.OperationalUserNotFoundException;
 import com.campusdual.cd2026mnd1g1.model.exception.ResourceNotFoundException;
@@ -51,7 +51,7 @@ public class ReceptionGroomingAppointmentServiceImpl implements ReceptionGroomin
     @Override
     public GroomingAppointmentPageDto findAppointments(
             GroomingRequestOriginDto origin,
-            GroomingRequestStatusDto status,
+            GroomingAppointmentStatusDto status,
             LocalDate fromDate,
             LocalDate toDate,
             int page,
@@ -108,7 +108,7 @@ public class ReceptionGroomingAppointmentServiceImpl implements ReceptionGroomin
                 appointment.getStartAt().toLocalTime(),
                 appointment.getDurationMinutes(),
                 appointment.getLocation(),
-                GroomingRequestStatusDto.valueOf(appointment.getStatus().name()),
+                GroomingAppointmentStatusDto.valueOf(appointment.getStatus().name()),
                 toOrigin(appointment),
                 visibleRequestNotes(appointment)
         );
@@ -149,7 +149,7 @@ public class ReceptionGroomingAppointmentServiceImpl implements ReceptionGroomin
                 appointment.getStartAt().toLocalTime(),
                 appointment.getDurationMinutes(),
                 appointment.getLocation(),
-                GroomingRequestStatusDto.valueOf(appointment.getStatus().name()),
+                GroomingAppointmentStatusDto.valueOf(appointment.getStatus().name()),
                 toOrigin(appointment)
         );
     }
@@ -193,8 +193,8 @@ public class ReceptionGroomingAppointmentServiceImpl implements ReceptionGroomin
         };
     }
 
-    private GroomingRequestStatus toStatus(GroomingRequestStatusDto status) {
-        return status == null ? null : GroomingRequestStatus.valueOf(status.name());
+    private GroomingAppointmentStatus toStatus(GroomingAppointmentStatusDto status) {
+        return status == null ? null : GroomingAppointmentStatus.valueOf(status.name());
     }
 
     private void validateFilters(LocalDate fromDate, LocalDate toDate, int page, int size) {

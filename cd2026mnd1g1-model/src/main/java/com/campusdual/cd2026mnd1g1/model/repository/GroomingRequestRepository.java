@@ -3,9 +3,11 @@ package com.campusdual.cd2026mnd1g1.model.repository;
 import com.campusdual.cd2026mnd1g1.model.entity.CenterType;
 import com.campusdual.cd2026mnd1g1.model.entity.GroomingRequestEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.GroomingRequestStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -77,6 +79,25 @@ public interface GroomingRequestRepository extends JpaRepository<GroomingRequest
               )
             """)
     Optional<GroomingRequestEntity> findVisibleRequest(
+            @Param("requestId") Long requestId,
+            @Param("serviceCenterId") Long serviceCenterId
+    );
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            SELECT DISTINCT request FROM GroomingRequestEntity request
+            JOIN request.dog dog
+            JOIN request.services service
+            WHERE request.id = :requestId
+              AND service.center.id = :serviceCenterId
+              AND request.customerCenter.id = dog.center.id
+              AND NOT EXISTS (
+                  SELECT otherService.id FROM GroomingServiceEntity otherService
+                  WHERE otherService MEMBER OF request.services
+                    AND otherService.center.id <> :serviceCenterId
+              )
+            """)
+    Optional<GroomingRequestEntity> findVisibleRequestForUpdate(
             @Param("requestId") Long requestId,
             @Param("serviceCenterId") Long serviceCenterId
     );

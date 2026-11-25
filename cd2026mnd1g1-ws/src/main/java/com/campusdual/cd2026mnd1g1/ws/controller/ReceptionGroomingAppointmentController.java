@@ -3,7 +3,7 @@ package com.campusdual.cd2026mnd1g1.ws.controller;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentDetailDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentPageDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingRequestOriginDto;
-import com.campusdual.cd2026mnd1g1.api.dto.GroomingRequestStatusDto;
+import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentStatusDto;
 import com.campusdual.cd2026mnd1g1.api.service.ReceptionGroomingAppointmentService;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -52,7 +52,7 @@ public class ReceptionGroomingAppointmentController {
     @PreAuthorize("hasAnyRole('RECEPCIONISTA', 'ADMIN', 'GERENTE')")
     public ResponseEntity<GroomingAppointmentPageDto> getAppointments(
             @RequestParam(required = false) GroomingRequestOriginDto origin,
-            @RequestParam(required = false) GroomingRequestStatusDto status,
+            @RequestParam(required = false) GroomingAppointmentStatusDto status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(defaultValue = "0") @Min(0) int page,

@@ -29,9 +29,13 @@ import {
   DailyRecordRequest,
   CaregiverDailySummary,
   GroomingAppointment,
+  GroomingAppointmentStatus,
   GroomingAppointmentDetail,
   GroomingRequestOrigin,
   GroomingAppointmentPage,
+  GroomingRequest,
+  GroomingRequestDetail,
+  GroomingRequestPage,
   GroomingRequestStatus,
   Incident,
   IncidentSeverity,
@@ -56,6 +60,7 @@ export class DaycareOperationsService {
   private readonly reservationsPath: string = '/api/reservas';
   private readonly receptionReservationsPath: string = '/api/recepcion/reservas';
   private readonly groomingAppointmentsPath: string = '/api/recepcion/citas-peluqueria';
+  private readonly groomingRequestsPath: string = '/api/recepcion/solicitudes-peluqueria';
   private readonly receptionPath: string = '/api/recepcion';
   private readonly tutorsPath: string = '/api/recepcion/tutores';
   private readonly dogsPath: string = '/api/recepcion/perros';
@@ -230,7 +235,7 @@ export class DaycareOperationsService {
   getReceptionGroomingAppointments(
     filters: {
       origin: GroomingRequestOrigin | '';
-      status: GroomingRequestStatus | '';
+      status: GroomingAppointmentStatus | '';
       from: string;
       to: string;
     },
@@ -260,6 +265,57 @@ export class DaycareOperationsService {
     return this.http.get<GroomingAppointmentDetail>(`${this.groomingAppointmentsPath}/${appointmentId}`, {
       headers: this.getAuthHeaders()
     });
+  }
+
+  getReceptionGroomingRequests(
+    filters: {
+      origin: GroomingRequestOrigin | '';
+      status: GroomingRequestStatus | '';
+      from: string;
+      to: string;
+    },
+    page: number,
+    size: number
+  ): Observable<GroomingRequestPage> {
+    let params: HttpParams = new HttpParams().set('page', page).set('size', size);
+    if (filters.origin) {
+      params = params.set('origin', filters.origin);
+    }
+    if (filters.status) {
+      params = params.set('status', filters.status);
+    }
+    if (filters.from) {
+      params = params.set('from', filters.from);
+    }
+    if (filters.to) {
+      params = params.set('to', filters.to);
+    }
+    return this.http.get<GroomingRequestPage>(this.groomingRequestsPath, {
+      headers: this.getAuthHeaders(),
+      params
+    });
+  }
+
+  getReceptionGroomingRequest(requestId: number): Observable<GroomingRequestDetail> {
+    return this.http.get<GroomingRequestDetail>(`${this.groomingRequestsPath}/${requestId}`, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  confirmReceptionGroomingRequest(requestId: number): Observable<GroomingRequestDetail> {
+    return this.http.post<GroomingRequestDetail>(
+      `${this.groomingRequestsPath}/${requestId}/confirmar`,
+      null,
+      { headers: this.getAuthHeaders() }
+    );
+  }
+
+  rejectReceptionGroomingRequest(requestId: number): Observable<GroomingRequestDetail> {
+    return this.http.post<GroomingRequestDetail>(
+      `${this.groomingRequestsPath}/${requestId}/rechazar`,
+      null,
+      { headers: this.getAuthHeaders() }
+    );
   }
 
   registerReceptionArrival(

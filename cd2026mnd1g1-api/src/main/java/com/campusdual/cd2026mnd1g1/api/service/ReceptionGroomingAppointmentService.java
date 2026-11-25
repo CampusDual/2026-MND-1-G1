@@ -3,7 +3,7 @@ package com.campusdual.cd2026mnd1g1.api.service;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentDetailDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentPageDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingRequestOriginDto;
-import com.campusdual.cd2026mnd1g1.api.dto.GroomingRequestStatusDto;
+import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentStatusDto;
 
 import java.time.LocalDate;
 
@@ -26,7 +26,7 @@ public interface ReceptionGroomingAppointmentService {
      */
     GroomingAppointmentPageDto findAppointments(
             GroomingRequestOriginDto origin,
-            GroomingRequestStatusDto status,
+            GroomingAppointmentStatusDto status,
             LocalDate fromDate,
             LocalDate toDate,
             int page,

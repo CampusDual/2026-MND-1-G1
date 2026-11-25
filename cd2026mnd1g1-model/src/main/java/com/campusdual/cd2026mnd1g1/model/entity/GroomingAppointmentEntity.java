@@ -52,7 +52,7 @@ public class GroomingAppointmentEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "estado", nullable = false, length = 20)
-    private GroomingRequestStatus status;
+    private GroomingAppointmentStatus status;
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
@@ -76,8 +76,8 @@ public class GroomingAppointmentEntity {
     public void setDurationMinutes(Integer durationMinutes) { this.durationMinutes = durationMinutes; }
     public String getLocation() { return location; }
     public void setLocation(String location) { this.location = location; }
-    public GroomingRequestStatus getStatus() { return status; }
-    public void setStatus(GroomingRequestStatus status) { this.status = status; }
+    public GroomingAppointmentStatus getStatus() { return status; }
+    public void setStatus(GroomingAppointmentStatus status) { this.status = status; }
     public Set<GroomingServiceEntity> getServices() { return services; }
     public void setServices(Set<GroomingServiceEntity> services) { this.services = services; }
 }

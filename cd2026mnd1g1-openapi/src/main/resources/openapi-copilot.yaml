@@ -1162,6 +1162,79 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
         '422': { $ref: '#/components/responses/UnprocessableEntity' }
         '500': { $ref: '#/components/responses/InternalServerError' }
+  /api/recepcion/solicitudes-peluqueria/{id}/confirmar:
+    post:
+      security:
+        - basicAuth: []
+      tags: [Peluquería]
+      summary: Confirma una solicitud de peluquería pendiente
+      description: >
+        Solo Recepcionista, Admin y Gerente. El centro se deriva del usuario autenticado.
+        Solo cambia SOLICITADA a CONFIRMADA. No acepta cuerpo ni modifica otros campos,
+        crea citas, asigna peluquero o envía notificaciones. Una solicitud fuera del ámbito
+        responde como no encontrada; un estado distinto de SOLICITADA responde como conflicto.
+      operationId: confirmReceptionGroomingRequest
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64, minimum: 0 }
+      responses:
+        '200':
+          description: Solicitud confirmada; se devuelve su detalle actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroomingRequestDetailDto'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: La solicitud ya no está pendiente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+  /api/recepcion/solicitudes-peluqueria/{id}/rechazar:
+    post:
+      security:
+        - basicAuth: []
+      tags: [Peluquería]
+      summary: Rechaza una solicitud de peluquería pendiente
+      description: >
+        Solo Recepcionista, Admin y Gerente. El centro se deriva del usuario autenticado.
+        Solo cambia SOLICITADA a RECHAZADA. No acepta cuerpo ni modifica otros campos,
+        crea citas, asigna peluquero o envía notificaciones. El modelo no dispone de un campo
+        específico de motivo de rechazo. Una solicitud fuera del ámbito responde como no
+        encontrada; un estado distinto de SOLICITADA responde como conflicto.
+      operationId: rejectReceptionGroomingRequest
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64, minimum: 0 }
+      responses:
+        '200':
+          description: Solicitud rechazada; se devuelve su detalle actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroomingRequestDetailDto'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: La solicitud ya no está pendiente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
   /api/recepcion/reservas:
     get:
       security:
@@ -2454,6 +2527,9 @@ components:
           maxLength: 254
     GroomingRequestStatusDto:
       type: string
+      enum: [SOLICITADA, CONFIRMADA, RECHAZADA, COMPLETADA, CANCELADA]
+    GroomingAppointmentStatusDto:
+      type: string
       enum: [SOLICITADA, CONFIRMADA, COMPLETADA, CANCELADA]
     GroomingRequestOriginDto:
       type: string
@@ -2521,7 +2597,7 @@ components:
           type: string
           enum: [EN_INSTALACIONES, DESPLAZADO]
         status:
-          $ref: '#/components/schemas/GroomingRequestStatusDto'
+          $ref: '#/components/schemas/GroomingAppointmentStatusDto'
         origin:
           $ref: '#/components/schemas/GroomingRequestOriginDto'
     GroomingAppointmentDetailDto:

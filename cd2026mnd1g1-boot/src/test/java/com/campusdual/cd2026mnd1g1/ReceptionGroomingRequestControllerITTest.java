@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +15,7 @@ import java.time.LocalDateTime;
 import java.util.Base64;
 
 import static org.hamcrest.Matchers.nullValue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -43,6 +45,12 @@ class ReceptionGroomingRequestControllerITTest {
     @Test
     void tutorRoleCannotReadReceptionGroomingRequests() throws Exception {
         this.mockMvc.perform(get("/api/recepcion/solicitudes-peluqueria")
+                        .header("Authorization", basicAuthorization("tutor")))
+                .andExpect(status().isForbidden());
+        this.mockMvc.perform(post("/api/recepcion/solicitudes-peluqueria/1/confirmar")
+                        .header("Authorization", basicAuthorization("tutor")))
+                .andExpect(status().isForbidden());
+        this.mockMvc.perform(post("/api/recepcion/solicitudes-peluqueria/1/rechazar")
                         .header("Authorization", basicAuthorization("tutor")))
                 .andExpect(status().isForbidden());
         this.mockMvc.perform(get("/api/recepcion/citas-peluqueria")
@@ -128,6 +136,112 @@ class ReceptionGroomingRequestControllerITTest {
         this.mockMvc.perform(get("/api/recepcion/solicitudes-peluqueria/{id}", incompleteRequestId)
                         .header("Authorization", basicAuthorization("recepcionista")))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void receptionCanConfirmAndRejectOnlyVisiblePendingRequests() throws Exception {
+        long ownCenterId = centerId(CENTER_CIF);
+        long clientCenterId = createCenter("B00000114", "CLIENTE", "Guardería B2B acción");
+        long otherProviderId = createCenter("B00000115", "PROPIA", "Centro ajeno acción");
+        long tutorId = createTutor(ownCenterId, "GROOM-ACT-01");
+        long internalDogId = createDog(ownCenterId, tutorId, "Perro a confirmar");
+        long b2bDogId = createDog(clientCenterId, null, "Perro B2B a rechazar");
+        long externalDogId = createDog(otherProviderId, null, "Perro centro ajeno");
+        long serviceId = createService(ownCenterId, "Servicio decisión");
+        long otherServiceId = createService(otherProviderId, "Servicio externo decisión");
+        long internalRequestId = createRequest(
+                ownCenterId, internalDogId, serviceId, REQUEST_DATE, "SOLICITADA", "Observación conservada"
+        );
+        long b2bRequestId = createRequest(
+                clientCenterId, b2bDogId, serviceId, REQUEST_DATE, "SOLICITADA", "Nota B2B conservada"
+        );
+        long foreignRequestId = createRequest(
+                otherProviderId, externalDogId, otherServiceId, REQUEST_DATE, "SOLICITADA", "No accesible"
+        );
+        long appointmentCountBefore = this.jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM cita_peluqueria",
+                Long.class
+        );
+        long requestCountBefore = this.jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM solicitud_peluqueria",
+                Long.class
+        );
+
+        this.mockMvc.perform(post("/api/recepcion/solicitudes-peluqueria/{id}/confirmar", internalRequestId)
+                        .header("Authorization", basicAuthorization("recepcionista"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"estado":"RECHAZADA","perro_id":999999,"centro_id":999999}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CONFIRMADA"))
+                .andExpect(jsonPath("$.notes").value("Observación conservada"));
+
+        this.mockMvc.perform(post("/api/recepcion/solicitudes-peluqueria/{id}/rechazar", b2bRequestId)
+                        .header("Authorization", basicAuthorization("recepcionista")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("RECHAZADA"))
+                .andExpect(jsonPath("$.notes").value("Nota B2B conservada"));
+
+        this.mockMvc.perform(post("/api/recepcion/solicitudes-peluqueria/{id}/rechazar", internalRequestId)
+                        .header("Authorization", basicAuthorization("recepcionista")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("GROOMING_REQUEST_NOT_PENDING"));
+
+        this.mockMvc.perform(post("/api/recepcion/solicitudes-peluqueria/{id}/confirmar", foreignRequestId)
+                        .header("Authorization", basicAuthorization("recepcionista")))
+                .andExpect(status().isNotFound());
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "CONFIRMADA",
+                this.jdbcTemplate.queryForObject(
+                        "SELECT estado FROM solicitud_peluqueria WHERE id = ?",
+                        String.class,
+                        internalRequestId
+                )
+        );
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "RECHAZADA",
+                this.jdbcTemplate.queryForObject(
+                        "SELECT estado FROM solicitud_peluqueria WHERE id = ?",
+                        String.class,
+                        b2bRequestId
+                )
+        );
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "Observación conservada",
+                this.jdbcTemplate.queryForObject(
+                        "SELECT notas FROM solicitud_peluqueria WHERE id = ?",
+                        String.class,
+                        internalRequestId
+                )
+        );
+        org.junit.jupiter.api.Assertions.assertEquals(
+                requestCountBefore,
+                this.jdbcTemplate.queryForObject("SELECT COUNT(*) FROM solicitud_peluqueria", Long.class)
+        );
+        org.junit.jupiter.api.Assertions.assertEquals(
+                appointmentCountBefore,
+                this.jdbcTemplate.queryForObject("SELECT COUNT(*) FROM cita_peluqueria", Long.class)
+        );
+    }
+
+    @Test
+    void requestsNotPendingCannotBeConfirmedOrRejected() throws Exception {
+        long ownCenterId = centerId(CENTER_CIF);
+        long dogId = createDog(ownCenterId, createTutor(ownCenterId, "GROOM-ACT-02"), "Perro no pendiente");
+        long serviceId = createService(ownCenterId, "Servicio no pendiente");
+        for (String requestStatus : new String[]{"CONFIRMADA", "COMPLETADA", "CANCELADA"}) {
+            long requestId = createRequest(
+                    ownCenterId, dogId, serviceId, REQUEST_DATE, requestStatus, null
+            );
+            this.mockMvc.perform(post("/api/recepcion/solicitudes-peluqueria/{id}/confirmar", requestId)
+                            .header("Authorization", basicAuthorization("recepcionista")))
+                    .andExpect(status().isConflict());
+            this.mockMvc.perform(post("/api/recepcion/solicitudes-peluqueria/{id}/rechazar", requestId)
+                            .header("Authorization", basicAuthorization("recepcionista")))
+                    .andExpect(status().isConflict());
+        }
     }
 
     @Test

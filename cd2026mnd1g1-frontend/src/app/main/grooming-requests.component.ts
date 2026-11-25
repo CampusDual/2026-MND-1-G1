@@ -8,9 +8,9 @@ import { AuthService } from '../core/auth.service';
 import { DaycareOperationsService } from '../core/daycare-operations.service';
 import {
   GroomingAppointment,
+  GroomingAppointmentStatus,
   GroomingRequestOrigin,
   GroomingAppointmentPage,
-  GroomingRequestStatus
 } from '../core/operational.models';
 
 type AppointmentLoadResult =
@@ -32,9 +32,9 @@ export class GroomingRequestsComponent implements OnInit, OnDestroy {
   private readonly loadAppointmentsSubject: Subject<void> = new Subject();
   private readonly subscriptions: Subscription = new Subscription();
 
-  readonly statuses: GroomingRequestStatus[] = ['SOLICITADA', 'CONFIRMADA', 'COMPLETADA', 'CANCELADA'];
+  readonly statuses: GroomingAppointmentStatus[] = ['SOLICITADA', 'CONFIRMADA', 'COMPLETADA', 'CANCELADA'];
   origin: GroomingRequestOrigin | '' = '';
-  status: GroomingRequestStatus | '' = '';
+  status: GroomingAppointmentStatus | '' = '';
   fromDate: string = '';
   toDate: string = '';
   appointments: GroomingAppointment[] = [];
@@ -98,8 +98,8 @@ export class GroomingRequestsComponent implements OnInit, OnDestroy {
     }
   }
 
-  statusLabel(status: GroomingRequestStatus): string {
-    const labels: Record<GroomingRequestStatus, string> = {
+  statusLabel(status: GroomingAppointmentStatus): string {
+    const labels: Record<GroomingAppointmentStatus, string> = {
       SOLICITADA: 'Solicitada',
       CONFIRMADA: 'Confirmada',
       COMPLETADA: 'Completada',

@@ -123,7 +123,31 @@ export interface ReceptionReservationPage {
 }
 
 export type GroomingRequestOrigin = 'INTERNA' | 'B2B';
-export type GroomingRequestStatus = 'SOLICITADA' | 'CONFIRMADA' | 'COMPLETADA' | 'CANCELADA';
+export type GroomingRequestStatus = 'SOLICITADA' | 'CONFIRMADA' | 'RECHAZADA' | 'COMPLETADA' | 'CANCELADA';
+export type GroomingAppointmentStatus = 'SOLICITADA' | 'CONFIRMADA' | 'COMPLETADA' | 'CANCELADA';
+
+export interface GroomingRequest {
+  id: number;
+  dogName: string;
+  customerName: string | null;
+  serviceNames: string[];
+  requestedDate: string;
+  requestedTime: string | null;
+  status: GroomingRequestStatus;
+  origin: GroomingRequestOrigin;
+}
+
+export interface GroomingRequestPage {
+  items: GroomingRequest[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export interface GroomingRequestDetail extends GroomingRequest {
+  notes: string | null;
+}
 
 export interface GroomingAppointment {
   id: number;
@@ -134,7 +158,7 @@ export interface GroomingAppointment {
   time: string;
   durationMinutes: number;
   location: 'EN_INSTALACIONES' | 'DESPLAZADO';
-  status: GroomingRequestStatus;
+  status: GroomingAppointmentStatus;
   origin: GroomingRequestOrigin;
 }
 

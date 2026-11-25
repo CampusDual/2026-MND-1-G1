@@ -16,7 +16,7 @@ public record GroomingAppointmentDto(
         LocalTime time,
         Integer durationMinutes,
         String location,
-        GroomingRequestStatusDto status,
+        GroomingAppointmentStatusDto status,
         GroomingRequestOriginDto origin
 ) {
 }

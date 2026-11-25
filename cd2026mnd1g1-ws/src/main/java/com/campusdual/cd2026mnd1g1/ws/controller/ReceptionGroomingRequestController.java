@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -86,5 +87,37 @@ public class ReceptionGroomingRequestController {
             Principal principal
     ) {
         return ResponseEntity.ok(this.receptionGroomingRequestService.findRequest(id, principal.getName()));
+    }
+
+    /**
+     * Confirma una solicitud pendiente del centro autenticado.
+     *
+     * @param id identificador de solicitud
+     * @param principal usuario autenticado
+     * @return solicitud con el estado actualizado
+     */
+    @PostMapping("/{id}/confirmar")
+    @PreAuthorize("hasAnyRole('RECEPCIONISTA', 'ADMIN', 'GERENTE')")
+    public ResponseEntity<GroomingRequestDetailDto> confirmRequest(
+            @PathVariable @Min(0) Long id,
+            Principal principal
+    ) {
+        return ResponseEntity.ok(this.receptionGroomingRequestService.confirmRequest(id, principal.getName()));
+    }
+
+    /**
+     * Rechaza una solicitud pendiente del centro autenticado.
+     *
+     * @param id identificador de solicitud
+     * @param principal usuario autenticado
+     * @return solicitud con el estado actualizado
+     */
+    @PostMapping("/{id}/rechazar")
+    @PreAuthorize("hasAnyRole('RECEPCIONISTA', 'ADMIN', 'GERENTE')")
+    public ResponseEntity<GroomingRequestDetailDto> rejectRequest(
+            @PathVariable @Min(0) Long id,
+            Principal principal
+    ) {
+        return ResponseEntity.ok(this.receptionGroomingRequestService.rejectRequest(id, principal.getName()));
     }
 }

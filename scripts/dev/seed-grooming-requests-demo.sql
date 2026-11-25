@@ -200,6 +200,45 @@ WHERE request_ref.fixture_key = 'grooming.request.b2b.cancelled'
       WHERE link.solicitud_id = request_ref.entity_id AND link.servicio_id = service_ref.entity_id
   );
 
+INSERT INTO solicitud_peluqueria
+    (centro_cliente_id, perro_id, modalidad, fecha_solicitada, hora_solicitada, estado, notas)
+SELECT customer.id, dog.entity_id, 'EN_INSTALACIONES', CURRENT_DATE, '15:30:00',
+       'SOLICITADA', 'Solicitud B2B pendiente para probar decisión de recepción'
+FROM centro customer
+JOIN dev_fixture_registry dog ON dog.fixture_key = 'grooming.dog.b2b'
+WHERE customer.cif = 'B00000001'
+  AND NOT EXISTS (
+      SELECT 1 FROM dev_fixture_registry WHERE fixture_key = 'grooming.request.b2b.pending'
+  )
+  AND NOT EXISTS (
+      SELECT 1 FROM solicitud_peluqueria r
+      WHERE r.perro_id = dog.entity_id AND r.estado = 'SOLICITADA'
+        AND r.notas = 'Solicitud B2B pendiente para probar decisión de recepción'
+  );
+
+INSERT INTO dev_fixture_registry (fixture_key, entity_id)
+SELECT 'grooming.request.b2b.pending', MAX(r.id)
+FROM solicitud_peluqueria r
+JOIN perro p ON p.id = r.perro_id
+JOIN centro customer ON customer.id = p.centro_id
+WHERE customer.cif = 'B00000001'
+  AND r.estado = 'SOLICITADA'
+  AND r.notas = 'Solicitud B2B pendiente para probar decisión de recepción'
+  AND NOT EXISTS (
+      SELECT 1 FROM dev_fixture_registry WHERE fixture_key = 'grooming.request.b2b.pending'
+  )
+GROUP BY customer.id;
+
+INSERT INTO solicitud_peluqueria_servicio (solicitud_id, servicio_id)
+SELECT request_ref.entity_id, service_ref.entity_id
+FROM dev_fixture_registry request_ref
+JOIN dev_fixture_registry service_ref ON service_ref.fixture_key = 'grooming.service.bano-demo'
+WHERE request_ref.fixture_key = 'grooming.request.b2b.pending'
+  AND NOT EXISTS (
+      SELECT 1 FROM solicitud_peluqueria_servicio link
+      WHERE link.solicitud_id = request_ref.entity_id AND link.servicio_id = service_ref.entity_id
+  );
+
 INSERT INTO centro (nombre, tipo, cif, direccion, activo)
 SELECT 'Otro centro peluquería Demo', 'PROPIA', 'B00000002', 'Calle Ficticia 3', TRUE
 WHERE NOT EXISTS (SELECT 1 FROM centro WHERE cif = 'B00000002');

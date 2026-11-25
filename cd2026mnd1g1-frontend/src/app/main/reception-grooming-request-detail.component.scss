@@ -1,0 +1,21 @@
+:host{display:block;min-height:100vh;color:#19384a;background:#f5f8fa}
+.topbar{min-height:68px;display:flex;align-items:center;gap:1.2rem;padding:0 5%;background:#fff;border-bottom:1px solid #e5edef}
+.brand{display:flex;align-items:center;gap:.6rem;margin-right:auto;color:#153449;font-weight:700;text-decoration:none}
+.brand-mark{width:36px;height:36px;display:grid;place-items:center;border-radius:12px;color:#fff;background:#159b8a;font-size:1.2rem}
+.brand-divider{color:#9cabb4;font-weight:400}.brand strong{color:#527080;font-size:.92rem}
+.nav-link{color:#167d72;font-size:.88rem;font-weight:700;text-decoration:none}
+.logout-button,.secondary-button,.confirm-button,.reject-button{padding:.65rem .9rem;border:1px solid #dce6e9;border-radius:8px;color:#3c5867;background:#fff;font:inherit;font-size:.85rem;font-weight:700;cursor:pointer}
+.confirm-button{border-color:#22786e;color:#fff;background:#22786e}.reject-button{border-color:#a9443b;color:#a9443b}
+.content{width:min(850px,92%);margin:auto;padding:2rem 0 4rem}.back-button{margin-bottom:1.2rem;padding:0;border:0;color:#167d72;background:none;font:inherit;font-weight:700;cursor:pointer}
+.eyebrow{margin:0 0 .4rem;color:#168d80;font-size:.7rem;font-weight:800;letter-spacing:.12em}h1{margin:0;font-size:2rem}
+.date{margin:.5rem 0 1.4rem;color:#758794;text-transform:capitalize}
+.state-card,.detail-card,.decision-confirmation{margin:.8rem 0;padding:1.1rem 1.2rem;border:1px solid #e4ecef;border-radius:12px;background:#fff}
+.state-card{color:#657987}.state-card.error{color:#9e3f36;background:#fff0ed}.state-card.success{color:#176a4c;background:#eaf7ef}
+.detail-card h2,.decision-confirmation h2{margin:0 0 .7rem;font-size:1rem}
+dl{display:grid;gap:.7rem;margin:.5rem 0}dt{color:#758794;font-size:.74rem}dd{margin:.18rem 0 0;font-weight:600;overflow-wrap:anywhere}
+.status{display:inline-block;padding:.3rem .6rem;border-radius:999px;background:#eaf1f3;font-size:.78rem}
+.detail-card p,.detail-card ul{margin:.5rem 0;line-height:1.55}.notes{white-space:pre-wrap}
+.decision-actions,.decision-buttons{display:flex;flex-wrap:wrap;gap:.7rem;margin:1rem 0}
+.decision-confirmation{border-color:#bfd9d5;box-shadow:0 8px 26px #18394a14}.decision-confirmation p{line-height:1.5}
+button:disabled{cursor:wait;opacity:.6}
+@media(max-width:620px){.topbar{flex-wrap:wrap;padding:1rem 4%}.brand{width:100%}.content{padding-top:1.4rem}}

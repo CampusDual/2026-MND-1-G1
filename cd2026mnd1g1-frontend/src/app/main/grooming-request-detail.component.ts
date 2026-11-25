@@ -7,8 +7,8 @@ import { DaycareOperationsService } from '../core/daycare-operations.service';
 import {
   GroomingAppointmentDetail,
   GroomingAppointment,
+  GroomingAppointmentStatus,
   GroomingRequestOrigin,
-  GroomingRequestStatus
 } from '../core/operational.models';
 
 /**
@@ -58,8 +58,8 @@ export class GroomingRequestDetailComponent implements OnInit {
     });
   }
 
-  statusLabel(status: GroomingRequestStatus): string {
-    const labels: Record<GroomingRequestStatus, string> = {
+  statusLabel(status: GroomingAppointmentStatus): string {
+    const labels: Record<GroomingAppointmentStatus, string> = {
       SOLICITADA: 'Solicitada',
       CONFIRMADA: 'Confirmada',
       COMPLETADA: 'Completada',

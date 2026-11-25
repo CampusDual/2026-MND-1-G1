@@ -12,6 +12,7 @@ import com.campusdual.cd2026mnd1g1.model.entity.GroomingRequestStatus;
 import com.campusdual.cd2026mnd1g1.model.entity.UserEntity;
 import com.campusdual.cd2026mnd1g1.model.exception.OperationalUserNotFoundException;
 import com.campusdual.cd2026mnd1g1.model.exception.ResourceNotFoundException;
+import com.campusdual.cd2026mnd1g1.model.exception.GroomingRequestTransitionConflictException;
 import com.campusdual.cd2026mnd1g1.model.repository.GroomingRequestRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.GroomingRequestServiceNameProjection;
 import com.campusdual.cd2026mnd1g1.model.repository.UserRepository;
@@ -100,6 +101,54 @@ public class ReceptionGroomingRequestServiceImpl implements ReceptionGroomingReq
         List<String> services = findServiceNames(List.of(request), user.getCenter().getId())
                 .getOrDefault(request.getId(), List.of());
 
+        return new GroomingRequestDetailDto(
+                request.getId(),
+                request.getDog().getName(),
+                customerName(request),
+                services,
+                request.getRequestedDate(),
+                request.getRequestedTime(),
+                GroomingRequestStatusDto.valueOf(request.getStatus().name()),
+                toOrigin(request),
+                request.getNotes()
+        );
+    }
+
+    @Override
+    @Transactional
+    public GroomingRequestDetailDto confirmRequest(Long requestId, String username) {
+        return transitionPendingRequest(requestId, username, GroomingRequestStatus.CONFIRMADA);
+    }
+
+    @Override
+    @Transactional
+    public GroomingRequestDetailDto rejectRequest(Long requestId, String username) {
+        return transitionPendingRequest(requestId, username, GroomingRequestStatus.RECHAZADA);
+    }
+
+    private GroomingRequestDetailDto transitionPendingRequest(
+            Long requestId,
+            String username,
+            GroomingRequestStatus targetStatus
+    ) {
+        if (requestId == null || requestId < 0) {
+            throw new IllegalArgumentException("El identificador de solicitud no puede ser negativo");
+        }
+        UserEntity user = findActiveReceptionist(username);
+        GroomingRequestEntity request = this.groomingRequestRepository.findVisibleRequestForUpdate(
+                        requestId,
+                        user.getCenter().getId()
+                )
+                .orElseThrow(() -> new ResourceNotFoundException("No existe la solicitud indicada"));
+        if (request.getStatus() != GroomingRequestStatus.SOLICITADA) {
+            throw new GroomingRequestTransitionConflictException(
+                    "Solo se pueden confirmar o rechazar solicitudes pendientes"
+            );
+        }
+        request.setStatus(targetStatus);
+        this.groomingRequestRepository.saveAndFlush(request);
+        List<String> services = findServiceNames(List.of(request), user.getCenter().getId())
+                .getOrDefault(request.getId(), List.of());
         return new GroomingRequestDetailDto(
                 request.getId(),
                 request.getDog().getName(),

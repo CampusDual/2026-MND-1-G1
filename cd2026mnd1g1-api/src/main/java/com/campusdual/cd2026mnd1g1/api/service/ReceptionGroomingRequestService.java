@@ -42,4 +42,22 @@ public interface ReceptionGroomingRequestService {
      * @return detalle de la solicitud
      */
     GroomingRequestDetailDto findRequest(Long requestId, String username);
+
+    /**
+     * Confirma una solicitud pendiente del centro del usuario autenticado.
+     *
+     * @param requestId identificador de solicitud
+     * @param username usuario autenticado
+     * @return detalle actualizado de la solicitud
+     */
+    GroomingRequestDetailDto confirmRequest(Long requestId, String username);
+
+    /**
+     * Rechaza una solicitud pendiente del centro del usuario autenticado.
+     *
+     * @param requestId identificador de solicitud
+     * @param username usuario autenticado
+     * @return detalle actualizado de la solicitud
+     */
+    GroomingRequestDetailDto rejectRequest(Long requestId, String username);
 }

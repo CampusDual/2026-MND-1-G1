@@ -1,0 +1,108 @@
+<main class="requests-page">
+  <header class="topbar">
+    <a class="brand" routerLink="/tablero-diario" aria-label="PawCare, recepción">
+      <span class="brand-mark" aria-hidden="true">P</span>
+      <span>PawCare <span class="brand-divider">·</span> <strong>Recepción</strong></span>
+    </a>
+    <a class="nav-link" routerLink="/citas-peluqueria">Citas de peluquería</a>
+    <button class="logout-button" type="button" (click)="logout()">Cerrar sesión</button>
+  </header>
+
+  <section class="content">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow">PELUQUERÍA</p>
+        <h1>Solicitudes de peluquería</h1>
+        <p class="subtitle">Revisa las solicitudes y decide sobre las que están pendientes.</p>
+      </div>
+      <button class="secondary-button" type="button" [disabled]="isLoading" (click)="loadRequests()">
+        Actualizar
+      </button>
+    </div>
+
+    <section class="filters" aria-label="Filtros de solicitudes">
+      <label>
+        Origen
+        <select [(ngModel)]="origin">
+          <option value="">Todos</option>
+          <option value="INTERNA">Guardería interna</option>
+          <option value="B2B">Guardería cliente · B2B</option>
+        </select>
+      </label>
+      <label>
+        Estado
+        <select [(ngModel)]="status">
+          <option value="">Todos</option>
+          @for (option of statuses; track option) {
+            <option [value]="option">{{ statusLabel(option) }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        Desde
+        <input type="date" [(ngModel)]="fromDate">
+      </label>
+      <label>
+        Hasta
+        <input type="date" [(ngModel)]="toDate">
+      </label>
+      <button class="primary-button" type="button" [disabled]="isLoading" (click)="applyFilters()">
+        Aplicar filtros
+      </button>
+    </section>
+
+    @if (hasAccessError) {
+      <section class="state-card error" role="alert">
+        <h2>Sección no autorizada</h2>
+        <p>Tu cuenta no tiene permiso para consultar solicitudes de peluquería.</p>
+      </section>
+    } @else if (isLoading) {
+      <div class="state-card" role="status">Cargando solicitudes de peluquería...</div>
+    } @else if (errorMessage) {
+      <section class="state-card error" role="alert">
+        <p>{{ errorMessage }}</p>
+        <button class="secondary-button" type="button" (click)="loadRequests()">Reintentar</button>
+      </section>
+    } @else if (totalElements === 0) {
+      <section class="state-card empty-state">
+        <h2>No hay solicitudes de peluquería que cumplan los filtros aplicados</h2>
+      </section>
+    } @else {
+      <p class="results-count">{{ totalElements }} {{ totalElements === 1 ? 'solicitud' : 'solicitudes' }}</p>
+      <section class="request-list" aria-label="Solicitudes de peluquería">
+        @for (request of requests; track request.id) {
+          <article class="request-card">
+            <div class="request-heading">
+              <div>
+                <h2>{{ request.dogName }}</h2>
+                <p>{{ request.customerName || (request.origin === 'B2B' ? 'Guardería no indicada' : 'Tutor no asociado') }}</p>
+              </div>
+              <span class="origin-badge" [class.b2b]="request.origin === 'B2B'">{{ originLabel(request.origin) }}</span>
+            </div>
+            <dl>
+              <div>
+                <dt>Servicios</dt>
+                <dd>{{ request.serviceNames.join(', ') }}</dd>
+              </div>
+              <div><dt>Fecha solicitada</dt><dd>{{ formatDate(request.requestedDate, request.requestedTime) }}</dd></div>
+              <div><dt>Estado</dt><dd><span class="status-badge">{{ statusLabel(request.status) }}</span></dd></div>
+            </dl>
+            <a class="detail-link" [routerLink]="['/solicitudes-peluqueria', request.id]">
+              Ver detalle <span aria-hidden="true">→</span>
+            </a>
+          </article>
+        }
+      </section>
+
+      @if (totalPages > 1) {
+        <nav class="pagination" aria-label="Páginas de solicitudes">
+          <button class="secondary-button" type="button" [disabled]="currentPage === 0"
+                  (click)="changePage(currentPage - 1)">Anterior</button>
+          <span>Página {{ currentPage + 1 }} de {{ totalPages }}</span>
+          <button class="secondary-button" type="button" [disabled]="currentPage + 1 >= totalPages"
+                  (click)="changePage(currentPage + 1)">Siguiente</button>
+        </nav>
+      }
+    }
+  </section>
+</main>

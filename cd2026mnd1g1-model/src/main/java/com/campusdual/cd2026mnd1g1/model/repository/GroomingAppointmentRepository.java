@@ -2,7 +2,7 @@ package com.campusdual.cd2026mnd1g1.model.repository;
 
 import com.campusdual.cd2026mnd1g1.model.entity.CenterType;
 import com.campusdual.cd2026mnd1g1.model.entity.GroomingAppointmentEntity;
-import com.campusdual.cd2026mnd1g1.model.entity.GroomingRequestStatus;
+import com.campusdual.cd2026mnd1g1.model.entity.GroomingAppointmentStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -66,7 +66,7 @@ public interface GroomingAppointmentRepository extends JpaRepository<GroomingApp
     Page<GroomingAppointmentEntity> findVisibleAppointments(
             @Param("centerId") Long centerId,
             @Param("originCenterType") CenterType originCenterType,
-            @Param("status") GroomingRequestStatus status,
+            @Param("status") GroomingAppointmentStatus status,
             @Param("fromDate") LocalDateTime fromDate,
             @Param("toDate") LocalDateTime toDate,
             Pageable pageable
