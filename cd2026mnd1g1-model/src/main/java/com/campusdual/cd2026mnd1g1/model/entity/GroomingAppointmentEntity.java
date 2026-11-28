@@ -57,6 +57,9 @@ public class GroomingAppointmentEntity {
     @Column(name = "observaciones", length = 2000)
     private String notes;
 
+    @Column(name = "motivo_cancelacion", length = 2000)
+    private String cancellationReason;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "estado", nullable = false, length = 20)
     private GroomingAppointmentStatus status;
@@ -87,6 +90,8 @@ public class GroomingAppointmentEntity {
     public void setLocation(String location) { this.location = location; }
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }
+    public String getCancellationReason() { return cancellationReason; }
+    public void setCancellationReason(String cancellationReason) { this.cancellationReason = cancellationReason; }
     public GroomingAppointmentStatus getStatus() { return status; }
     public void setStatus(GroomingAppointmentStatus status) { this.status = status; }
     public Set<GroomingServiceEntity> getServices() { return services; }

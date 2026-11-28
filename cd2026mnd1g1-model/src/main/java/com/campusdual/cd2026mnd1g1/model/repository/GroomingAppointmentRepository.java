@@ -35,7 +35,6 @@ public interface GroomingAppointmentRepository extends JpaRepository<GroomingApp
                     WHERE (groomerCenter.id = :centerId
                            OR (groomer IS NULL AND dog.center.id = :centerId)
                            OR (groomer IS NULL
-                               AND appointment.status = :pendingStatus
                                AND dog.center.type = :clientType
                                AND request.dog.id = dog.id
                                AND request.customerCenter.id = dog.center.id
@@ -73,7 +72,6 @@ public interface GroomingAppointmentRepository extends JpaRepository<GroomingApp
                     WHERE (groomerCenter.id = :centerId
                            OR (groomer IS NULL AND dog.center.id = :centerId)
                            OR (groomer IS NULL
-                               AND appointment.status = :pendingStatus
                                AND dog.center.type = :clientType
                                AND request.dog.id = dog.id
                                AND request.customerCenter.id = dog.center.id
@@ -105,7 +103,6 @@ public interface GroomingAppointmentRepository extends JpaRepository<GroomingApp
     )
     Page<GroomingAppointmentEntity> findVisibleAppointments(
             @Param("centerId") Long centerId,
-            @Param("pendingStatus") GroomingAppointmentStatus pendingStatus,
             @Param("clientType") CenterType clientType,
             @Param("originCenterType") CenterType originCenterType,
             @Param("status") GroomingAppointmentStatus status,
@@ -127,7 +124,6 @@ public interface GroomingAppointmentRepository extends JpaRepository<GroomingApp
               AND (groomerCenter.id = :centerId
                    OR (groomer IS NULL AND dog.center.id = :centerId)
                    OR (groomer IS NULL
-                       AND appointment.status = :pendingStatus
                        AND dog.center.type = :clientType
                        AND request.dog.id = dog.id
                        AND request.customerCenter.id = dog.center.id
@@ -155,7 +151,6 @@ public interface GroomingAppointmentRepository extends JpaRepository<GroomingApp
     Optional<GroomingAppointmentEntity> findVisibleAppointment(
             @Param("appointmentId") Long appointmentId,
             @Param("centerId") Long centerId,
-            @Param("pendingStatus") GroomingAppointmentStatus pendingStatus,
             @Param("clientType") CenterType clientType
     );
 
@@ -174,7 +169,6 @@ public interface GroomingAppointmentRepository extends JpaRepository<GroomingApp
               AND (groomerCenter.id = :centerId
                    OR (groomer IS NULL AND dog.center.id = :centerId)
                    OR (groomer IS NULL
-                       AND appointment.status = :pendingStatus
                        AND dog.center.type = :clientType
                        AND request.dog.id = dog.id
                        AND request.customerCenter.id = dog.center.id
@@ -202,7 +196,6 @@ public interface GroomingAppointmentRepository extends JpaRepository<GroomingApp
     Optional<GroomingAppointmentEntity> findVisibleAppointmentForUpdate(
             @Param("appointmentId") Long appointmentId,
             @Param("centerId") Long centerId,
-            @Param("pendingStatus") GroomingAppointmentStatus pendingStatus,
             @Param("clientType") CenterType clientType
     );
 

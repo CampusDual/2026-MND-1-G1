@@ -32,7 +32,7 @@ export class GroomerAgendaComponent implements OnInit {
   isLoadingAgenda: boolean = false;
   hasAccessError: boolean = false;
   errorMessage: string = '';
-  private returnTo: 'create' | 'appointment' | 'assignment' | 'list' = 'list';
+  private returnTo: 'create' | 'appointment' | 'assignment' | 'reschedule' | 'list' = 'list';
   private sourceAppointmentId: number | null = null;
 
   constructor(
@@ -88,7 +88,7 @@ export class GroomerAgendaComponent implements OnInit {
   }
 
   returnToSource(): void {
-    if ((this.returnTo === 'appointment' || this.returnTo === 'assignment')
+    if ((this.returnTo === 'appointment' || this.returnTo === 'assignment' || this.returnTo === 'reschedule')
         && this.sourceAppointmentId !== null) {
       this.router.navigate(['/citas-peluqueria', this.sourceAppointmentId]);
       return;
@@ -174,8 +174,8 @@ export class GroomerAgendaComponent implements OnInit {
       : message;
   }
 
-  private readReturnTo(value: string | null): 'create' | 'appointment' | 'assignment' | 'list' {
-    if (value === 'create' || value === 'appointment' || value === 'assignment') {
+  private readReturnTo(value: string | null): 'create' | 'appointment' | 'assignment' | 'reschedule' | 'list' {
+    if (value === 'create' || value === 'appointment' || value === 'assignment' || value === 'reschedule') {
       return value;
     }
     return 'list';

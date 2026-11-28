@@ -181,6 +181,47 @@ WHERE appointment_ref.fixture_key = 'grooming.agenda.appointment.b2b.completed'
   );
 
 INSERT INTO cita_peluqueria (perro_id, peluquero_id, inicio, duracion_min, lugar, estado, observaciones)
+SELECT dog_ref.entity_id, groomer_ref.entity_id, TIMESTAMP(CURRENT_DATE + 1, TIME '15:30:00'),
+       60, 'DESPLAZADO', 'CONFIRMADA', 'Fixture agenda demo B2B confirmada para gestión'
+FROM dev_fixture_registry dog_ref
+JOIN dev_fixture_registry groomer_ref ON groomer_ref.fixture_key = 'grooming.agenda.groomer.internal'
+WHERE dog_ref.fixture_key = 'grooming.dog.b2b'
+  AND NOT EXISTS (
+      SELECT 1 FROM dev_fixture_registry
+      WHERE fixture_key = 'grooming.agenda.appointment.b2b.confirmed'
+  )
+  AND NOT EXISTS (
+      SELECT 1 FROM cita_peluqueria c
+      WHERE c.perro_id = dog_ref.entity_id AND c.peluquero_id = groomer_ref.entity_id
+        AND c.inicio = TIMESTAMP(CURRENT_DATE + 1, TIME '15:30:00')
+  );
+
+INSERT INTO dev_fixture_registry (fixture_key, entity_id)
+SELECT 'grooming.agenda.appointment.b2b.confirmed', MAX(c.id)
+FROM cita_peluqueria c
+JOIN dev_fixture_registry dog_ref ON dog_ref.fixture_key = 'grooming.dog.b2b'
+JOIN dev_fixture_registry groomer_ref ON groomer_ref.fixture_key = 'grooming.agenda.groomer.internal'
+WHERE c.perro_id = dog_ref.entity_id
+  AND c.peluquero_id = groomer_ref.entity_id
+  AND c.inicio = TIMESTAMP(CURRENT_DATE + 1, TIME '15:30:00')
+  AND c.observaciones = 'Fixture agenda demo B2B confirmada para gestión'
+  AND NOT EXISTS (
+      SELECT 1 FROM dev_fixture_registry
+      WHERE fixture_key = 'grooming.agenda.appointment.b2b.confirmed'
+  )
+GROUP BY dog_ref.entity_id;
+
+INSERT INTO cita_servicio (cita_id, servicio_id)
+SELECT appointment_ref.entity_id, service_ref.entity_id
+FROM dev_fixture_registry appointment_ref
+JOIN dev_fixture_registry service_ref ON service_ref.fixture_key = 'grooming.service.bano-demo'
+WHERE appointment_ref.fixture_key = 'grooming.agenda.appointment.b2b.confirmed'
+  AND NOT EXISTS (
+      SELECT 1 FROM cita_servicio link
+      WHERE link.cita_id = appointment_ref.entity_id AND link.servicio_id = service_ref.entity_id
+  );
+
+INSERT INTO cita_peluqueria (perro_id, peluquero_id, inicio, duracion_min, lugar, estado, observaciones)
 SELECT dog_ref.entity_id, groomer_ref.entity_id, TIMESTAMP(CURRENT_DATE + 1, TIME '14:00:00'),
        45, 'EN_INSTALACIONES', 'CANCELADA', 'Fixture agenda demo interna cancelada'
 FROM dev_fixture_registry dog_ref

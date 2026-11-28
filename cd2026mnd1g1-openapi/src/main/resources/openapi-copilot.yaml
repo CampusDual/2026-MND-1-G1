@@ -1302,6 +1302,81 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
         '422': { $ref: '#/components/responses/UnprocessableEntity' }
         '500': { $ref: '#/components/responses/InternalServerError' }
+  /api/recepcion/citas-peluqueria/{id}/reprogramacion:
+    post:
+      security:
+        - basicAuth: []
+      tags: [Peluquería]
+      summary: Reprograma fecha y hora de una cita de peluquería
+      description: >
+        Solo Recepcionista del centro de la cita. Admite citas PENDIENTE_ASIGNACION,
+        SOLICITADA y CONFIRMADA. Conserva estado, peluquero y modalidad, y cambia
+        únicamente la fecha y hora. Las citas COMPLETADA o CANCELADA no se pueden
+        modificar. La agenda es informativa; no se calcula disponibilidad ni solapamientos.
+      operationId: rescheduleReceptionGroomingAppointment
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64, minimum: 0 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RescheduleGroomingAppointmentRequestDto'
+      responses:
+        '200':
+          description: Cita con el nuevo horario y sus asignaciones y estado conservados.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroomingAppointmentDetailDto'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+  /api/recepcion/citas-peluqueria/{id}/cancelacion:
+    post:
+      security:
+        - basicAuth: []
+      tags: [Peluquería]
+      summary: Cancela una cita de peluquería
+      description: >
+        Solo Recepcionista del centro de la cita. Admite citas PENDIENTE_ASIGNACION,
+        SOLICITADA y CONFIRMADA. Requiere un motivo no vacío de hasta 2000 caracteres.
+        Cambia el estado a CANCELADA y conserva el registro y el motivo; no modifica
+        peluquero, modalidad, reservas ni solicitudes. Si estaba asignada, la cita se
+        conserva visible en la agenda identificada como cancelada.
+      operationId: cancelReceptionGroomingAppointment
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64, minimum: 0 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelGroomingAppointmentRequestDto'
+      responses:
+        '200':
+          description: Cita cancelada con motivo y demás datos persistidos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroomingAppointmentDetailDto'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
   /api/recepcion/solicitudes-peluqueria:
     get:
       security:
@@ -2069,6 +2144,169 @@ paths:
           $ref: '#/components/responses/UnprocessableEntity'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /api/tutor/mis-perros/{dogId}/resumenes:
+    parameters:
+      - in: path
+        name: dogId
+        required: true
+        description: Identificador de un perro asociado al tutor autenticado.
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+    get:
+      tags: [Tutors]
+      summary: Lista los resúmenes diarios publicados de un perro propio
+      description: >
+        Devuelve únicamente resúmenes con destinatario TUTOR y estado PUBLICADO,
+        ordenados por fecha de reserva descendente. El tutor se obtiene de la
+        cuenta autenticada; los borradores y los perros ajenos no son accesibles.
+      operationId: listMyDogDailySummaries
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Resúmenes publicados del perro, o una lista vacía.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TutorDailySummaryDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/tutor/mis-perros/{dogId}/resumenes/{summaryId}:
+    parameters:
+      - in: path
+        name: dogId
+        required: true
+        description: Identificador de un perro asociado al tutor autenticado.
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - in: path
+        name: summaryId
+        required: true
+        description: Identificador del resumen publicado del perro.
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+    get:
+      tags: [Tutors]
+      summary: Consulta el detalle de un resumen publicado propio
+      description: >
+        Solo expone el contenido con destinatario TUTOR y estado PUBLICADO del
+        perro indicado. Consultar este recurso no cambia el estado de lectura;
+        la marca se registra explícitamente mediante la operación de lectura.
+      operationId: getMyDogDailySummary
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Contenido publicado del resumen.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TutorDailySummaryDetailDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/tutor/mis-perros/{dogId}/resumenes/{summaryId}/lectura:
+    parameters:
+      - in: path
+        name: dogId
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+      - in: path
+        name: summaryId
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 0
+    post:
+      tags: [Tutors]
+      summary: Marca como visto un resumen publicado propio
+      description: >
+        Operación idempotente. La lectura se guarda por tutor y resumen, y solo
+        se admite para resúmenes publicados de perros propios.
+      operationId: markMyDogDailySummaryAsViewed
+      security:
+        - basicAuth: []
+      responses:
+        '204':
+          description: El resumen quedó marcado como visto.
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/tutor/notificaciones/contador:
+    get:
+      tags: [Tutors]
+      summary: Cuenta resúmenes publicados aún no vistos por el tutor
+      description: >
+        El contador se calcula en backend para el tutor autenticado e incluye
+        exclusivamente resúmenes publicados con destinatario TUTOR.
+      operationId: getMyNotificationCount
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Contador actual calculado desde la base de datos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TutorNotificationCountDto'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 components:
   securitySchemes:
     basicAuth:
@@ -2811,7 +3049,7 @@ components:
         totalPages: { type: integer, minimum: 0 }
     GroomingAppointmentDto:
       type: object
-      required: [id, dogName, serviceNames, date, time, durationMinutes, location, groomerName, status, origin]
+      required: [id, dogName, serviceNames, date, time, durationMinutes, location, groomerId, groomerName, status, origin]
       properties:
         id: { type: integer, format: int64, minimum: 0 }
         dogName: { type: string, maxLength: 120 }
@@ -2826,6 +3064,7 @@ components:
           type: string
           enum: [EN_INSTALACIONES, DESPLAZADO]
           nullable: true
+        groomerId: { type: integer, format: int64, minimum: 0, nullable: true }
         groomerName: { type: string, nullable: true, maxLength: 280 }
         status:
           $ref: '#/components/schemas/GroomingAppointmentStatusDto'
@@ -2837,6 +3076,7 @@ components:
         - type: object
           properties:
             notes: { type: string, nullable: true, maxLength: 2000 }
+            cancellationReason: { type: string, nullable: true, maxLength: 2000 }
     GroomerOptionDto:
       type: object
       required: [id, name]
@@ -2900,6 +3140,19 @@ components:
           enum: [EN_INSTALACIONES, DESPLAZADO]
         date: { type: string, format: date }
         time: { type: string, format: time }
+    RescheduleGroomingAppointmentRequestDto:
+      type: object
+      additionalProperties: false
+      required: [date, time]
+      properties:
+        date: { type: string, format: date }
+        time: { type: string, format: time }
+    CancelGroomingAppointmentRequestDto:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 2000, pattern: '.*\S.*' }
     ReceptionReservationPageDto:
       type: object
       required: [items, page, size, totalElements, totalPages]
@@ -3684,3 +3937,29 @@ components:
           description: Detalle opcional de errores de validacion por campo.
           items:
             $ref: '#/components/schemas/ValidationErrorItem'
+    TutorDailySummaryDto:
+      type: object
+      required: [id, date, dogName, status, viewed]
+      properties:
+        id: { type: integer, format: int64, minimum: 0 }
+        date: { type: string, format: date }
+        dogName: { type: string, minLength: 1, maxLength: 120 }
+        status: { type: string, enum: [PUBLICADO] }
+        viewed: { type: boolean }
+    TutorDailySummaryDetailDto:
+      type: object
+      required: [id, dogId, date, dogName, status, viewed, text]
+      properties:
+        id: { type: integer, format: int64, minimum: 0 }
+        dogId: { type: integer, format: int64, minimum: 0 }
+        date: { type: string, format: date }
+        dogName: { type: string, minLength: 1, maxLength: 120 }
+        status: { type: string, enum: [PUBLICADO] }
+        viewed: { type: boolean }
+        text: { type: string, minLength: 1, maxLength: 4000 }
+        publishedAt: { type: string, format: date-time, nullable: true }
+    TutorNotificationCountDto:
+      type: object
+      required: [unreadCount]
+      properties:
+        unreadCount: { type: integer, format: int64, minimum: 0 }

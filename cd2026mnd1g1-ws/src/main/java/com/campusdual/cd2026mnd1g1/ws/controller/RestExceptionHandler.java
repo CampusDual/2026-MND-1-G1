@@ -12,6 +12,7 @@ import com.campusdual.cd2026mnd1g1.model.exception.TutorAccountNotLinkedExceptio
 import com.campusdual.cd2026mnd1g1.model.exception.DuplicateTutorDogSubmissionException;
 import com.campusdual.cd2026mnd1g1.model.exception.GroomingRequestTransitionConflictException;
 import com.campusdual.cd2026mnd1g1.model.exception.GroomingAppointmentAssignmentConflictException;
+import com.campusdual.cd2026mnd1g1.model.exception.GroomingAppointmentManagementConflictException;
 import com.campusdual.cd2026mnd1g1.model.exception.ReservationDateNotAllowedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -231,6 +232,23 @@ public class RestExceptionHandler {
         return buildErrorResponse(
                 HttpStatus.CONFLICT,
                 "GROOMING_APPOINTMENT_NOT_PENDING",
+                exception.getMessage()
+        );
+    }
+
+    /**
+     * Mapea intentos de modificar citas completadas o canceladas.
+     *
+     * @param exception conflicto de estado de cita
+     * @return respuesta HTTP 409
+     */
+    @ExceptionHandler(GroomingAppointmentManagementConflictException.class)
+    public ResponseEntity<Map<String, Object>> handleGroomingAppointmentManagementConflict(
+            GroomingAppointmentManagementConflictException exception
+    ) {
+        return buildErrorResponse(
+                HttpStatus.CONFLICT,
+                "GROOMING_APPOINTMENT_NOT_MODIFIABLE",
                 exception.getMessage()
         );
     }

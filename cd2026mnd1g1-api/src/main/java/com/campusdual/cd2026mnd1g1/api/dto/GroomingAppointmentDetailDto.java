@@ -16,9 +16,11 @@ public record GroomingAppointmentDetailDto(
         LocalTime time,
         Integer durationMinutes,
         String location,
+        Long groomerId,
         String groomerName,
         GroomingAppointmentStatusDto status,
         GroomingRequestOriginDto origin,
-        String notes
+        String notes,
+        String cancellationReason
 ) {
 }

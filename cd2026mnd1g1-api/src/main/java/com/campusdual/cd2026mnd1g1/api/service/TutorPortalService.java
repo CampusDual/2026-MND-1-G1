@@ -7,6 +7,9 @@ import com.campusdual.cd2026mnd1g1.api.dto.TutorDogCreateResultDto;
 import com.campusdual.cd2026mnd1g1.api.dto.TutorDogUpdateRequestDto;
 import com.campusdual.cd2026mnd1g1.api.dto.TutorDogPageDto;
 import com.campusdual.cd2026mnd1g1.api.dto.TutorAuthorizedPersonDto;
+import com.campusdual.cd2026mnd1g1.api.dto.TutorDailySummaryDto;
+import com.campusdual.cd2026mnd1g1.api.dto.TutorDailySummaryDetailDto;
+import com.campusdual.cd2026mnd1g1.api.dto.TutorNotificationCountDto;
 
 import java.util.List;
 
@@ -59,6 +62,42 @@ public interface TutorPortalService {
      * @return autorizaciones de nombre y teléfono
      */
     List<TutorAuthorizedPersonDto> findMyAuthorizedPersons(String username);
+
+    /**
+     * Lista los resúmenes publicados de un perro propio.
+     *
+     * @param dogId identificador del perro
+     * @param username usuario autenticado
+     * @return resúmenes publicados ordenados por fecha descendente
+     */
+    List<TutorDailySummaryDto> findMyDailySummaries(Long dogId, String username);
+
+    /**
+     * Recupera el contenido publicado de un resumen accesible al tutor.
+     *
+     * @param dogId identificador del perro
+     * @param summaryId identificador del resumen
+     * @param username usuario autenticado
+     * @return detalle publicado
+     */
+    TutorDailySummaryDetailDto findMyDailySummary(Long dogId, Long summaryId, String username);
+
+    /**
+     * Registra de forma idempotente que el tutor ha abierto un resumen publicado.
+     *
+     * @param dogId identificador del perro
+     * @param summaryId identificador del resumen
+     * @param username usuario autenticado
+     */
+    void markMyDailySummaryAsViewed(Long dogId, Long summaryId, String username);
+
+    /**
+     * Calcula el número de resúmenes publicados aún no vistos por el tutor.
+     *
+     * @param username usuario autenticado
+     * @return contador calculado desde los datos persistidos
+     */
+    TutorNotificationCountDto getMyNotificationCount(String username);
 
     /**
      * Registra un perro y sus datos declarados por el tutor autenticado.

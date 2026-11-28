@@ -164,6 +164,7 @@ export interface GroomingAppointment {
   time: string;
   durationMinutes: number;
   location: GroomingAppointmentLocation | null;
+  groomerId: number | null;
   groomerName: string | null;
   status: GroomingAppointmentStatus;
   origin: GroomingRequestOrigin;
@@ -179,6 +180,16 @@ export interface GroomingAppointmentPage {
 
 export interface GroomingAppointmentDetail extends GroomingAppointment {
   notes: string | null;
+  cancellationReason: string | null;
+}
+
+export interface RescheduleGroomingAppointmentRequest {
+  date: string;
+  time: string;
+}
+
+export interface CancelGroomingAppointmentRequest {
+  reason: string;
 }
 
 export interface AssignGroomingAppointmentRequest {
@@ -557,4 +568,22 @@ export interface TutorDogUpdateRequest {
   medications: { medication: string; dosage: string | null; instructions: string }[];
   authorizedPersons: { id: number | null; name: string; phone: string }[];
   removePhoto: boolean;
+}
+
+export interface TutorDailySummary {
+  id: number;
+  date: string;
+  dogName: string;
+  status: 'PUBLICADO';
+  viewed: boolean;
+}
+
+export interface TutorDailySummaryDetail extends TutorDailySummary {
+  dogId: number;
+  text: string;
+  publishedAt: string | null;
+}
+
+export interface TutorNotificationCount {
+  unreadCount: number;
 }

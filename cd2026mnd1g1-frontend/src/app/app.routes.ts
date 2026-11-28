@@ -17,6 +17,7 @@ import { ReceptionGroomingRequestsComponent } from './main/reception-grooming-re
 import { ReceptionGroomingRequestDetailComponent } from './main/reception-grooming-request-detail.component';
 import { GroomingAppointmentCreateComponent } from './main/grooming-appointment-create.component';
 import { GroomerAgendaComponent } from './main/groomer-agenda.component';
+import { TutorDailySummariesComponent } from './main/tutor-daily-summaries.component';
 
 const receptionRoles: string[] = ['RECEPCIONISTA', 'ADMIN', 'GERENTE'];
 
@@ -26,6 +27,8 @@ export const routes: Routes = [
 	{ path: 'mis-perros-hoy/:reservationId', component: CaregiverDogsComponent, canActivate: [authGuard, roleGuard], data: { roles: ['CUIDADOR'] } },
 	{ path: 'mis-perros/nuevo', component: TutorDogsComponent, canActivate: [authGuard, roleGuard], data: { roles: ['TUTOR'] } },
 	{ path: 'mis-perros/:id/editar', component: TutorDogsComponent, canActivate: [authGuard, roleGuard], data: { roles: ['TUTOR'] } },
+	{ path: 'mis-perros/:dogId/resumenes/:summaryId', component: TutorDailySummariesComponent, canActivate: [authGuard, roleGuard], data: { roles: ['TUTOR'] } },
+	{ path: 'mis-perros/:dogId/resumenes', component: TutorDailySummariesComponent, canActivate: [authGuard, roleGuard], data: { roles: ['TUTOR'] } },
 	{ path: 'mis-perros', component: TutorDogsComponent, canActivate: [authGuard, roleGuard], data: { roles: ['TUTOR'] } },
 	{ path: 'mis-perros/:id', component: TutorDogsComponent, canActivate: [authGuard, roleGuard], data: { roles: ['TUTOR'] } },
 	{ path: 'tablero-diario/reservas/:id/entrada', component: ReceptionArrivalComponent, canActivate: [authGuard, roleGuard], data: { roles: receptionRoles } },

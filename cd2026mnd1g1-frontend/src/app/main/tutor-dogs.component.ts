@@ -6,6 +6,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription, combineLatest } from 'rxjs';
 import { AuthService } from '../core/auth.service';
 import { DaycareOperationsService } from '../core/daycare-operations.service';
+import { NotificationBellComponent } from '../shared/notification-bell.component';
 import {
   DogSize,
   TutorAuthorizedPerson,
@@ -21,7 +22,7 @@ import {
 @Component({
   selector: 'app-tutor-dogs',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, NotificationBellComponent],
   templateUrl: './tutor-dogs.component.html',
   styleUrl: './tutor-dogs.component.scss'
 })

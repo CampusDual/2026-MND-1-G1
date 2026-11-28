@@ -33,12 +33,14 @@ import {
   GroomingAppointmentDetail,
   CreateGroomingAppointmentRequest,
   AssignGroomingAppointmentRequest,
+  CancelGroomingAppointmentRequest,
   GroomingDogOptionPage,
   GroomingServiceOption,
   GroomingRequestOrigin,
   GroomingAppointmentPage,
   GroomerAgenda,
   GroomerOption,
+  RescheduleGroomingAppointmentRequest,
   GroomingRequest,
   GroomingRequestDetail,
   GroomingRequestPage,
@@ -54,7 +56,10 @@ import {
   TutorDogVersionedResponse,
   TutorAuthorizedPerson,
   TutorDogCreateRequest,
-  TutorDogUpdateRequest
+  TutorDogUpdateRequest,
+  TutorDailySummary,
+  TutorDailySummaryDetail,
+  TutorNotificationCount
 } from './operational.models';
 import { AuthService } from './auth.service';
 
@@ -90,6 +95,33 @@ export class DaycareOperationsService {
     return this.http.get<TutorDogPage>(this.tutorDogsPath, {
       headers: this.getAuthHeaders(),
       params
+    });
+  }
+
+  getMyDogDailySummaries(dogId: number): Observable<TutorDailySummary[]> {
+    return this.http.get<TutorDailySummary[]>(`${this.tutorDogsPath}/${dogId}/resumenes`, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  getMyDogDailySummary(dogId: number, summaryId: number): Observable<TutorDailySummaryDetail> {
+    return this.http.get<TutorDailySummaryDetail>(
+      `${this.tutorDogsPath}/${dogId}/resumenes/${summaryId}`,
+      { headers: this.getAuthHeaders() }
+    );
+  }
+
+  markMyDogDailySummaryAsViewed(dogId: number, summaryId: number): Observable<void> {
+    return this.http.post<void>(
+      `${this.tutorDogsPath}/${dogId}/resumenes/${summaryId}/lectura`,
+      {},
+      { headers: this.getAuthHeaders() }
+    );
+  }
+
+  getMyNotificationCount(): Observable<TutorNotificationCount> {
+    return this.http.get<TutorNotificationCount>('/api/tutor/notificaciones/contador', {
+      headers: this.getAuthHeaders()
     });
   }
 
@@ -305,6 +337,28 @@ export class DaycareOperationsService {
   ): Observable<GroomingAppointmentDetail> {
     return this.http.post<GroomingAppointmentDetail>(
       `${this.groomingAppointmentsPath}/${appointmentId}/asignacion`,
+      request,
+      { headers: this.getAuthHeaders() }
+    );
+  }
+
+  rescheduleReceptionGroomingAppointment(
+    appointmentId: number,
+    request: RescheduleGroomingAppointmentRequest
+  ): Observable<GroomingAppointmentDetail> {
+    return this.http.post<GroomingAppointmentDetail>(
+      `${this.groomingAppointmentsPath}/${appointmentId}/reprogramacion`,
+      request,
+      { headers: this.getAuthHeaders() }
+    );
+  }
+
+  cancelReceptionGroomingAppointment(
+    appointmentId: number,
+    request: CancelGroomingAppointmentRequest
+  ): Observable<GroomingAppointmentDetail> {
+    return this.http.post<GroomingAppointmentDetail>(
+      `${this.groomingAppointmentsPath}/${appointmentId}/cancelacion`,
       request,
       { headers: this.getAuthHeaders() }
     );

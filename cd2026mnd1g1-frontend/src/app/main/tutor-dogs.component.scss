@@ -50,4 +50,5 @@ h1{margin:0;font-size:clamp(1.8rem,3vw,2.4rem);letter-spacing:-.04em}
 .field-error{color:#9e3f36;font-size:.84rem}
 .existing-authorizations{margin:.5rem 0;padding-left:1.2rem;color:#506977}
 .add-dog-button{margin-bottom:.75rem}
+.dog-detail-actions{display:flex;flex-wrap:wrap;gap:.65rem}
 @media(max-width:700px){.topbar{flex-wrap:wrap;gap:.9rem;padding:1rem 4%}.main-nav{order:3;flex-basis:100%}.content{width:92%;padding-top:1.8rem}.detail-card dl{grid-template-columns:1fr}.detail-photo{float:none;width:100%;height:220px;margin:0}.dog-grid{grid-template-columns:1fr}}

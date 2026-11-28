@@ -1,0 +1,63 @@
+<main class="tutor-page">
+  <header class="topbar">
+    <a class="brand" routerLink="/mis-perros" aria-label="PawCare, mis perros">
+      <span class="brand-mark" aria-hidden="true">P</span>
+      <span>PawCare <span class="brand-divider">·</span> <strong>Portal tutor</strong></span>
+    </a>
+    <nav class="main-nav" aria-label="Navegación principal">
+      <a routerLink="/mis-perros">Mis perros</a>
+    </nav>
+    <app-notification-bell />
+    <button class="logout-button" type="button" (click)="logout()">Cerrar sesión</button>
+  </header>
+
+  <section class="content">
+    @if (loading) {
+      <div class="state-card" role="status">Cargando resúmenes...</div>
+    } @else if (configurationMessage) {
+      <div class="notice error" role="alert">{{ configurationMessage }}</div>
+    } @else if (errorMessage) {
+      <div class="notice error" role="alert">
+        <p>{{ errorMessage }}</p>
+        <button type="button" class="secondary-button" (click)="retry()">Reintentar</button>
+        <button type="button" class="secondary-button" (click)="returnToSummaries()">Volver</button>
+      </div>
+    } @else if (notFound) {
+      <div class="notice error" role="alert">
+        <p>El perro o el resumen no está disponible para esta cuenta.</p>
+        <button type="button" class="secondary-button" (click)="returnToSummaries()">Volver a Mis perros</button>
+      </div>
+    } @else if (summary) {
+      <button class="back-button" type="button" (click)="returnToSummaries()">← Volver a resúmenes</button>
+      <article class="summary-card">
+        <p class="eyebrow">RESUMEN DIARIO · {{ summary.date | date:'dd/MM/yyyy' }}</p>
+        <h1>{{ summary.dogName }}</h1>
+        <p class="summary-status">Estado: {{ summary.status }} · {{ summary.viewed ? 'Visto' : 'No visto' }}</p>
+        <div class="summary-content">{{ summary.text }}</div>
+      </article>
+    } @else {
+      <button class="back-button" type="button" routerLink="/mis-perros">← Volver a Mis perros</button>
+      <div class="heading">
+        <div>
+          <p class="eyebrow">ACTIVIDAD DE TU PERRO</p>
+          <h1>Resúmenes diarios</h1>
+        </div>
+      </div>
+      @if (summaries.length === 0) {
+        <div class="state-card">Todavía no hay resúmenes publicados para este perro.</div>
+      } @else {
+        <div class="summary-list">
+          @for (item of summaries; track item.id) {
+            <a class="summary-list-item" [routerLink]="['/mis-perros', dogId, 'resumenes', item.id]">
+              <span>
+                <strong>{{ item.date | date:'dd/MM/yyyy' }}</strong>
+                <span>{{ item.dogName }} · {{ item.status }}</span>
+              </span>
+              <span class="summary-view-state">{{ item.viewed ? 'Visto' : 'Nuevo' }}</span>
+            </a>
+          }
+        </div>
+      }
+    }
+  </section>
+</main>

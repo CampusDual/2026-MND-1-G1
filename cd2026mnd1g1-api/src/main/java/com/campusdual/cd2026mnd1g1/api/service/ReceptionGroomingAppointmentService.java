@@ -4,6 +4,8 @@ import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentDetailDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentPageDto;
 import com.campusdual.cd2026mnd1g1.api.dto.CreateGroomingAppointmentRequestDto;
 import com.campusdual.cd2026mnd1g1.api.dto.AssignGroomingAppointmentRequestDto;
+import com.campusdual.cd2026mnd1g1.api.dto.CancelGroomingAppointmentRequestDto;
+import com.campusdual.cd2026mnd1g1.api.dto.RescheduleGroomingAppointmentRequestDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingDogOptionPageDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingServiceOptionDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingRequestOriginDto;
@@ -89,6 +91,34 @@ public interface ReceptionGroomingAppointmentService {
     GroomingAppointmentDetailDto assignAppointment(
             Long appointmentId,
             AssignGroomingAppointmentRequestDto request,
+            String username
+    );
+
+    /**
+     * Cambia la fecha y hora sin alterar el estado ni la asignación.
+     *
+     * @param appointmentId identificador de cita
+     * @param request nuevo hueco
+     * @param username usuario autenticado
+     * @return cita reprogramada
+     */
+    GroomingAppointmentDetailDto rescheduleAppointment(
+            Long appointmentId,
+            RescheduleGroomingAppointmentRequestDto request,
+            String username
+    );
+
+    /**
+     * Cancela una cita sin eliminarla y conserva el motivo aportado.
+     *
+     * @param appointmentId identificador de cita
+     * @param request motivo de cancelación
+     * @param username usuario autenticado
+     * @return cita cancelada
+     */
+    GroomingAppointmentDetailDto cancelAppointment(
+            Long appointmentId,
+            CancelGroomingAppointmentRequestDto request,
             String username
     );
 

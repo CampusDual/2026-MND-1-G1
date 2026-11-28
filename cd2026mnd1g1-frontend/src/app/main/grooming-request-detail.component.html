@@ -35,6 +35,21 @@
             <p>{{ formatDate(item.date, item.time) }} · {{ statusLabel(item.status) }}</p>
           </section>
         }
+        @if (rescheduleSuccess) {
+          <section class="state-card success" role="status">
+            <h2>Reprogramación confirmada</h2>
+            <p>{{ item.dogName }} · {{ item.serviceNames.join(', ') }}</p>
+            <p>{{ formatDate(item.date, item.time) }} · {{ statusLabel(item.status) }}</p>
+          </section>
+        }
+        @if (cancellationSuccess) {
+          <section class="state-card success" role="status">
+            <h2>Cancelación confirmada</h2>
+            <p>{{ item.dogName }} · {{ item.serviceNames.join(', ') }}</p>
+            <p>Estado: {{ statusLabel(item.status) }}</p>
+            <p>Motivo: {{ item.cancellationReason }}</p>
+          </section>
+        }
         @if (assignmentError && item.status !== 'PENDIENTE_ASIGNACION') {
           <section class="state-card error" role="alert">
             <p>{{ assignmentError }}</p>
@@ -93,6 +108,49 @@
           </section>
         }
 
+        @if (canManageAppointments
+            && (item.status === 'PENDIENTE_ASIGNACION' || item.status === 'SOLICITADA' || item.status === 'CONFIRMADA')) {
+          <section class="detail-card assignment-card" aria-labelledby="reschedule-title">
+            <h2 id="reschedule-title">Reprogramar cita</h2>
+            <p>Horario actual: {{ formatDate(item.date, item.time) }}</p>
+            @if (item.groomerName) {
+              <p>Peluquero asignado: {{ item.groomerName }}. La asignación y modalidad se conservarán.</p>
+            } @else {
+              <p>La cita seguirá pendiente de asignación.</p>
+            }
+            <div class="assignment-fields">
+              <label for="reschedule-date">Nueva fecha</label>
+              <input id="reschedule-date" name="rescheduleDate" type="date" [(ngModel)]="rescheduleDate">
+              <label for="reschedule-time">Nueva hora</label>
+              <input id="reschedule-time" name="rescheduleTime" type="time" [(ngModel)]="rescheduleTime">
+            </div>
+            <div class="assignment-actions">
+              @if (item.groomerId !== null) {
+                <button class="agenda-button" type="button" [disabled]="isRescheduling || isCancelling"
+                        (click)="openRescheduleAgenda()">Consultar agenda</button>
+              }
+              <button class="primary-button" type="button" [disabled]="isRescheduling || isCancelling"
+                      (click)="confirmReschedule()">
+                {{ isRescheduling ? 'Reprogramando...' : 'Confirmar reprogramación' }}
+              </button>
+            </div>
+          </section>
+
+          <section class="detail-card assignment-card" aria-labelledby="cancellation-title">
+            <h2 id="cancellation-title">Cancelar cita</h2>
+            <label for="cancellation-reason">Motivo de cancelación</label>
+            <textarea id="cancellation-reason" name="cancellationReason" rows="4" maxlength="2000"
+                      [(ngModel)]="cancellationReason"></textarea>
+            <p>{{ cancellationReason.length }} / 2000 caracteres</p>
+            <div class="assignment-actions">
+              <button class="primary-button" type="button" [disabled]="isCancelling || isRescheduling"
+                      (click)="confirmCancellation()">
+                {{ isCancelling ? 'Cancelando...' : 'Confirmar cancelación' }}
+              </button>
+            </div>
+          </section>
+        }
+
       <section class="detail-card">
         <h2>Cita</h2>
         <dl>
@@ -134,6 +192,12 @@
           <section class="detail-card">
             <h2>Observaciones</h2>
             <p class="notes">{{ item.notes }}</p>
+          </section>
+        }
+        @if (item.cancellationReason) {
+          <section class="detail-card">
+            <h2>Motivo de cancelación</h2>
+            <p class="notes">{{ item.cancellationReason }}</p>
           </section>
         }
       }

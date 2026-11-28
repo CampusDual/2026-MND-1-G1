@@ -12,16 +12,21 @@ import com.campusdual.cd2026mnd1g1.api.dto.TutorDogMedicationInputDto;
 import com.campusdual.cd2026mnd1g1.api.dto.TutorDogPageDto;
 import com.campusdual.cd2026mnd1g1.api.dto.TutorDogSummaryDto;
 import com.campusdual.cd2026mnd1g1.api.dto.TutorAuthorizedPersonDto;
+import com.campusdual.cd2026mnd1g1.api.dto.TutorDailySummaryDto;
+import com.campusdual.cd2026mnd1g1.api.dto.TutorDailySummaryDetailDto;
+import com.campusdual.cd2026mnd1g1.api.dto.TutorNotificationCountDto;
 import com.campusdual.cd2026mnd1g1.api.dto.TutorMedicationDto;
 import com.campusdual.cd2026mnd1g1.api.dto.TutorDogUpdateRequestDto;
 import com.campusdual.cd2026mnd1g1.api.service.TutorPortalService;
 import com.campusdual.cd2026mnd1g1.model.entity.AllergyEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.AuthorizedPersonEntity;
+import com.campusdual.cd2026mnd1g1.model.entity.DailySummaryEntity;
+import com.campusdual.cd2026mnd1g1.model.entity.DailySummaryReadEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.DogEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.DogSize;
 import com.campusdual.cd2026mnd1g1.model.entity.MedicationEntity;
-import com.campusdual.cd2026mnd1g1.model.entity.TutorDogSubmissionEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.TutorEntity;
+import com.campusdual.cd2026mnd1g1.model.entity.TutorDogSubmissionEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.UserEntity;
 import com.campusdual.cd2026mnd1g1.model.exception.DuplicateTutorDogSubmissionException;
 import com.campusdual.cd2026mnd1g1.model.exception.ResourceNotFoundException;
@@ -30,6 +35,8 @@ import com.campusdual.cd2026mnd1g1.model.exception.TutorAccountNotLinkedExceptio
 import com.campusdual.cd2026mnd1g1.model.repository.AllergyRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.AuthorizedPersonRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.DogRepository;
+import com.campusdual.cd2026mnd1g1.model.repository.DailySummaryReadRepository;
+import com.campusdual.cd2026mnd1g1.model.repository.DailySummaryRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.MedicationRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.TutorDogSubmissionRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.TutorRepository;
@@ -72,6 +79,8 @@ public class TutorPortalServiceImpl implements TutorPortalService {
     private final AuthorizedPersonRepository authorizedPersonRepository;
     private final TutorRepository tutorRepository;
     private final TutorDogSubmissionRepository submissionRepository;
+    private final DailySummaryRepository dailySummaryRepository;
+    private final DailySummaryReadRepository dailySummaryReadRepository;
     private final Clock receptionClock;
 
     public TutorPortalServiceImpl(
@@ -82,6 +91,8 @@ public class TutorPortalServiceImpl implements TutorPortalService {
             AuthorizedPersonRepository authorizedPersonRepository,
             TutorRepository tutorRepository,
             TutorDogSubmissionRepository submissionRepository,
+            DailySummaryRepository dailySummaryRepository,
+            DailySummaryReadRepository dailySummaryReadRepository,
             Clock receptionClock
     ) {
         this.userRepository = userRepository;
@@ -91,6 +102,8 @@ public class TutorPortalServiceImpl implements TutorPortalService {
         this.authorizedPersonRepository = authorizedPersonRepository;
         this.tutorRepository = tutorRepository;
         this.submissionRepository = submissionRepository;
+        this.dailySummaryRepository = dailySummaryRepository;
+        this.dailySummaryReadRepository = dailySummaryReadRepository;
         this.receptionClock = receptionClock;
     }
 
@@ -151,6 +164,99 @@ public class TutorPortalServiceImpl implements TutorPortalService {
                 .stream()
                 .map(person -> new TutorAuthorizedPersonDto(person.getId(), person.getName(), person.getPhone()))
                 .toList();
+    }
+
+    @Override
+    public List<TutorDailySummaryDto> findMyDailySummaries(Long dogId, String username) {
+        validateDailySummaryIds(dogId, null);
+        DogEntity dog = findOwnedDog(dogId, username);
+        List<DailySummaryEntity> summaries = this.dailySummaryRepository.findPublishedTutorSummaries(
+                dogId,
+                dog.getTutor().getId(),
+                dog.getCenter().getId()
+        );
+        if (summaries.isEmpty()) {
+            return List.of();
+        }
+        List<Long> summaryIds = summaries.stream().map(DailySummaryEntity::getId).toList();
+        Set<Long> viewedSummaryIds = new HashSet<>(this.dailySummaryReadRepository
+                .findByTutor_IdAndSummary_IdIn(dog.getTutor().getId(), summaryIds)
+                .stream()
+                .map(read -> read.getSummary().getId())
+                .toList());
+        return summaries.stream()
+                .map(summary -> new TutorDailySummaryDto(
+                        summary.getId(),
+                        summary.getReservation().getDate(),
+                        summary.getReservation().getDog().getName(),
+                        summary.getStatus(),
+                        viewedSummaryIds.contains(summary.getId())
+                ))
+                .toList();
+    }
+
+    @Override
+    public TutorDailySummaryDetailDto findMyDailySummary(Long dogId, Long summaryId, String username) {
+        validateDailySummaryIds(dogId, summaryId);
+        DogEntity dog = findOwnedDog(dogId, username);
+        DailySummaryEntity summary = this.dailySummaryRepository.findPublishedTutorSummary(
+                        summaryId,
+                        dogId,
+                        dog.getTutor().getId(),
+                        dog.getCenter().getId()
+                )
+                .orElseThrow(() -> new ResourceNotFoundException("El resumen diario no está disponible"));
+        boolean viewed = this.dailySummaryReadRepository
+                .findBySummary_IdAndTutor_Id(summaryId, dog.getTutor().getId())
+                .isPresent();
+        return new TutorDailySummaryDetailDto(
+                summary.getId(),
+                dog.getId(),
+                summary.getReservation().getDate(),
+                dog.getName(),
+                summary.getStatus(),
+                viewed,
+                summary.getText(),
+                summary.getPublishedAt()
+        );
+    }
+
+    @Override
+    @Transactional
+    public void markMyDailySummaryAsViewed(Long dogId, Long summaryId, String username) {
+        validateDailySummaryIds(dogId, summaryId);
+        DogEntity dog = findOwnedDog(dogId, username);
+        DailySummaryEntity summary = this.dailySummaryRepository.findPublishedTutorSummaryForUpdate(
+                        summaryId,
+                        dogId,
+                        dog.getTutor().getId(),
+                        dog.getCenter().getId()
+                )
+                .orElseThrow(() -> new ResourceNotFoundException("El resumen diario no está disponible"));
+        if (this.dailySummaryReadRepository
+                .findBySummary_IdAndTutor_Id(summaryId, dog.getTutor().getId())
+                .isEmpty()) {
+            DailySummaryReadEntity read = new DailySummaryReadEntity();
+            read.setSummary(summary);
+            read.setTutor(dog.getTutor());
+            read.setViewedAt(LocalDateTime.now(this.receptionClock));
+            this.dailySummaryReadRepository.save(read);
+        }
+    }
+
+    @Override
+    public TutorNotificationCountDto getMyNotificationCount(String username) {
+        UserEntity account = findLinkedAccount(username);
+        return new TutorNotificationCountDto(this.dailySummaryRepository.countUnreadTutorSummaries(
+                account.getTutor().getId(),
+                account.getCenter().getId()
+        ));
+    }
+
+    private void validateDailySummaryIds(Long dogId, Long summaryId) {
+        if (dogId == null || dogId < 0 || (summaryId != null && summaryId < 0)) {
+            throw new IllegalArgumentException("Los identificadores del resumen y del perro no son válidos");
+        }
     }
 
     @Override

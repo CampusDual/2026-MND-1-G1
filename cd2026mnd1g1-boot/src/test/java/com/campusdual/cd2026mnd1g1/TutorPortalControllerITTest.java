@@ -11,12 +11,14 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.Base64;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -143,6 +145,128 @@ class TutorPortalControllerITTest {
                 .andExpect(jsonPath("$.code").value("TUTOR_ACCOUNT_NOT_LINKED"));
         assertEquals(dogsBeforeCreate,
                 this.jdbcTemplate.queryForObject("SELECT COUNT(*) FROM perro", Integer.class));
+    }
+
+    @Test
+    void tutorReadsOnlyPublishedOwnSummariesAndCountChangesPerTutor() throws Exception {
+        TutorAccount owner = createTutorAccount();
+        TutorAccount otherOwner = createTutorAccount();
+        long ownDogId = createDog(owner.tutorId(), "Resumen propio", null);
+        long emptyDogId = createDog(owner.tutorId(), "Sin resúmenes", null);
+        long foreignDogId = createDog(otherOwner.tutorId(), "Resumen ajeno", null);
+        long olderReservationId = createReservation(ownDogId, LocalDate.now().minusDays(2));
+        long newerReservationId = createReservation(ownDogId, LocalDate.now().minusDays(1));
+        long unpublishedReservationId = createReservation(ownDogId, LocalDate.now().minusDays(3));
+        long foreignReservationId = createReservation(foreignDogId, LocalDate.now().minusDays(1));
+        long olderSummaryId = createDailySummary(olderReservationId, "PUBLICADO", "Resumen anterior");
+        long newerSummaryId = createDailySummary(newerReservationId, "PUBLICADO", "Resumen reciente");
+        long unpublishedSummaryId = createDailySummary(
+                unpublishedReservationId,
+                null,
+                "Resumen no publicado"
+        );
+        long foreignSummaryId = createDailySummary(foreignReservationId, "PUBLICADO", "Resumen ajeno");
+
+        this.mockMvc.perform(get("/api/tutor/notificaciones/contador")
+                        .header("Authorization", basicAuthorization(owner.username())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unreadCount").value(2));
+        this.mockMvc.perform(get("/api/tutor/notificaciones/contador")
+                        .header("Authorization", basicAuthorization(otherOwner.username())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unreadCount").value(1));
+        this.mockMvc.perform(get("/api/tutor/mis-perros/{dogId}/resumenes", ownDogId)
+                        .header("Authorization", basicAuthorization(owner.username())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].id").value(newerSummaryId))
+                .andExpect(jsonPath("$[0].dogName").value("Resumen propio"))
+                .andExpect(jsonPath("$[0].status").value("PUBLICADO"))
+                .andExpect(jsonPath("$[0].viewed").value(false))
+                .andExpect(jsonPath("$[1].id").value(olderSummaryId));
+        this.mockMvc.perform(get("/api/tutor/mis-perros/{dogId}/resumenes", emptyDogId)
+                        .header("Authorization", basicAuthorization(owner.username())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        this.mockMvc.perform(get("/api/tutor/mis-perros/{dogId}/resumenes/{summaryId}", ownDogId, newerSummaryId)
+                        .header("Authorization", basicAuthorization(owner.username())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.text").value("Resumen reciente"))
+                .andExpect(jsonPath("$.viewed").value(false))
+                .andExpect(jsonPath("$.date").value(LocalDate.now().minusDays(1).toString()));
+
+        this.mockMvc.perform(get("/api/tutor/mis-perros/{dogId}/resumenes/{summaryId}", ownDogId, unpublishedSummaryId)
+                        .header("Authorization", basicAuthorization(owner.username())))
+                .andExpect(status().isNotFound());
+        this.mockMvc.perform(get("/api/tutor/mis-perros/{dogId}/resumenes/{summaryId}", ownDogId, foreignSummaryId)
+                        .header("Authorization", basicAuthorization(owner.username())))
+                .andExpect(status().isNotFound());
+        this.mockMvc.perform(get("/api/tutor/mis-perros/{dogId}/resumenes", foreignDogId)
+                        .header("Authorization", basicAuthorization(owner.username())))
+                .andExpect(status().isNotFound());
+        this.mockMvc.perform(post(
+                                "/api/tutor/mis-perros/{dogId}/resumenes/{summaryId}/lectura",
+                                foreignDogId,
+                                foreignSummaryId
+                        )
+                        .header("Authorization", basicAuthorization(owner.username())))
+                .andExpect(status().isNotFound());
+
+        this.mockMvc.perform(get("/api/tutor/notificaciones/contador"))
+                .andExpect(status().isUnauthorized());
+        this.mockMvc.perform(get("/api/tutor/notificaciones/contador")
+                        .header("Authorization", basicAuthorization("recepcionista")))
+                .andExpect(status().isForbidden());
+        this.mockMvc.perform(get("/api/tutor/notificaciones/contador")
+                        .header("Authorization", basicAuthorization("tutor")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("TUTOR_ACCOUNT_NOT_LINKED"));
+
+        this.mockMvc.perform(
+                        post("/api/tutor/mis-perros/{dogId}/resumenes/{summaryId}/lectura",
+                                ownDogId,
+                                newerSummaryId)
+                                .header("Authorization", basicAuthorization(owner.username()))
+                )
+                .andExpect(status().isNoContent());
+        this.mockMvc.perform(get("/api/tutor/notificaciones/contador")
+                        .header("Authorization", basicAuthorization(owner.username())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unreadCount").value(1));
+        this.mockMvc.perform(get("/api/tutor/mis-perros/{dogId}/resumenes/{summaryId}", ownDogId, newerSummaryId)
+                        .header("Authorization", basicAuthorization(owner.username())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.viewed").value(true));
+
+        this.mockMvc.perform(
+                        post("/api/tutor/mis-perros/{dogId}/resumenes/{summaryId}/lectura",
+                                ownDogId,
+                                newerSummaryId)
+                                .header("Authorization", basicAuthorization(owner.username()))
+                )
+                .andExpect(status().isNoContent());
+        this.mockMvc.perform(get("/api/tutor/notificaciones/contador")
+                        .header("Authorization", basicAuthorization(owner.username())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unreadCount").value(1));
+        this.mockMvc.perform(
+                        post("/api/tutor/mis-perros/{dogId}/resumenes/{summaryId}/lectura",
+                                ownDogId,
+                                olderSummaryId)
+                                .header("Authorization", basicAuthorization(owner.username()))
+                )
+                .andExpect(status().isNoContent());
+        this.mockMvc.perform(get("/api/tutor/notificaciones/contador")
+                        .header("Authorization", basicAuthorization(owner.username())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.unreadCount").value(0));
+        assertEquals(1, this.jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM resumen_diario_lectura WHERE resumen_id = ? AND tutor_id = ?",
+                Integer.class,
+                newerSummaryId,
+                owner.tutorId()
+        ));
     }
 
     @Test
@@ -570,6 +694,32 @@ class TutorPortalControllerITTest {
                 Long.class,
                 tutorId,
                 name
+        );
+    }
+
+    private long createReservation(long dogId, LocalDate date) {
+        this.jdbcTemplate.update("""
+                INSERT INTO reserva (perro_id, fecha, modalidad, estado)
+                VALUES (?, ?, 'DIA_COMPLETO', 'COMPLETADA')
+                """, dogId, date);
+        return this.jdbcTemplate.queryForObject(
+                "SELECT id FROM reserva WHERE perro_id = ? AND fecha = ?",
+                Long.class,
+                dogId,
+                date
+        );
+    }
+
+    private long createDailySummary(long reservationId, String status, String text) {
+        this.jdbcTemplate.update("""
+                INSERT INTO resumen_diario
+                    (reserva_id, destinatario, texto_ia, estado, generado_en, publicado_en)
+                VALUES (?, 'TUTOR', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, reservationId, text, status);
+        return this.jdbcTemplate.queryForObject(
+                "SELECT MAX(id) FROM resumen_diario WHERE reserva_id = ? AND destinatario = 'TUTOR'",
+                Long.class,
+                reservationId
         );
     }
 

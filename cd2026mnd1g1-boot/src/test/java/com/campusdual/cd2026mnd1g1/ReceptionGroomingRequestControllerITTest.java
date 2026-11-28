@@ -45,6 +45,14 @@ class ReceptionGroomingRequestControllerITTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isUnauthorized());
+        this.mockMvc.perform(post("/api/recepcion/citas-peluqueria/1/reprogramacion")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isUnauthorized());
+        this.mockMvc.perform(post("/api/recepcion/citas-peluqueria/1/cancelacion")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isUnauthorized());
         this.mockMvc.perform(get("/api/recepcion/peluqueros"))
                 .andExpect(status().isUnauthorized());
         this.mockMvc.perform(get("/api/recepcion/peluqueros/0/agenda")
@@ -83,6 +91,20 @@ class ReceptionGroomingRequestControllerITTest {
                                   "date": "2026-11-25",
                                   "time": "10:30"
                                 }
+                                """))
+                .andExpect(status().isForbidden());
+        this.mockMvc.perform(post("/api/recepcion/citas-peluqueria/1/reprogramacion")
+                        .header("Authorization", basicAuthorization("tutor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"date": "2099-12-30", "time": "10:30"}
+                                """))
+                .andExpect(status().isForbidden());
+        this.mockMvc.perform(post("/api/recepcion/citas-peluqueria/1/cancelacion")
+                        .header("Authorization", basicAuthorization("tutor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"reason": "Cambio de planes"}
                                 """))
                 .andExpect(status().isForbidden());
     }
@@ -950,6 +972,364 @@ class ReceptionGroomingRequestControllerITTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(appointmentId))
                 .andExpect(jsonPath("$.notes").value(nullValue()));
+    }
+
+    @Test
+    void receptionReschedulesAppointmentsAndKeepsStateAssignmentAndAgenda() throws Exception {
+        long baselineAppointments = this.jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM cita_peluqueria",
+                Long.class
+        );
+        long ownCenterId = centerId(CENTER_CIF);
+        long clientCenterId = createCenter("B00000132", "CLIENTE", "Guardería B2B reprogramación");
+        long otherCenterId = createCenter("B00000133", "PROPIA", "Centro ajeno reprogramación");
+        long groomerId = createGroomer(ownCenterId, "reschedule-groomer", "Ada", "Peluquera");
+        long foreignGroomerId = createGroomer(otherCenterId, "reschedule-groomer-foreign", "Noa", "Ajena");
+        long internalDogId = createDog(
+                ownCenterId,
+                createTutor(ownCenterId, "GROOM-RESCHEDULE-01"),
+                "Perro interno reprogramación"
+        );
+        long b2bDogId = createDog(clientCenterId, null, "Perro B2B reprogramación");
+        long foreignDogId = createDog(otherCenterId, null, "Perro ajeno reprogramación");
+        long serviceId = createService(ownCenterId, "Servicio reprogramación");
+        long foreignServiceId = createService(otherCenterId, "Servicio ajeno reprogramación");
+        long b2bRequestId = createRequest(
+                clientCenterId,
+                b2bDogId,
+                serviceId,
+                REQUEST_DATE,
+                "CONFIRMADA",
+                "Solicitud B2B conservada"
+        );
+        long assignedInternalId = createAppointment(
+                internalDogId,
+                groomerId,
+                serviceId,
+                LocalDateTime.of(2026, 11, 25, 9, 0),
+                "CONFIRMADA"
+        );
+        long pendingInternalId = createUnassignedAppointment(
+                internalDogId,
+                serviceId,
+                LocalDateTime.of(2026, 11, 25, 10, 0)
+        );
+        long pendingB2bId = createUnassignedAppointment(
+                b2bDogId,
+                b2bRequestId,
+                serviceId,
+                LocalDateTime.of(2026, 11, 25, 11, 0)
+        );
+        long completedId = createAppointment(
+                internalDogId,
+                groomerId,
+                serviceId,
+                LocalDateTime.of(2026, 11, 25, 12, 0),
+                "COMPLETADA"
+        );
+        long cancelledId = createAppointment(
+                internalDogId,
+                groomerId,
+                serviceId,
+                LocalDateTime.of(2026, 11, 25, 13, 0),
+                "CANCELADA"
+        );
+        long foreignAppointmentId = createAppointment(
+                foreignDogId,
+                foreignGroomerId,
+                foreignServiceId,
+                LocalDateTime.of(2026, 11, 25, 14, 0),
+                "CONFIRMADA"
+        );
+
+        this.mockMvc.perform(post(
+                                "/api/recepcion/citas-peluqueria/{id}/reprogramacion",
+                                assignedInternalId
+                        )
+                        .header("Authorization", basicAuthorization("recepcionista"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"date": "2099-12-30", "time": "14:30", "status": "CANCELADA"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CONFIRMADA"))
+                .andExpect(jsonPath("$.groomerId").value(groomerId))
+                .andExpect(jsonPath("$.location").value("EN_INSTALACIONES"))
+                .andExpect(jsonPath("$.date").value("2099-12-30"))
+                .andExpect(jsonPath("$.time").value("14:30:00"));
+
+        this.mockMvc.perform(get("/api/recepcion/peluqueros/{id}/agenda", groomerId)
+                        .queryParam("date", "2099-12-30")
+                        .header("Authorization", basicAuthorization("recepcionista")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.appointments[0].id").value(assignedInternalId));
+
+        this.mockMvc.perform(post(
+                                "/api/recepcion/citas-peluqueria/{id}/reprogramacion",
+                                pendingInternalId
+                        )
+                        .header("Authorization", basicAuthorization("recepcionista"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"date": "2099-12-31", "time": "16:00"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDIENTE_ASIGNACION"))
+                .andExpect(jsonPath("$.groomerId").value(nullValue()))
+                .andExpect(jsonPath("$.location").value(nullValue()));
+
+        this.mockMvc.perform(post(
+                                "/api/recepcion/citas-peluqueria/{id}/reprogramacion",
+                                pendingB2bId
+                        )
+                        .header("Authorization", basicAuthorization("recepcionista"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"date": "2099-12-31", "time": "17:00"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.origin").value("B2B"))
+                .andExpect(jsonPath("$.status").value("PENDIENTE_ASIGNACION"));
+
+        this.mockMvc.perform(post(
+                                "/api/recepcion/citas-peluqueria/{id}/reprogramacion",
+                                completedId
+                        )
+                        .header("Authorization", basicAuthorization("recepcionista"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"date": "2099-12-31", "time": "18:00"}
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("GROOMING_APPOINTMENT_NOT_MODIFIABLE"));
+        this.mockMvc.perform(post(
+                                "/api/recepcion/citas-peluqueria/{id}/reprogramacion",
+                                cancelledId
+                        )
+                        .header("Authorization", basicAuthorization("recepcionista"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"date": "2099-12-31", "time": "18:00"}
+                                """))
+                .andExpect(status().isConflict());
+        this.mockMvc.perform(post(
+                                "/api/recepcion/citas-peluqueria/{id}/reprogramacion",
+                                foreignAppointmentId
+                        )
+                        .header("Authorization", basicAuthorization("recepcionista"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"date": "2099-12-31", "time": "18:00"}
+                                """))
+                .andExpect(status().isNotFound());
+        this.mockMvc.perform(post(
+                                "/api/recepcion/citas-peluqueria/{id}/reprogramacion",
+                                assignedInternalId
+                        )
+                        .header("Authorization", basicAuthorization("recepcionista"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"date": "2099-02-30", "time": "25:00"}
+                                """))
+                .andExpect(status().isBadRequest());
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "CONFIRMADA",
+                this.jdbcTemplate.queryForObject(
+                        "SELECT estado FROM cita_peluqueria WHERE id = ?",
+                        String.class,
+                        assignedInternalId
+                )
+        );
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "CONFIRMADA",
+                this.jdbcTemplate.queryForObject(
+                        "SELECT estado FROM solicitud_peluqueria WHERE id = ?",
+                        String.class,
+                        b2bRequestId
+                )
+        );
+        org.junit.jupiter.api.Assertions.assertEquals(
+                baselineAppointments + 6,
+                this.jdbcTemplate.queryForObject("SELECT COUNT(*) FROM cita_peluqueria", Long.class)
+        );
+    }
+
+    @Test
+    void receptionCancelsAppointmentsWithoutDeletingAndRequiresReason() throws Exception {
+        long ownCenterId = centerId(CENTER_CIF);
+        long clientCenterId = createCenter("B00000134", "CLIENTE", "Guardería B2B cancelación");
+        long otherCenterId = createCenter("B00000135", "PROPIA", "Centro ajeno cancelación");
+        long groomerId = createGroomer(ownCenterId, "cancel-groomer", "Ada", "Peluquera");
+        long foreignGroomerId = createGroomer(otherCenterId, "cancel-groomer-foreign", "Noa", "Ajena");
+        long internalDogId = createDog(
+                ownCenterId,
+                createTutor(ownCenterId, "GROOM-CANCEL-01"),
+                "Perro interno cancelación"
+        );
+        long b2bDogId = createDog(clientCenterId, null, "Perro B2B cancelación");
+        long foreignDogId = createDog(otherCenterId, null, "Perro ajeno cancelación");
+        long serviceId = createService(ownCenterId, "Servicio cancelación");
+        long foreignServiceId = createService(otherCenterId, "Servicio ajeno cancelación");
+        long b2bRequestId = createRequest(
+                clientCenterId,
+                b2bDogId,
+                serviceId,
+                REQUEST_DATE,
+                "CONFIRMADA",
+                "Solicitud no modificable"
+        );
+        long assignedId = createAppointment(
+                b2bDogId,
+                groomerId,
+                b2bRequestId,
+                serviceId,
+                LocalDateTime.of(2099, 12, 30, 9, 0),
+                "CONFIRMADA"
+        );
+        long pendingId = createUnassignedAppointment(
+                internalDogId,
+                serviceId,
+                LocalDateTime.of(2099, 12, 30, 10, 0)
+        );
+        long pendingB2bId = createUnassignedAppointment(
+                b2bDogId,
+                b2bRequestId,
+                serviceId,
+                LocalDateTime.of(2099, 12, 30, 10, 30)
+        );
+        long foreignId = createAppointment(
+                foreignDogId,
+                foreignGroomerId,
+                foreignServiceId,
+                LocalDateTime.of(2099, 12, 30, 11, 0),
+                "CONFIRMADA"
+        );
+        long originalAppointmentCount = this.jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM cita_peluqueria",
+                Long.class
+        );
+        String cancellationBody = """
+                {"reason": "  El tutor ha solicitado cambiar la fecha  "}
+                """;
+
+        this.mockMvc.perform(post(
+                                "/api/recepcion/citas-peluqueria/{id}/cancelacion",
+                                assignedId
+                        )
+                        .header("Authorization", basicAuthorization("recepcionista"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(cancellationBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELADA"))
+                .andExpect(jsonPath("$.cancellationReason").value("El tutor ha solicitado cambiar la fecha"))
+                .andExpect(jsonPath("$.groomerId").value(groomerId));
+
+        this.mockMvc.perform(post(
+                                "/api/recepcion/citas-peluqueria/{id}/cancelacion",
+                                pendingId
+                        )
+                        .header("Authorization", basicAuthorization("recepcionista"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"reason": "No se puede atender en la fecha acordada"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELADA"))
+                .andExpect(jsonPath("$.groomerId").value(nullValue()))
+                .andExpect(jsonPath("$.cancellationReason").value("No se puede atender en la fecha acordada"));
+
+        this.mockMvc.perform(post(
+                                "/api/recepcion/citas-peluqueria/{id}/cancelacion",
+                                pendingB2bId
+                        )
+                        .header("Authorization", basicAuthorization("recepcionista"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"reason": "La guardería cliente solicita cancelar"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.origin").value("B2B"))
+                .andExpect(jsonPath("$.status").value("CANCELADA"));
+        this.mockMvc.perform(get("/api/recepcion/citas-peluqueria/{id}", pendingId)
+                        .header("Authorization", basicAuthorization("recepcionista")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELADA"));
+        this.mockMvc.perform(get("/api/recepcion/citas-peluqueria/{id}", pendingB2bId)
+                        .header("Authorization", basicAuthorization("recepcionista")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELADA"));
+        this.mockMvc.perform(get("/api/recepcion/peluqueros/{id}/agenda", groomerId)
+                        .queryParam("date", "2099-12-30")
+                        .header("Authorization", basicAuthorization("recepcionista")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.appointments[0].id").value(assignedId))
+                .andExpect(jsonPath("$.appointments[0].status").value("CANCELADA"));
+        this.mockMvc.perform(post(
+                                "/api/recepcion/citas-peluqueria/{id}/cancelacion",
+                                assignedId
+                        )
+                        .header("Authorization", basicAuthorization("recepcionista"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(cancellationBody))
+                .andExpect(status().isConflict());
+        this.mockMvc.perform(post(
+                                "/api/recepcion/citas-peluqueria/{id}/cancelacion",
+                                foreignId
+                        )
+                        .header("Authorization", basicAuthorization("recepcionista"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(cancellationBody))
+                .andExpect(status().isNotFound());
+        this.mockMvc.perform(post(
+                                "/api/recepcion/citas-peluqueria/{id}/cancelacion",
+                                pendingId
+                        )
+                        .header("Authorization", basicAuthorization("recepcionista"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"reason": "   "}
+                                """))
+                .andExpect(status().isBadRequest());
+        this.mockMvc.perform(post(
+                                "/api/recepcion/citas-peluqueria/{id}/cancelacion",
+                                pendingId
+                        )
+                        .header("Authorization", basicAuthorization("recepcionista"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"reason": "%s"}
+                                """.formatted("x".repeat(2001))))
+                .andExpect(status().isBadRequest());
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                originalAppointmentCount,
+                this.jdbcTemplate.queryForObject("SELECT COUNT(*) FROM cita_peluqueria", Long.class)
+        );
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "CANCELADA",
+                this.jdbcTemplate.queryForObject(
+                        "SELECT estado FROM cita_peluqueria WHERE id = ?",
+                        String.class,
+                        assignedId
+                )
+        );
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "El tutor ha solicitado cambiar la fecha",
+                this.jdbcTemplate.queryForObject(
+                        "SELECT motivo_cancelacion FROM cita_peluqueria WHERE id = ?",
+                        String.class,
+                        assignedId
+                )
+        );
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "CONFIRMADA",
+                this.jdbcTemplate.queryForObject(
+                        "SELECT estado FROM solicitud_peluqueria WHERE id = ?",
+                        String.class,
+                        b2bRequestId
+                )
+        );
     }
 
     private long createCenter(String cif, String type, String name) {

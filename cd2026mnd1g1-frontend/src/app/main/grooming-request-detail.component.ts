@@ -7,17 +7,24 @@ import { AuthService } from '../core/auth.service';
 import { DaycareOperationsService } from '../core/daycare-operations.service';
 import {
   AssignGroomingAppointmentRequest,
+  CancelGroomingAppointmentRequest,
   GroomingAppointmentDetail,
   GroomingAppointment,
   GroomingAppointmentLocation,
   GroomingAppointmentStatus,
   GroomerOption,
   GroomingRequestOrigin,
+  RescheduleGroomingAppointmentRequest,
 } from '../core/operational.models';
 
 interface GroomingAssignmentDraft {
   groomerId: number | null;
   location: GroomingAppointmentLocation | '';
+  date: string;
+  time: string;
+}
+
+interface GroomingRescheduleDraft {
   date: string;
   time: string;
 }
@@ -34,6 +41,7 @@ interface GroomingAssignmentDraft {
 })
 export class GroomingRequestDetailComponent implements OnInit {
   private static readonly assignmentDraftPrefix: string = 'reception-grooming-assignment-';
+  private static readonly rescheduleDraftPrefix: string = 'reception-grooming-reschedule-';
 
   appointment: GroomingAppointmentDetail | null = null;
   groomers: GroomerOption[] = [];
@@ -41,6 +49,9 @@ export class GroomingRequestDetailComponent implements OnInit {
   selectedLocation: GroomingAppointmentLocation | '' = '';
   assignmentDate: string = '';
   assignmentTime: string = '';
+  rescheduleDate: string = '';
+  rescheduleTime: string = '';
+  cancellationReason: string = '';
   isLoading: boolean = true;
   isLoadingGroomers: boolean = false;
   isAssigning: boolean = false;
@@ -48,6 +59,10 @@ export class GroomingRequestDetailComponent implements OnInit {
   errorMessage: string = '';
   assignmentError: string = '';
   assignmentSuccess: boolean = false;
+  rescheduleSuccess: boolean = false;
+  cancellationSuccess: boolean = false;
+  isRescheduling: boolean = false;
+  isCancelling: boolean = false;
   private appointmentId: number = 0;
   private agendaGroomerId: number | null = null;
   private agendaDate: string | null = null;
@@ -91,6 +106,8 @@ export class GroomingRequestDetailComponent implements OnInit {
         this.isLoading = false;
         if (appointment.status === 'PENDIENTE_ASIGNACION' && this.canAssign) {
           this.initializeAssignment(appointment);
+        } else if (this.canManageAppointments && this.isManageableStatus(appointment.status)) {
+          this.initializeManagement(appointment);
         }
       },
       error: (error: HttpErrorResponse) => this.handleError(error)
@@ -134,6 +151,10 @@ export class GroomingRequestDetailComponent implements OnInit {
     return this.authService.hasRole('RECEPCIONISTA');
   }
 
+  get canManageAppointments(): boolean {
+    return this.authService.hasRole('RECEPCIONISTA');
+  }
+
   confirmAssignment(): void {
     this.assignmentError = '';
     this.assignmentSuccess = false;
@@ -144,7 +165,6 @@ export class GroomingRequestDetailComponent implements OnInit {
       this.assignmentError = 'Selecciona peluquero y modalidad, e indica fecha y hora válidas.';
       return;
     }
-
     const request: AssignGroomingAppointmentRequest = {
       groomerId: this.selectedGroomerId,
       location: this.selectedLocation,
@@ -163,8 +183,89 @@ export class GroomingRequestDetailComponent implements OnInit {
     });
   }
 
+  confirmReschedule(): void {
+    this.assignmentError = '';
+    this.rescheduleSuccess = false;
+    if (this.appointment === null || !this.canManageAppointments
+        || !this.isManageableStatus(this.appointment.status)
+        || !this.isValidDate(this.rescheduleDate) || !this.isValidTime(this.rescheduleTime)
+        || this.isRescheduling || this.isCancelling) {
+      this.assignmentError = 'Indica una fecha y hora válidas para reprogramar la cita.';
+      return;
+    }
+    const request: RescheduleGroomingAppointmentRequest = {
+      date: this.rescheduleDate,
+      time: this.rescheduleTime
+    };
+    this.isRescheduling = true;
+    this.daycareOperationsService.rescheduleReceptionGroomingAppointment(
+      this.appointment.id,
+      request
+    ).subscribe({
+      next: (appointment: GroomingAppointmentDetail) => {
+        this.appointment = appointment;
+        this.isRescheduling = false;
+        this.rescheduleSuccess = true;
+        this.clearRescheduleDraft();
+      },
+      error: (error: HttpErrorResponse) => this.handleMutationError(error, 'reschedule')
+    });
+  }
+
+  confirmCancellation(): void {
+    this.assignmentError = '';
+    this.cancellationSuccess = false;
+    const normalizedReason: string = this.cancellationReason.trim();
+    if (this.appointment === null || !this.canManageAppointments
+        || !this.isManageableStatus(this.appointment.status)
+        || normalizedReason.length === 0 || normalizedReason.length > 2000
+        || this.isCancelling || this.isRescheduling) {
+      this.assignmentError = 'Indica un motivo de cancelación de hasta 2000 caracteres.';
+      return;
+    }
+    const request: CancelGroomingAppointmentRequest = { reason: normalizedReason };
+    this.isCancelling = true;
+    this.daycareOperationsService.cancelReceptionGroomingAppointment(
+      this.appointment.id,
+      request
+    ).subscribe({
+      next: (appointment: GroomingAppointmentDetail) => {
+        this.appointment = appointment;
+        this.isCancelling = false;
+        this.cancellationSuccess = true;
+        this.clearRescheduleDraft();
+      },
+      error: (error: HttpErrorResponse) => this.handleMutationError(error, 'cancel')
+    });
+  }
+
+  openRescheduleAgenda(): void {
+    if (this.appointment === null || !this.canManageAppointments
+        || !this.isManageableStatus(this.appointment.status)
+        || this.appointment.groomerId === null) {
+      return;
+    }
+    if (!this.isValidDate(this.rescheduleDate)) {
+      this.assignmentError = 'Indica una fecha válida antes de consultar la agenda.';
+      return;
+    }
+    if (!this.saveRescheduleDraft()) {
+      this.assignmentError = 'No se pudo conservar la nueva fecha y hora para abrir la agenda.';
+      return;
+    }
+    this.router.navigate(['/agenda-peluqueros'], {
+      queryParams: {
+        date: this.rescheduleDate,
+        groomerId: this.appointment.groomerId,
+        returnTo: 'reschedule',
+        sourceAppointmentId: this.appointment.id
+      }
+    });
+  }
+
   cancelAssignment(): void {
     this.clearAssignmentDraft();
+    this.clearRescheduleDraft();
     this.router.navigate(['/citas-peluqueria']);
   }
 
@@ -186,6 +287,7 @@ export class GroomingRequestDetailComponent implements OnInit {
       return;
     }
     this.clearAssignmentDraft();
+    this.clearRescheduleDraft();
     this.router.navigate(['/citas-peluqueria']);
   }
 
@@ -246,6 +348,12 @@ export class GroomingRequestDetailComponent implements OnInit {
     this.loadGroomers();
   }
 
+  private initializeManagement(appointment: GroomingAppointmentDetail): void {
+    this.rescheduleDate = appointment.date;
+    this.rescheduleTime = appointment.time.slice(0, 5);
+    this.restoreRescheduleDraft();
+  }
+
   private loadGroomers(): void {
     this.isLoadingGroomers = true;
     this.daycareOperationsService.getReceptionGroomers().subscribe({
@@ -294,6 +402,31 @@ export class GroomingRequestDetailComponent implements OnInit {
     this.assignmentError = error.status === 404
       ? 'La cita o el peluquero ya no están disponibles en este centro.'
       : 'No se pudo asignar la cita. Comprueba los datos e inténtalo de nuevo.';
+  }
+
+  private handleMutationError(error: HttpErrorResponse, operation: 'reschedule' | 'cancel'): void {
+    this.isRescheduling = false;
+    this.isCancelling = false;
+    if (error.status === 401) {
+      const returnUrl: string = this.router.url;
+      this.authService.logout();
+      this.router.navigate(['/login'], { queryParams: { returnUrl } });
+      return;
+    }
+    if (error.status === 403) {
+      this.hasAccessError = true;
+      return;
+    }
+    if (error.status === 409) {
+      this.assignmentError = 'La cita ya no se puede modificar. Se actualizará su estado actual.';
+      this.loadAppointment();
+      return;
+    }
+    this.assignmentError = error.status === 404
+      ? 'La cita no está disponible en este centro.'
+      : operation === 'reschedule'
+        ? 'No se pudo reprogramar la cita. Comprueba los datos e inténtalo de nuevo.'
+        : 'No se pudo cancelar la cita. Comprueba el motivo e inténtalo de nuevo.';
   }
 
   private saveAssignmentDraft(): boolean {
@@ -352,6 +485,62 @@ export class GroomingRequestDetailComponent implements OnInit {
     } catch {
       this.assignmentError = 'No se pudo limpiar el borrador local de asignación.';
     }
+  }
+
+  private saveRescheduleDraft(): boolean {
+    if (this.appointment === null) {
+      return false;
+    }
+    try {
+      sessionStorage.setItem(
+        this.rescheduleDraftKey(this.appointment.id),
+        JSON.stringify({ date: this.rescheduleDate, time: this.rescheduleTime } satisfies GroomingRescheduleDraft)
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private restoreRescheduleDraft(): void {
+    try {
+      const storageKey: string = this.rescheduleDraftKey(this.appointmentId);
+      const storedDraft: string | null = sessionStorage.getItem(storageKey);
+      if (storedDraft === null) {
+        return;
+      }
+      sessionStorage.removeItem(storageKey);
+      const draft: Partial<GroomingRescheduleDraft> = JSON.parse(storedDraft) as Partial<GroomingRescheduleDraft>;
+      this.rescheduleDate = typeof draft.date === 'string' && this.isValidDate(draft.date)
+        ? draft.date
+        : this.rescheduleDate;
+      this.rescheduleTime = typeof draft.time === 'string' && this.isValidTime(draft.time)
+        ? draft.time
+        : this.rescheduleTime;
+    } catch {
+      this.assignmentError = 'No se pudo recuperar el borrador de reprogramación. Revisa los campos.';
+    }
+  }
+
+  private clearRescheduleDraft(): void {
+    if (this.appointment === null) {
+      return;
+    }
+    try {
+      sessionStorage.removeItem(this.rescheduleDraftKey(this.appointment.id));
+    } catch {
+      this.assignmentError = 'No se pudo limpiar el borrador local de reprogramación.';
+    }
+  }
+
+  private rescheduleDraftKey(appointmentId: number): string {
+    return `${GroomingRequestDetailComponent.rescheduleDraftPrefix}${appointmentId}`;
+  }
+
+  private isManageableStatus(status: GroomingAppointmentStatus): boolean {
+    return status === 'PENDIENTE_ASIGNACION'
+      || status === 'SOLICITADA'
+      || status === 'CONFIRMADA';
   }
 
   private assignmentDraftKey(appointmentId: number): string {

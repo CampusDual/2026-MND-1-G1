@@ -7,6 +7,7 @@
     <nav class="main-nav" aria-label="Navegación principal">
       <a routerLink="/mis-perros" aria-current="page">Mis perros</a>
     </nav>
+    <app-notification-bell />
     <button class="logout-button" type="button" (click)="logout()">Cerrar sesión</button>
   </header>
 
@@ -190,7 +191,10 @@
           <p class="eyebrow">FICHA DE CONSULTA</p>
           <h1>{{ dog.name }}</h1>
         </div>
-        <a class="primary-button" [routerLink]="['/mis-perros', dog.id, 'editar']">Editar ficha</a>
+        <div class="dog-detail-actions">
+          <a class="primary-button" [routerLink]="['/mis-perros', dog.id, 'resumenes']">Resúmenes diarios</a>
+          <a class="primary-button" [routerLink]="['/mis-perros', dog.id, 'editar']">Editar ficha</a>
+        </div>
       </div>
       <section class="detail-card" aria-labelledby="basic-heading">
         <h2 id="basic-heading">Datos básicos</h2>
@@ -291,6 +295,7 @@
                 }
                 <p>{{ item.breed || 'Raza no indicada' }} · {{ sizeLabel(item.size) }}</p>
                 <a class="primary-button" [routerLink]="['/mis-perros', item.id]">Ver ficha</a>
+                <a class="secondary-button" [routerLink]="['/mis-perros', item.id, 'resumenes']">Resúmenes diarios</a>
               </div>
             </article>
           }

@@ -2,12 +2,14 @@ package com.campusdual.cd2026mnd1g1.ws.controller;
 
 import com.campusdual.cd2026mnd1g1.api.dto.CreateGroomingAppointmentRequestDto;
 import com.campusdual.cd2026mnd1g1.api.dto.AssignGroomingAppointmentRequestDto;
+import com.campusdual.cd2026mnd1g1.api.dto.CancelGroomingAppointmentRequestDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentDetailDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentPageDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingDogOptionPageDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingServiceOptionDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingRequestOriginDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentStatusDto;
+import com.campusdual.cd2026mnd1g1.api.dto.RescheduleGroomingAppointmentRequestDto;
 import com.campusdual.cd2026mnd1g1.api.service.ReceptionGroomingAppointmentService;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -32,7 +34,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * Endpoints de consulta de citas de peluquería para recepción.
+ * Endpoints de gestión de citas de peluquería para recepción.
  */
 @Validated
 @RestController
@@ -176,6 +178,50 @@ public class ReceptionGroomingAppointmentController {
             Principal principal
     ) {
         return ResponseEntity.ok(this.appointmentService.assignAppointment(
+                id,
+                request,
+                principal.getName()
+        ));
+    }
+
+    /**
+     * Reprograma fecha y hora de una cita sin alterar su asignación ni estado.
+     *
+     * @param id identificador de cita
+     * @param request nuevo hueco
+     * @param principal usuario autenticado
+     * @return cita reprogramada
+     */
+    @PostMapping("/{id}/reprogramacion")
+    @PreAuthorize("hasRole('RECEPCIONISTA')")
+    public ResponseEntity<GroomingAppointmentDetailDto> rescheduleAppointment(
+            @PathVariable @Min(0) Long id,
+            @Valid @RequestBody RescheduleGroomingAppointmentRequestDto request,
+            Principal principal
+    ) {
+        return ResponseEntity.ok(this.appointmentService.rescheduleAppointment(
+                id,
+                request,
+                principal.getName()
+        ));
+    }
+
+    /**
+     * Cancela una cita y conserva el motivo sin eliminar el registro.
+     *
+     * @param id identificador de cita
+     * @param request motivo de cancelación
+     * @param principal usuario autenticado
+     * @return cita cancelada
+     */
+    @PostMapping("/{id}/cancelacion")
+    @PreAuthorize("hasRole('RECEPCIONISTA')")
+    public ResponseEntity<GroomingAppointmentDetailDto> cancelAppointment(
+            @PathVariable @Min(0) Long id,
+            @Valid @RequestBody CancelGroomingAppointmentRequestDto request,
+            Principal principal
+    ) {
+        return ResponseEntity.ok(this.appointmentService.cancelAppointment(
                 id,
                 request,
                 principal.getName()
