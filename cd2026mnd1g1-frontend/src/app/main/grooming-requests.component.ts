@@ -32,7 +32,9 @@ export class GroomingRequestsComponent implements OnInit, OnDestroy {
   private readonly loadAppointmentsSubject: Subject<void> = new Subject();
   private readonly subscriptions: Subscription = new Subscription();
 
-  readonly statuses: GroomingAppointmentStatus[] = ['SOLICITADA', 'CONFIRMADA', 'COMPLETADA', 'CANCELADA'];
+  readonly statuses: GroomingAppointmentStatus[] = [
+    'PENDIENTE_ASIGNACION', 'SOLICITADA', 'CONFIRMADA', 'COMPLETADA', 'CANCELADA'
+  ];
   origin: GroomingRequestOrigin | '' = '';
   status: GroomingAppointmentStatus | '' = '';
   fromDate: string = '';
@@ -100,6 +102,7 @@ export class GroomingRequestsComponent implements OnInit, OnDestroy {
 
   statusLabel(status: GroomingAppointmentStatus): string {
     const labels: Record<GroomingAppointmentStatus, string> = {
+      PENDIENTE_ASIGNACION: 'Pendiente de asignación',
       SOLICITADA: 'Solicitada',
       CONFIRMADA: 'Confirmada',
       COMPLETADA: 'Completada',
@@ -123,7 +126,14 @@ export class GroomingRequestsComponent implements OnInit, OnDestroy {
   }
 
   locationLabel(location: GroomingAppointment['location']): string {
+    if (location === null) {
+      return 'Sin asignar';
+    }
     return location === 'DESPLAZADO' ? 'Servicio desplazado' : 'En las instalaciones';
+  }
+
+  canCreateAppointment(): boolean {
+    return this.authService.hasRole('RECEPCIONISTA');
   }
 
   logout(): void {

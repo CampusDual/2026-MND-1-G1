@@ -3,17 +3,25 @@ package com.campusdual.cd2026mnd1g1.model.service;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentDetailDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentPageDto;
+import com.campusdual.cd2026mnd1g1.api.dto.CreateGroomingAppointmentRequestDto;
+import com.campusdual.cd2026mnd1g1.api.dto.GroomingDogOptionDto;
+import com.campusdual.cd2026mnd1g1.api.dto.GroomingDogOptionPageDto;
+import com.campusdual.cd2026mnd1g1.api.dto.GroomingServiceOptionDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingRequestOriginDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentStatusDto;
 import com.campusdual.cd2026mnd1g1.api.service.ReceptionGroomingAppointmentService;
 import com.campusdual.cd2026mnd1g1.model.entity.CenterType;
+import com.campusdual.cd2026mnd1g1.model.entity.DogEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.GroomingAppointmentEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.GroomingAppointmentStatus;
+import com.campusdual.cd2026mnd1g1.model.entity.GroomingServiceEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.UserEntity;
 import com.campusdual.cd2026mnd1g1.model.exception.OperationalUserNotFoundException;
 import com.campusdual.cd2026mnd1g1.model.exception.ResourceNotFoundException;
 import com.campusdual.cd2026mnd1g1.model.repository.GroomingAppointmentRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.GroomingAppointmentServiceNameProjection;
+import com.campusdual.cd2026mnd1g1.model.repository.DogRepository;
+import com.campusdual.cd2026mnd1g1.model.repository.GroomingServiceRepository;
 import com.campusdual.cd2026mnd1g1.model.repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -23,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -39,13 +48,90 @@ public class ReceptionGroomingAppointmentServiceImpl implements ReceptionGroomin
 
     private final UserRepository userRepository;
     private final GroomingAppointmentRepository appointmentRepository;
+    private final DogRepository dogRepository;
+    private final GroomingServiceRepository serviceRepository;
 
     public ReceptionGroomingAppointmentServiceImpl(
             UserRepository userRepository,
-            GroomingAppointmentRepository appointmentRepository
+            GroomingAppointmentRepository appointmentRepository,
+            DogRepository dogRepository,
+            GroomingServiceRepository serviceRepository
     ) {
         this.userRepository = userRepository;
         this.appointmentRepository = appointmentRepository;
+        this.dogRepository = dogRepository;
+        this.serviceRepository = serviceRepository;
+    }
+
+    @Override
+    public GroomingDogOptionPageDto findInternalDogs(String search, int page, int size, String username) {
+        validatePagination(page, size);
+        UserEntity user = findActiveReceptionist(username);
+        validateReceptionCenter(user);
+        Page<DogEntity> dogs = this.dogRepository.findInternalGroomingDogs(
+                user.getCenter().getId(),
+                search == null ? "" : search.trim(),
+                PageRequest.of(page, size, Sort.by(Sort.Order.asc("name").ignoreCase(), Sort.Order.asc("id")))
+        );
+        List<GroomingDogOptionDto> items = dogs.getContent().stream()
+                .map(dog -> new GroomingDogOptionDto(
+                        dog.getId(),
+                        dog.getName(),
+                        dog.getTutor() == null
+                                ? null
+                                : dog.getTutor().getFirstName() + " " + dog.getTutor().getLastName()
+                ))
+                .toList();
+        return new GroomingDogOptionPageDto(
+                items,
+                dogs.getNumber(),
+                dogs.getSize(),
+                dogs.getTotalElements(),
+                dogs.getTotalPages()
+        );
+    }
+
+    @Override
+    public List<GroomingServiceOptionDto> findAvailableServices(String username) {
+        UserEntity user = findActiveReceptionist(username);
+        validateReceptionCenter(user);
+        return this.serviceRepository.findByCenter_IdAndActiveTrueOrderByNameAscIdAsc(user.getCenter().getId())
+                .stream()
+                .map(service -> new GroomingServiceOptionDto(service.getId(), service.getName()))
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public GroomingAppointmentDetailDto createAppointment(
+            CreateGroomingAppointmentRequestDto request,
+            String username
+    ) {
+        validateCreateRequest(request);
+        UserEntity user = findActiveReceptionist(username);
+        validateReceptionCenter(user);
+
+        Long centerId = user.getCenter().getId();
+        DogEntity dog = this.dogRepository.findInternalGroomingDog(request.dogId(), centerId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No existe el perro interno indicado"
+                ));
+        GroomingServiceEntity groomingService = this.serviceRepository
+                        .findByIdAndCenter_IdAndActiveTrue(request.serviceId(), centerId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No existe un servicio activo con ese identificador"
+                ));
+
+        GroomingAppointmentEntity appointment = new GroomingAppointmentEntity();
+        appointment.setDog(dog);
+        appointment.setCreatedBy(user);
+        appointment.setStartAt(LocalDateTime.of(request.date(), request.time()));
+        appointment.setDurationMinutes(groomingService.getDurationMinutes());
+        appointment.setStatus(GroomingAppointmentStatus.PENDIENTE_ASIGNACION);
+        appointment.setNotes(normalizeNotes(request.notes()));
+        appointment.setServices(new LinkedHashSet<>(List.of(groomingService)));
+        GroomingAppointmentEntity saved = this.appointmentRepository.saveAndFlush(appointment);
+        return toDetailDto(saved, List.of(groomingService.getName()));
     }
 
     @Override
@@ -99,19 +185,7 @@ public class ReceptionGroomingAppointmentServiceImpl implements ReceptionGroomin
                 .orElseThrow(() -> new ResourceNotFoundException("No existe la cita indicada"));
         List<String> services = findServiceNames(List.of(appointment), user.getCenter().getId())
                 .getOrDefault(appointment.getId(), List.of());
-        return new GroomingAppointmentDetailDto(
-                appointment.getId(),
-                appointment.getDog().getName(),
-                customerName(appointment),
-                services,
-                appointment.getStartAt().toLocalDate(),
-                appointment.getStartAt().toLocalTime(),
-                appointment.getDurationMinutes(),
-                appointment.getLocation(),
-                GroomingAppointmentStatusDto.valueOf(appointment.getStatus().name()),
-                toOrigin(appointment),
-                visibleRequestNotes(appointment)
-        );
+        return toDetailDto(appointment, services);
     }
 
     private UserEntity findActiveReceptionist(String username) {
@@ -154,6 +228,25 @@ public class ReceptionGroomingAppointmentServiceImpl implements ReceptionGroomin
         );
     }
 
+    private GroomingAppointmentDetailDto toDetailDto(
+            GroomingAppointmentEntity appointment,
+            List<String> serviceNames
+    ) {
+        return new GroomingAppointmentDetailDto(
+                appointment.getId(),
+                appointment.getDog().getName(),
+                customerName(appointment),
+                serviceNames,
+                appointment.getStartAt().toLocalDate(),
+                appointment.getStartAt().toLocalTime(),
+                appointment.getDurationMinutes(),
+                appointment.getLocation(),
+                GroomingAppointmentStatusDto.valueOf(appointment.getStatus().name()),
+                toOrigin(appointment),
+                visibleAppointmentNotes(appointment)
+        );
+    }
+
     private String customerName(GroomingAppointmentEntity appointment) {
         if (appointment.getDog().getCenter().getType() == CenterType.CLIENTE) {
             return appointment.getDog().getCenter().getName();
@@ -165,7 +258,10 @@ public class ReceptionGroomingAppointmentServiceImpl implements ReceptionGroomin
                 + appointment.getDog().getTutor().getLastName();
     }
 
-    private String visibleRequestNotes(GroomingAppointmentEntity appointment) {
+    private String visibleAppointmentNotes(GroomingAppointmentEntity appointment) {
+        if (appointment.getNotes() != null) {
+            return appointment.getNotes();
+        }
         if (appointment.getRequest() == null
                 || appointment.getRequest().getDog() == null
                 || !appointment.getRequest().getDog().getId().equals(appointment.getDog().getId())
@@ -174,6 +270,40 @@ public class ReceptionGroomingAppointmentServiceImpl implements ReceptionGroomin
             return null;
         }
         return appointment.getRequest().getNotes();
+    }
+
+    private void validateReceptionCenter(UserEntity user) {
+        if (user.getCenter().getType() != CenterType.PROPIA
+                || !Boolean.TRUE.equals(user.getCenter().getActive())) {
+            throw new OperationalUserNotFoundException(
+                    "El usuario debe estar asociado a una guardería interna activa"
+            );
+        }
+    }
+
+    private void validateCreateRequest(CreateGroomingAppointmentRequestDto request) {
+        if (request == null || request.dogId() == null || request.dogId() < 0
+                || request.serviceId() == null || request.serviceId() < 0
+                || request.date() == null || request.time() == null) {
+            throw new IllegalArgumentException("Perro, servicio, fecha y hora son obligatorios");
+        }
+        if (request.notes() != null && request.notes().length() > 2000) {
+            throw new IllegalArgumentException("Las observaciones no pueden superar 2000 caracteres");
+        }
+    }
+
+    private String normalizeNotes(String notes) {
+        if (notes == null) {
+            return null;
+        }
+        String normalized = notes.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private void validatePagination(int page, int size) {
+        if (page < 0 || size < 1 || size > MAX_PAGE_SIZE) {
+            throw new IllegalArgumentException("La paginación solicitada no es válida");
+        }
     }
 
     private GroomingRequestOriginDto toOrigin(GroomingAppointmentEntity appointment) {

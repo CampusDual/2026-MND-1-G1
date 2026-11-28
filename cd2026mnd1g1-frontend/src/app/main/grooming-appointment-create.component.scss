@@ -1,0 +1,28 @@
+:host{display:block;min-height:100vh;color:#19384a;background:#f5f8fa}
+.topbar{min-height:68px;display:flex;align-items:center;gap:1.2rem;padding:0 5%;background:#fff;border-bottom:1px solid #e5edef}
+.brand{display:flex;align-items:center;gap:.6rem;margin-right:auto;color:#153449;font-weight:700;text-decoration:none}
+.brand-mark{width:36px;height:36px;display:grid;place-items:center;border-radius:12px;color:#fff;background:#159b8a;font-size:1.2rem}
+.brand-divider{color:#9cabb4;font-weight:400}.brand strong{color:#527080;font-size:.92rem}
+.nav-link{color:#167d72;font-size:.88rem;font-weight:700;text-decoration:none}
+.logout-button,.secondary-button,.primary-button,.back-button{padding:.65rem .9rem;border:1px solid #dce6e9;border-radius:8px;color:#3c5867;background:#fff;font:inherit;font-size:.85rem;font-weight:600;cursor:pointer}
+.primary-button{border-color:#22786e;color:#fff;background:#22786e}
+.content{width:min(720px,92%);margin:auto;padding:2rem 0 4rem}
+.back-button{margin-bottom:1.5rem;color:#167d72}
+.eyebrow{margin:0 0 .4rem;color:#168d80;font-size:.7rem;font-weight:800;letter-spacing:.12em}
+h1{margin:0;font-size:2rem}.subtitle{margin:.45rem 0 1.4rem;color:#758794}
+.appointment-form,.state-card{display:grid;gap:.55rem;padding:1.3rem;border:1px solid #e4ecef;border-radius:12px;background:#fff}
+.appointment-form label{margin-top:.55rem;color:#526b78;font-size:.85rem;font-weight:700}
+.appointment-form input,.appointment-form select,.appointment-form textarea{box-sizing:border-box;width:100%;padding:.7rem;border:1px solid #dce6e9;border-radius:7px;color:#19384a;background:#fff;font:inherit}
+.appointment-form textarea{resize:vertical}
+.dog-search{display:flex;gap:.6rem}.dog-search input{flex:1}
+.field-help{margin:.1rem 0;color:#758794;font-size:.8rem}
+.field-error{margin:.2rem 0;color:#9e3f36;font-size:.85rem}
+.optional{color:#82919a;font-weight:400}
+.date-time-fields{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}
+.date-time-fields>div{display:grid;gap:.55rem}
+.dog-pagination,.form-actions{display:flex;align-items:center;justify-content:space-between;gap:.8rem;margin-top:.7rem}
+.dog-pagination{justify-content:flex-start;font-size:.8rem;color:#758794}
+.form-actions{justify-content:flex-end;margin-top:1rem}
+.state-card{display:block;color:#657987}.state-card.error{color:#9e3f36;background:#fff0ed}
+button:disabled{cursor:wait;opacity:.6}
+@media(max-width:620px){.topbar{flex-wrap:wrap;padding:1rem 4%}.brand{width:100%}.content{padding-top:1.4rem}.date-time-fields{grid-template-columns:1fr}.form-actions{flex-wrap:wrap}.form-actions button{flex:1}}

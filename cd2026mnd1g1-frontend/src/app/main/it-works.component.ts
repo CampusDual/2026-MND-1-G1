@@ -73,6 +73,10 @@ export class ItWorksComponent implements OnInit, OnDestroy {
     }));
   }
 
+  canCreateGroomingAppointment(): boolean {
+    return this.authService.hasRole('RECEPCIONISTA');
+  }
+
   ngOnDestroy(): void {
     this.subscriptions.unsubscribe();
   }

@@ -8,6 +8,9 @@
     <a class="tutors-link" routerLink="/perros">Perros</a>
     <a class="tutors-link" routerLink="/solicitudes-peluqueria">Solicitudes de peluquería</a>
     <a class="tutors-link" routerLink="/citas-peluqueria">Citas de peluquería</a>
+    @if (canCreateGroomingAppointment()) {
+      <a class="tutors-link" routerLink="/citas-peluqueria/nueva">Crear cita de peluquería</a>
+    }
     <button class="logout-button" type="button" (click)="logout()">Cerrar sesión</button>
   </header>
 

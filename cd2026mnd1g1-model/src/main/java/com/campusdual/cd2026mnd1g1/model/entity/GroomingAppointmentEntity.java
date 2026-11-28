@@ -33,9 +33,13 @@ public class GroomingAppointmentEntity {
     @JoinColumn(name = "perro_id", nullable = false)
     private DogEntity dog;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "peluquero_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "peluquero_id")
     private UserEntity groomer;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "creado_por_usuario_id")
+    private UserEntity createdBy;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "solicitud_id")
@@ -47,8 +51,11 @@ public class GroomingAppointmentEntity {
     @Column(name = "duracion_min", nullable = false)
     private Integer durationMinutes;
 
-    @Column(name = "lugar", nullable = false, length = 20)
+    @Column(name = "lugar", length = 20)
     private String location;
+
+    @Column(name = "observaciones", length = 2000)
+    private String notes;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "estado", nullable = false, length = 20)
@@ -68,6 +75,8 @@ public class GroomingAppointmentEntity {
     public void setDog(DogEntity dog) { this.dog = dog; }
     public UserEntity getGroomer() { return groomer; }
     public void setGroomer(UserEntity groomer) { this.groomer = groomer; }
+    public UserEntity getCreatedBy() { return createdBy; }
+    public void setCreatedBy(UserEntity createdBy) { this.createdBy = createdBy; }
     public GroomingRequestEntity getRequest() { return request; }
     public void setRequest(GroomingRequestEntity request) { this.request = request; }
     public LocalDateTime getStartAt() { return startAt; }
@@ -76,6 +85,8 @@ public class GroomingAppointmentEntity {
     public void setDurationMinutes(Integer durationMinutes) { this.durationMinutes = durationMinutes; }
     public String getLocation() { return location; }
     public void setLocation(String location) { this.location = location; }
+    public String getNotes() { return notes; }
+    public void setNotes(String notes) { this.notes = notes; }
     public GroomingAppointmentStatus getStatus() { return status; }
     public void setStatus(GroomingAppointmentStatus status) { this.status = status; }
     public Set<GroomingServiceEntity> getServices() { return services; }

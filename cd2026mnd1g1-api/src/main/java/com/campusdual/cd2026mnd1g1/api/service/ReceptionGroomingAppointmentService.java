@@ -2,15 +2,47 @@ package com.campusdual.cd2026mnd1g1.api.service;
 
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentDetailDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentPageDto;
+import com.campusdual.cd2026mnd1g1.api.dto.CreateGroomingAppointmentRequestDto;
+import com.campusdual.cd2026mnd1g1.api.dto.GroomingDogOptionPageDto;
+import com.campusdual.cd2026mnd1g1.api.dto.GroomingServiceOptionDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingRequestOriginDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentStatusDto;
 
 import java.time.LocalDate;
+import java.util.List;
 
 /**
  * Contrato de consulta de citas de peluquería para recepción.
  */
 public interface ReceptionGroomingAppointmentService {
+
+    /**
+     * Busca perros de la guardería interna del centro autenticado.
+     *
+     * @param search filtro opcional por nombre
+     * @param page índice de página empezando en cero
+     * @param size número de resultados por página
+     * @param username usuario autenticado
+     * @return página de perros elegibles
+     */
+    GroomingDogOptionPageDto findInternalDogs(String search, int page, int size, String username);
+
+    /**
+     * Lista los servicios activos del centro autenticado.
+     *
+     * @param username usuario autenticado
+     * @return servicios elegibles ordenados por nombre
+     */
+    List<GroomingServiceOptionDto> findAvailableServices(String username);
+
+    /**
+     * Crea una cita interna pendiente de asignación.
+     *
+     * @param request datos permitidos de la cita
+     * @param username usuario autenticado
+     * @return detalle persistido de la cita
+     */
+    GroomingAppointmentDetailDto createAppointment(CreateGroomingAppointmentRequestDto request, String username);
 
     /**
      * Busca citas limitadas al centro del usuario autenticado.

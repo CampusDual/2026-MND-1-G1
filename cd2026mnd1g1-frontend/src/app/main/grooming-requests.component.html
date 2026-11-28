@@ -19,6 +19,9 @@
       <button class="secondary-button" type="button" [disabled]="isLoading" (click)="loadAppointments()">
         Actualizar
       </button>
+      @if (canCreateAppointment()) {
+        <a class="primary-button" routerLink="/citas-peluqueria/nueva">Crear cita de peluquería</a>
+      }
     </div>
 
     <section class="filters" aria-label="Filtros de citas">

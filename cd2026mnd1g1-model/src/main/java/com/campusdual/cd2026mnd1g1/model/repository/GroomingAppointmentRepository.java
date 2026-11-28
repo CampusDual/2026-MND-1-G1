@@ -25,8 +25,9 @@ public interface GroomingAppointmentRepository extends JpaRepository<GroomingApp
             value = """
                     SELECT appointment FROM GroomingAppointmentEntity appointment
                     JOIN appointment.dog dog
-                    JOIN appointment.groomer groomer
-                    WHERE groomer.center.id = :centerId
+                    LEFT JOIN appointment.groomer groomer
+                    WHERE (groomer.center.id = :centerId
+                           OR (groomer IS NULL AND dog.center.id = :centerId))
                       AND dog.center.type = COALESCE(:originCenterType, dog.center.type)
                       AND appointment.status = COALESCE(:status, appointment.status)
                       AND (:fromDate IS NULL OR appointment.startAt >= :fromDate)
@@ -45,8 +46,9 @@ public interface GroomingAppointmentRepository extends JpaRepository<GroomingApp
             countQuery = """
                     SELECT COUNT(appointment.id) FROM GroomingAppointmentEntity appointment
                     JOIN appointment.dog dog
-                    JOIN appointment.groomer groomer
-                    WHERE groomer.center.id = :centerId
+                    LEFT JOIN appointment.groomer groomer
+                    WHERE (groomer.center.id = :centerId
+                      OR (groomer IS NULL AND dog.center.id = :centerId))
                       AND dog.center.type = COALESCE(:originCenterType, dog.center.type)
                       AND appointment.status = COALESCE(:status, appointment.status)
                       AND (:fromDate IS NULL OR appointment.startAt >= :fromDate)
@@ -78,9 +80,10 @@ public interface GroomingAppointmentRepository extends JpaRepository<GroomingApp
     @Query("""
             SELECT appointment FROM GroomingAppointmentEntity appointment
             JOIN appointment.dog dog
-            JOIN appointment.groomer groomer
+            LEFT JOIN appointment.groomer groomer
             WHERE appointment.id = :appointmentId
-              AND groomer.center.id = :centerId
+              AND (groomer.center.id = :centerId
+                   OR (groomer IS NULL AND dog.center.id = :centerId))
               AND EXISTS (
                   SELECT service.id FROM GroomingServiceEntity service
                   WHERE service MEMBER OF appointment.services

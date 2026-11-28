@@ -60,6 +60,7 @@ export class GroomingRequestDetailComponent implements OnInit {
 
   statusLabel(status: GroomingAppointmentStatus): string {
     const labels: Record<GroomingAppointmentStatus, string> = {
+      PENDIENTE_ASIGNACION: 'Pendiente de asignación',
       SOLICITADA: 'Solicitada',
       CONFIRMADA: 'Confirmada',
       COMPLETADA: 'Completada',
@@ -84,6 +85,9 @@ export class GroomingRequestDetailComponent implements OnInit {
   }
 
   locationLabel(location: GroomingAppointment['location']): string {
+    if (location === null) {
+      return 'Sin asignar';
+    }
     return location === 'DESPLAZADO' ? 'Servicio desplazado' : 'En las instalaciones';
   }
 

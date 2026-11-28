@@ -1,0 +1,110 @@
+<main class="create-page">
+  <header class="topbar">
+    <a class="brand" routerLink="/tablero-diario" aria-label="PawCare, recepción">
+      <span class="brand-mark" aria-hidden="true">P</span>
+      <span>PawCare <span class="brand-divider">·</span> <strong>Recepción</strong></span>
+    </a>
+    <a class="nav-link" routerLink="/citas-peluqueria">Citas de peluquería</a>
+    <button class="logout-button" type="button" (click)="logout()">Cerrar sesión</button>
+  </header>
+
+  <section class="content">
+    <button class="back-button" type="button" (click)="cancel()">← Volver a citas</button>
+    <p class="eyebrow">PELUQUERÍA INTERNA</p>
+    <h1>Crear cita de peluquería</h1>
+    <p class="subtitle">La cita quedará pendiente de asignación. No se asignará peluquero ni lugar.</p>
+
+    @if (hasAccessError) {
+      <section class="state-card error" role="alert">
+        <h2>Sección no autorizada</h2>
+        <p>Solo recepción puede crear citas de peluquería.</p>
+      </section>
+    } @else {
+      <form class="appointment-form" #appointmentForm="ngForm" (ngSubmit)="submit()">
+        <label for="dog-search">Buscar perro interno</label>
+        <div class="dog-search">
+          <input id="dog-search" name="dogSearch" type="search" maxlength="120"
+                 [(ngModel)]="dogSearch" (keyup.enter)="searchDogs()"
+                 placeholder="Nombre del perro">
+          <button class="secondary-button" type="button" [disabled]="isLoadingDogs" (click)="searchDogs()">
+            Buscar
+          </button>
+        </div>
+        @if (isLoadingDogs) {
+          <p class="field-help" role="status">Cargando perros...</p>
+        } @else if (dogsError) {
+          <p class="field-error" role="alert">{{ dogsError }}</p>
+          <button class="secondary-button" type="button" (click)="searchDogs()">Reintentar</button>
+        } @else if (dogs.length === 0) {
+          <p class="field-help">No hay perros internos que coincidan con la búsqueda.</p>
+        }
+
+        <label for="dog-id">Perro <span aria-hidden="true">*</span></label>
+        <select id="dog-id" name="dogId" required [(ngModel)]="selectedDogId">
+          <option [ngValue]="null" disabled>Selecciona un perro</option>
+          @for (dog of dogs; track dog.id) {
+            <option [ngValue]="dog.id">
+              {{ dog.name }}{{ dog.tutorName ? ' — ' + dog.tutorName : ' — Tutor no asociado' }}
+            </option>
+          }
+        </select>
+        @if (dogTotalPages > 1) {
+          <nav class="dog-pagination" aria-label="Páginas de perros">
+            <button class="secondary-button" type="button" [disabled]="dogPage === 0 || isLoadingDogs"
+                    (click)="changeDogPage(dogPage - 1)">Anterior</button>
+            <span>Página {{ dogPage + 1 }} de {{ dogTotalPages }}</span>
+            <button class="secondary-button" type="button" [disabled]="dogPage + 1 >= dogTotalPages || isLoadingDogs"
+                    (click)="changeDogPage(dogPage + 1)">Siguiente</button>
+          </nav>
+        }
+
+        <label for="service-id">Servicio <span aria-hidden="true">*</span></label>
+        @if (isLoadingServices) {
+          <p class="field-help" role="status">Cargando servicios...</p>
+        } @else if (servicesError) {
+          <p class="field-error" role="alert">{{ servicesError }}</p>
+          <button class="secondary-button" type="button" (click)="reloadServices()">Reintentar</button>
+        } @else if (services.length === 0) {
+          <p class="field-help">No hay servicios activos disponibles en este centro.</p>
+        }
+        <select id="service-id" name="serviceId" required [(ngModel)]="selectedServiceId"
+                [disabled]="isLoadingServices || services.length === 0">
+          <option [ngValue]="null" disabled>Selecciona un servicio</option>
+          @for (service of services; track service.id) {
+            <option [ngValue]="service.id">{{ service.name }}</option>
+          }
+        </select>
+
+        <div class="date-time-fields">
+          <div>
+            <label for="appointment-date">Fecha <span aria-hidden="true">*</span></label>
+            <input id="appointment-date" name="date" type="date" required [(ngModel)]="date">
+          </div>
+          <div>
+            <label for="appointment-time">Hora <span aria-hidden="true">*</span></label>
+            <input id="appointment-time" name="time" type="time" required [(ngModel)]="time">
+          </div>
+        </div>
+
+        <label for="notes">Observaciones <span class="optional">(opcional)</span></label>
+        <textarea id="notes" name="notes" rows="4" maxlength="2000"
+                  [(ngModel)]="notes" placeholder="Añade información para esta cita"></textarea>
+        <p class="field-help">Máximo 2000 caracteres.</p>
+
+        @if (submitError) {
+          <p class="field-error" role="alert">{{ submitError }}</p>
+        }
+
+        <div class="form-actions">
+          <button class="secondary-button" type="button" [disabled]="isSubmitting" (click)="cancel()">
+            Cancelar
+          </button>
+          <button class="primary-button" type="submit"
+                  [disabled]="isSubmitting || isLoadingDogs || isLoadingServices || services.length === 0">
+            {{ isSubmitting ? 'Guardando...' : 'Guardar cita' }}
+          </button>
+        </div>
+      </form>
+    }
+  </section>
+</main>

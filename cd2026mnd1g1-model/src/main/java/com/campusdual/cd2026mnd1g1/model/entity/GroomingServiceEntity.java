@@ -28,10 +28,20 @@ public class GroomingServiceEntity {
     @Column(name = "nombre", nullable = false, length = 120)
     private String name;
 
+    @Column(name = "duracion_min", nullable = false)
+    private Integer durationMinutes;
+
+    @Column(name = "activo", nullable = false)
+    private Boolean active;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public CenterEntity getCenter() { return center; }
     public void setCenter(CenterEntity center) { this.center = center; }
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
+    public Integer getDurationMinutes() { return durationMinutes; }
+    public void setDurationMinutes(Integer durationMinutes) { this.durationMinutes = durationMinutes; }
+    public Boolean getActive() { return active; }
+    public void setActive(Boolean active) { this.active = active; }
 }

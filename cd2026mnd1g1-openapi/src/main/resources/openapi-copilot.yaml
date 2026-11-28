@@ -1011,7 +1011,7 @@ paths:
           name: status
           required: false
           schema:
-            $ref: '#/components/schemas/GroomingRequestStatusDto'
+            $ref: '#/components/schemas/GroomingAppointmentStatusDto'
         - in: query
           name: from
           required: false
@@ -1037,6 +1037,99 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GroomingAppointmentPageDto'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+    post:
+      security:
+        - basicAuth: []
+      tags: [Peluquería]
+      summary: Crea una cita interna de peluquería
+      description: >
+        Solo Recepcionista. El centro y la persona creadora se obtienen de la sesión.
+        Solo admite perros de la guardería interna del centro y servicios activos del mismo
+        centro. La cita queda PENDIENTE_ASIGNACION, sin peluquero ni lugar; la duración se
+        deriva del servicio. No crea ni modifica solicitudes, reservas o fichas de perros.
+      operationId: createReceptionGroomingAppointment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGroomingAppointmentRequestDto'
+      responses:
+        '201':
+          description: Cita creada y persistida; Location apunta a su detalle.
+          headers:
+            Location:
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroomingAppointmentDetailDto'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+  /api/recepcion/citas-peluqueria/perros:
+    get:
+      security:
+        - basicAuth: []
+      tags: [Peluquería]
+      summary: Lista perros internos para crear citas
+      description: Solo Recepcionista. Devuelve perros del centro PROPIA de la sesión, sin perros B2B.
+      operationId: listReceptionGroomingDogOptions
+      parameters:
+        - in: query
+          name: search
+          required: false
+          schema: { type: string, maxLength: 120 }
+        - in: query
+          name: page
+          required: false
+          schema: { type: integer, minimum: 0, default: 0 }
+        - in: query
+          name: size
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        '200':
+          description: Página de perros internos para el selector.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroomingDogOptionPageDto'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+  /api/recepcion/citas-peluqueria/servicios:
+    get:
+      security:
+        - basicAuth: []
+      tags: [Peluquería]
+      summary: Lista servicios activos para crear citas
+      description: Solo Recepcionista. Devuelve servicios activos del centro de la sesión.
+      operationId: listReceptionGroomingServiceOptions
+      responses:
+        '200':
+          description: Servicios activos ordenados por nombre.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GroomingServiceOptionDto'
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -2530,7 +2623,7 @@ components:
       enum: [SOLICITADA, CONFIRMADA, RECHAZADA, COMPLETADA, CANCELADA]
     GroomingAppointmentStatusDto:
       type: string
-      enum: [SOLICITADA, CONFIRMADA, COMPLETADA, CANCELADA]
+      enum: [PENDIENTE_ASIGNACION, SOLICITADA, CONFIRMADA, COMPLETADA, CANCELADA]
     GroomingRequestOriginDto:
       type: string
       enum: [INTERNA, B2B]
@@ -2596,6 +2689,7 @@ components:
         location:
           type: string
           enum: [EN_INSTALACIONES, DESPLAZADO]
+          nullable: true
         status:
           $ref: '#/components/schemas/GroomingAppointmentStatusDto'
         origin:
@@ -2606,6 +2700,41 @@ components:
         - type: object
           properties:
             notes: { type: string, nullable: true, maxLength: 2000 }
+    GroomingDogOptionPageDto:
+      type: object
+      required: [items, page, size, totalElements, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroomingDogOptionDto'
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1, maximum: 100 }
+        totalElements: { type: integer, format: int64, minimum: 0 }
+        totalPages: { type: integer, minimum: 0 }
+    GroomingDogOptionDto:
+      type: object
+      required: [id, name, tutorName]
+      properties:
+        id: { type: integer, format: int64, minimum: 0 }
+        name: { type: string, minLength: 1, maxLength: 120 }
+        tutorName: { type: string, nullable: true, maxLength: 280 }
+    GroomingServiceOptionDto:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: integer, format: int64, minimum: 0 }
+        name: { type: string, minLength: 1, maxLength: 120 }
+    CreateGroomingAppointmentRequestDto:
+      type: object
+      additionalProperties: false
+      required: [dogId, serviceId, date, time]
+      properties:
+        dogId: { type: integer, format: int64, minimum: 0 }
+        serviceId: { type: integer, format: int64, minimum: 0 }
+        date: { type: string, format: date }
+        time: { type: string, format: time }
+        notes: { type: string, nullable: true, maxLength: 2000 }
     ReceptionReservationPageDto:
       type: object
       required: [items, page, size, totalElements, totalPages]

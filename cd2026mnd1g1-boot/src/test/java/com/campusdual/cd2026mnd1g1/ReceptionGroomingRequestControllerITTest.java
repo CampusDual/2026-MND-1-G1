@@ -40,6 +40,10 @@ class ReceptionGroomingRequestControllerITTest {
                 .andExpect(status().isUnauthorized());
         this.mockMvc.perform(get("/api/recepcion/citas-peluqueria"))
                 .andExpect(status().isUnauthorized());
+        this.mockMvc.perform(post("/api/recepcion/citas-peluqueria")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -315,6 +319,158 @@ class ReceptionGroomingRequestControllerITTest {
                 .andExpect(jsonPath("$.id").value(appointmentId))
                 .andExpect(jsonPath("$.dogName").value("Cita real"))
                 .andExpect(jsonPath("$.serviceNames[0]").value("Corte real"));
+    }
+
+    @Test
+    void receptionCreatesInternalAppointmentWithoutAssigningGroomerOrLocation() throws Exception {
+        long ownCenterId = centerId(CENTER_CIF);
+        long tutorId = createTutor(ownCenterId, "GROOM-CREATE-01");
+        long dogId = createDog(ownCenterId, tutorId, "Perro cita nueva");
+        long serviceId = createService(ownCenterId, "Servicio cita nueva");
+        long receptionistId = this.jdbcTemplate.queryForObject(
+                "SELECT id FROM usuarios WHERE username = 'recepcionista'",
+                Long.class
+        );
+        long reservationsBefore = this.jdbcTemplate.queryForObject("SELECT COUNT(*) FROM reserva", Long.class);
+        long requestsBefore = this.jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM solicitud_peluqueria",
+                Long.class
+        );
+        String requestBody = """
+                {
+                  "dogId": %d,
+                  "serviceId": %d,
+                  "date": "2099-12-30",
+                  "time": "10:30",
+                  "notes": "Revisar el cepillado",
+                  "status": "CONFIRMADA",
+                  "centerId": 999999,
+                  "receptionistId": 999999
+                }
+                """.formatted(dogId, serviceId);
+
+        this.mockMvc.perform(post("/api/recepcion/citas-peluqueria")
+                        .header("Authorization", basicAuthorization("recepcionista"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").isNumber())
+                .andExpect(jsonPath("$.dogName").value("Perro cita nueva"))
+                .andExpect(jsonPath("$.serviceNames[0]").value("Servicio cita nueva"))
+                .andExpect(jsonPath("$.date").value("2099-12-30"))
+                .andExpect(jsonPath("$.time").value("10:30:00"))
+                .andExpect(jsonPath("$.durationMinutes").value(60))
+                .andExpect(jsonPath("$.location").value(nullValue()))
+                .andExpect(jsonPath("$.status").value("PENDIENTE_ASIGNACION"))
+                .andExpect(jsonPath("$.notes").value("Revisar el cepillado"));
+
+        Long createdAppointmentId = this.jdbcTemplate.queryForObject(
+                "SELECT MAX(id) FROM cita_peluqueria WHERE perro_id = ? AND inicio = ?",
+                Long.class,
+                dogId,
+                LocalDateTime.of(2099, 12, 30, 10, 30)
+        );
+        org.junit.jupiter.api.Assertions.assertNotNull(createdAppointmentId);
+        org.junit.jupiter.api.Assertions.assertEquals(
+                receptionistId,
+                this.jdbcTemplate.queryForObject(
+                        "SELECT creado_por_usuario_id FROM cita_peluqueria WHERE id = ?",
+                        Long.class,
+                        createdAppointmentId
+                )
+        );
+        org.junit.jupiter.api.Assertions.assertNull(this.jdbcTemplate.queryForObject(
+                "SELECT peluquero_id FROM cita_peluqueria WHERE id = ?",
+                Long.class,
+                createdAppointmentId
+        ));
+        this.mockMvc.perform(get("/api/recepcion/citas-peluqueria/{id}", createdAppointmentId)
+                        .header("Authorization", basicAuthorization("recepcionista")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDIENTE_ASIGNACION"))
+                .andExpect(jsonPath("$.notes").value("Revisar el cepillado"));
+        org.junit.jupiter.api.Assertions.assertEquals(
+                reservationsBefore,
+                this.jdbcTemplate.queryForObject("SELECT COUNT(*) FROM reserva", Long.class)
+        );
+        org.junit.jupiter.api.Assertions.assertEquals(
+                requestsBefore,
+                this.jdbcTemplate.queryForObject("SELECT COUNT(*) FROM solicitud_peluqueria", Long.class)
+        );
+    }
+
+    @Test
+    void groomingAppointmentOptionsAndCreationRejectExternalDogsAndInactiveServices() throws Exception {
+        long ownCenterId = centerId(CENTER_CIF);
+        long clientCenterId = createCenter("B00000114", "CLIENTE", "Guardería externa cita");
+        long otherOwnCenterId = createCenter("B00000115", "PROPIA", "Otra guardería cita");
+        long ownDogId = createDog(ownCenterId, createTutor(ownCenterId, "GROOM-CREATE-02"), "Perro interno selector");
+        long externalDogId = createDog(clientCenterId, null, "Perro B2B no selector");
+        long foreignDogId = createDog(otherOwnCenterId, null, "Perro de otro centro");
+        long serviceId = createService(ownCenterId, "Servicio activo selector");
+        long inactiveServiceId = createService(ownCenterId, "Servicio inactivo selector");
+        this.jdbcTemplate.update("UPDATE servicio_peluqueria SET activo = FALSE WHERE id = ?", inactiveServiceId);
+
+        this.mockMvc.perform(get("/api/recepcion/citas-peluqueria/perros")
+                        .header("Authorization", basicAuthorization("recepcionista")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[?(@.id == " + ownDogId + ")]").exists())
+                .andExpect(jsonPath("$.items[?(@.id == " + externalDogId + ")]").doesNotExist())
+                .andExpect(jsonPath("$.items[?(@.id == " + foreignDogId + ")]").doesNotExist());
+        this.mockMvc.perform(get("/api/recepcion/citas-peluqueria/servicios")
+                        .header("Authorization", basicAuthorization("recepcionista")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == " + serviceId + ")]").exists())
+                .andExpect(jsonPath("$[?(@.id == " + inactiveServiceId + ")]").doesNotExist());
+
+        String externalDogRequest = """
+                {"dogId": %d, "serviceId": %d, "date": "2099-12-30", "time": "10:30"}
+                """.formatted(externalDogId, serviceId);
+        this.mockMvc.perform(post("/api/recepcion/citas-peluqueria")
+                        .header("Authorization", basicAuthorization("recepcionista"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(externalDogRequest))
+                .andExpect(status().isNotFound());
+
+        String foreignDogRequest = """
+                {"dogId": %d, "serviceId": %d, "date": "2099-12-30", "time": "10:30"}
+                """.formatted(foreignDogId, serviceId);
+        this.mockMvc.perform(post("/api/recepcion/citas-peluqueria")
+                        .header("Authorization", basicAuthorization("recepcionista"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(foreignDogRequest))
+                .andExpect(status().isNotFound());
+
+        String inactiveServiceRequest = """
+                {"dogId": %d, "serviceId": %d, "date": "2099-12-30", "time": "10:30"}
+                """.formatted(ownDogId, inactiveServiceId);
+        this.mockMvc.perform(post("/api/recepcion/citas-peluqueria")
+                        .header("Authorization", basicAuthorization("recepcionista"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(inactiveServiceRequest))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void groomingAppointmentCreationRequiresReceptionAndRequiredFields() throws Exception {
+        this.mockMvc.perform(post("/api/recepcion/citas-peluqueria")
+                        .header("Authorization", basicAuthorization("tutor"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "dogId": 0,
+                                  "serviceId": 0,
+                                  "date": "2099-12-30",
+                                  "time": "10:30"
+                                }
+                                """))
+                .andExpect(status().isForbidden());
+
+        this.mockMvc.perform(post("/api/recepcion/citas-peluqueria")
+                        .header("Authorization", basicAuthorization("recepcionista"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

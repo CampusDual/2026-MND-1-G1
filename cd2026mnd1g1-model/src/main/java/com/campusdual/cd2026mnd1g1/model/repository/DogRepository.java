@@ -133,6 +133,31 @@ public interface DogRepository extends JpaRepository<DogEntity, Long> {
             Pageable pageable
     );
 
+    @EntityGraph(attributePaths = {"center", "tutor"})
+    @Query("""
+            SELECT dog FROM DogEntity dog
+            WHERE dog.center.id = :centerId
+              AND dog.center.type = com.campusdual.cd2026mnd1g1.model.entity.CenterType.PROPIA
+              AND (:search = '' OR LOWER(dog.name) LIKE LOWER(CONCAT('%', :search, '%')))
+            """)
+    Page<DogEntity> findInternalGroomingDogs(
+            @Param("centerId") Long centerId,
+            @Param("search") String search,
+            Pageable pageable
+    );
+
+    @EntityGraph(attributePaths = "center")
+    @Query("""
+            SELECT dog FROM DogEntity dog
+            WHERE dog.id = :dogId
+              AND dog.center.id = :centerId
+              AND dog.center.type = com.campusdual.cd2026mnd1g1.model.entity.CenterType.PROPIA
+            """)
+    Optional<DogEntity> findInternalGroomingDog(
+            @Param("dogId") Long dogId,
+            @Param("centerId") Long centerId
+    );
+
     @EntityGraph(attributePaths = "tutor")
     @Query("""
             SELECT dog FROM DogEntity dog
