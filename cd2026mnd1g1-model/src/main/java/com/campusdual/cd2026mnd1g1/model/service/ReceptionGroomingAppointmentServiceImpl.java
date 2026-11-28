@@ -9,6 +9,8 @@ import com.campusdual.cd2026mnd1g1.api.dto.GroomingDogOptionPageDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingServiceOptionDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingRequestOriginDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentStatusDto;
+import com.campusdual.cd2026mnd1g1.api.dto.GroomerAgendaDto;
+import com.campusdual.cd2026mnd1g1.api.dto.GroomerOptionDto;
 import com.campusdual.cd2026mnd1g1.api.service.ReceptionGroomingAppointmentService;
 import com.campusdual.cd2026mnd1g1.model.entity.CenterType;
 import com.campusdual.cd2026mnd1g1.model.entity.DogEntity;
@@ -36,6 +38,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Consulta citas de peluquería dentro del centro del usuario autenticado.
@@ -186,6 +189,86 @@ public class ReceptionGroomingAppointmentServiceImpl implements ReceptionGroomin
         List<String> services = findServiceNames(List.of(appointment), user.getCenter().getId())
                 .getOrDefault(appointment.getId(), List.of());
         return toDetailDto(appointment, services);
+    }
+
+    @Override
+    public List<GroomerOptionDto> findGroomers(String username) {
+        UserEntity user = findActiveReceptionist(username);
+        validateReceptionCenter(user);
+        return this.userRepository
+                .findByCenter_IdAndRole_NameAndActiveTrueOrderByFirstNameAscLastNameAscIdAsc(
+                        user.getCenter().getId(),
+                        "PELUQUERO"
+                )
+                .stream()
+                .map(groomer -> new GroomerOptionDto(
+                        groomer.getId(),
+                        groomer.getFirstName() + " " + groomer.getLastName()
+                ))
+                .toList();
+    }
+
+    @Override
+    public GroomerAgendaDto findGroomerAgenda(Long groomerId, LocalDate date, String username) {
+        if (groomerId == null || groomerId < 0 || date == null) {
+            throw new IllegalArgumentException("Peluquero y fecha son obligatorios");
+        }
+        UserEntity user = findActiveReceptionist(username);
+        validateReceptionCenter(user);
+        Long centerId = user.getCenter().getId();
+        UserEntity groomer = findActiveGroomer(groomerId, centerId);
+        List<GroomingAppointmentEntity> appointments = this.appointmentRepository.findGroomerAgenda(
+                groomerId,
+                centerId,
+                Set.of(CenterType.PROPIA, CenterType.CLIENTE),
+                date.atStartOfDay(),
+                date.plusDays(1).atStartOfDay(),
+                GroomingAppointmentStatus.PENDIENTE_ASIGNACION
+        );
+        Map<Long, List<String>> serviceNames = findServiceNames(appointments, centerId);
+        List<GroomingAppointmentDto> items = appointments.stream()
+                .map(appointment -> toDto(
+                        appointment,
+                        serviceNames.getOrDefault(appointment.getId(), List.of())
+                ))
+                .toList();
+        return new GroomerAgendaDto(
+                groomer.getId(),
+                groomer.getFirstName() + " " + groomer.getLastName(),
+                date,
+                items
+        );
+    }
+
+    @Override
+    public GroomingAppointmentDetailDto findGroomerAgendaAppointment(
+            Long groomerId,
+            Long appointmentId,
+            String username
+    ) {
+        if (groomerId == null || groomerId < 0 || appointmentId == null || appointmentId < 0) {
+            throw new IllegalArgumentException("Los identificadores no pueden ser negativos");
+        }
+        UserEntity user = findActiveReceptionist(username);
+        validateReceptionCenter(user);
+        Long centerId = user.getCenter().getId();
+        findActiveGroomer(groomerId, centerId);
+        GroomingAppointmentEntity appointment = this.appointmentRepository.findGroomerAgendaAppointment(
+                        appointmentId,
+                        groomerId,
+                        centerId,
+                        GroomingAppointmentStatus.PENDIENTE_ASIGNACION
+                )
+                .orElseThrow(() -> new ResourceNotFoundException("No existe la cita indicada en esta agenda"));
+        List<String> services = findServiceNames(List.of(appointment), centerId)
+                .getOrDefault(appointment.getId(), List.of());
+        return toDetailDto(appointment, services);
+    }
+
+    private UserEntity findActiveGroomer(Long groomerId, Long centerId) {
+        return this.userRepository
+                .findByIdAndCenter_IdAndRole_NameAndActiveTrue(groomerId, centerId, "PELUQUERO")
+                .orElseThrow(() -> new ResourceNotFoundException("No existe el peluquero indicado"));
     }
 
     private UserEntity findActiveReceptionist(String username) {

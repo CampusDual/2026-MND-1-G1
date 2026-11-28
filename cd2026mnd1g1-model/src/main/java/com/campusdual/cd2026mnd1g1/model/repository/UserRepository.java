@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
+import java.util.List;
 
 @Repository
 public interface UserRepository extends JpaRepository<UserEntity, Long> {
@@ -51,4 +52,28 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
      * @return true si existe
      */
     boolean existsByUsername(String username);
+
+    /**
+     * Lista cuentas activas con un rol concreto en un centro.
+     *
+     * @param centerId centro operativo
+     * @param roleName nombre del rol
+     * @return usuarios ordenados por nombre
+     */
+    @EntityGraph(attributePaths = {"center", "role"})
+    List<UserEntity> findByCenter_IdAndRole_NameAndActiveTrueOrderByFirstNameAscLastNameAscIdAsc(
+            Long centerId,
+            String roleName
+    );
+
+    /**
+     * Busca una cuenta activa con rol y centro concretos.
+     *
+     * @param id identificador de cuenta
+     * @param centerId centro operativo
+     * @param roleName nombre del rol
+     * @return cuenta si pertenece al ámbito solicitado
+     */
+    @EntityGraph(attributePaths = {"center", "role"})
+    Optional<UserEntity> findByIdAndCenter_IdAndRole_NameAndActiveTrue(Long id, Long centerId, String roleName);
 }

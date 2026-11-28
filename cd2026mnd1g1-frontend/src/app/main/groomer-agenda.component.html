@@ -1,0 +1,97 @@
+<main class="agenda-page">
+  <header class="topbar">
+    <a class="brand" routerLink="/tablero-diario" aria-label="PawCare, recepción">
+      <span class="brand-mark" aria-hidden="true">P</span>
+      <span>PawCare <span class="brand-divider">·</span> <strong>Recepción</strong></span>
+    </a>
+    <a class="nav-link" routerLink="/citas-peluqueria">Citas de peluquería</a>
+    <button class="logout-button" type="button" (click)="logout()">Cerrar sesión</button>
+  </header>
+
+  <section class="content">
+    <button class="back-button" type="button" (click)="returnToSource()">← Volver al flujo</button>
+    <p class="eyebrow">PELUQUERÍA · CONSULTA</p>
+    <h1>Agenda de peluqueros</h1>
+    <p class="subtitle">Consulta las citas ya asignadas. Esta vista no calcula huecos libres ni modifica citas.</p>
+
+    @if (hasAccessError) {
+      <section class="state-card error" role="alert">
+        <h2>Sección no autorizada</h2>
+        <p>Solo recepción puede consultar esta agenda.</p>
+      </section>
+    } @else {
+      <section class="filters" aria-label="Seleccionar agenda">
+        <label for="groomer-id">Peluquero</label>
+        @if (isLoadingGroomers) {
+          <p role="status">Cargando peluqueros...</p>
+        } @else if (groomers.length === 0) {
+          <p class="empty-inline">No hay peluqueros activos en este centro.</p>
+        } @else {
+          <select id="groomer-id" name="groomerId" [(ngModel)]="selectedGroomerId">
+            <option [ngValue]="null">Selecciona un peluquero</option>
+            @for (groomer of groomers; track groomer.id) {
+              <option [ngValue]="groomer.id">{{ groomer.name }}</option>
+            }
+          </select>
+        }
+        <label for="agenda-date">Día</label>
+        <input id="agenda-date" name="agendaDate" type="date" [(ngModel)]="date">
+        <button class="primary-button" type="button"
+                [disabled]="isLoadingGroomers || isLoadingAgenda || groomers.length === 0"
+                (click)="loadAgenda()">Consultar</button>
+      </section>
+
+      @if (errorMessage) {
+        <section class="state-card error" role="alert">
+          <p>{{ errorMessage }}</p>
+          <button class="secondary-button" type="button"
+                  (click)="groomers.length === 0 ? retryGroomers() : loadAgenda()">Reintentar</button>
+        </section>
+      } @else if (isLoadingAgenda) {
+        <div class="state-card" role="status">Cargando agenda...</div>
+      } @else {
+        @if (agenda; as day) {
+          <header class="agenda-heading">
+            <div>
+              <h2>{{ day.groomerName }}</h2>
+              <p>{{ day.date }}</p>
+            </div>
+            <span>{{ day.appointments.length }} {{ day.appointments.length === 1 ? 'cita' : 'citas' }}</span>
+          </header>
+
+          @if (day.appointments.length === 0) {
+            <section class="state-card empty-state">
+              <h2>No hay citas asignadas para este día</h2>
+              <p>La agenda solo muestra citas existentes; no representa disponibilidad.</p>
+            </section>
+          } @else {
+            <section class="appointment-list" aria-label="Citas del peluquero">
+              @for (appointment of day.appointments; track appointment.id) {
+                <article class="appointment-card">
+                  <div class="appointment-heading">
+                    <div>
+                      <h3>{{ appointment.time.slice(0, 5) }} · {{ appointment.dogName }}</h3>
+                      <p>{{ appointment.customerName || (appointment.origin === 'B2B' ? 'Guardería no indicada' : 'Tutor no asociado') }}</p>
+                    </div>
+                    <span class="origin-badge" [class.b2b]="appointment.origin === 'B2B'">
+                      {{ originLabel(appointment.origin) }}
+                    </span>
+                  </div>
+                  <dl>
+                    <div><dt>Servicios</dt><dd>{{ appointment.serviceNames.join(', ') || 'No indicado' }}</dd></div>
+                    <div><dt>Duración</dt><dd>{{ appointment.durationMinutes }} min</dd></div>
+                    <div><dt>Modalidad / lugar</dt><dd>{{ locationLabel(appointment.location) }}</dd></div>
+                    <div><dt>Estado</dt><dd><span class="status-badge">{{ statusLabel(appointment.status) }}</span></dd></div>
+                  </dl>
+                  <button class="detail-link" type="button" (click)="openAppointment(appointment)">
+                    Ver detalle <span aria-hidden="true">→</span>
+                  </button>
+                </article>
+              }
+            </section>
+          }
+        }
+      }
+    }
+  </section>
+</main>

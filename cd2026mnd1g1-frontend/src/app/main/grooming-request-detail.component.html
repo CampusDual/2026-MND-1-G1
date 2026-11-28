@@ -10,7 +10,9 @@
   </header>
 
   <section class="content">
-    <button class="back-button" type="button" (click)="backToList()">← Volver a citas</button>
+    <button class="back-button" type="button" (click)="backToList()">
+      ← {{ hasAgendaContext ? 'Volver a agenda' : 'Volver a citas' }}
+    </button>
     @if (isLoading) {
       <div class="state-card" role="status">Cargando el detalle de la cita...</div>
     } @else if (hasAccessError) {
@@ -25,6 +27,11 @@
         <p class="eyebrow">DETALLE DE PELUQUERÍA</p>
         <h1>Cita #{{ item.id }}</h1>
         <p class="date">{{ formatDate(item.date, item.time) }}</p>
+        @if (item.status === 'PENDIENTE_ASIGNACION') {
+          <button class="agenda-button" type="button" (click)="openAgenda()">
+            Consultar agenda de peluqueros
+          </button>
+        }
 
       <section class="detail-card">
         <h2>Cita</h2>

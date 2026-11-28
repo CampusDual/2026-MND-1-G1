@@ -1137,6 +1137,102 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
         '422': { $ref: '#/components/responses/UnprocessableEntity' }
         '500': { $ref: '#/components/responses/InternalServerError' }
+  /api/recepcion/peluqueros:
+    get:
+      security:
+        - basicAuth: []
+      tags: [Peluquería]
+      summary: Lista peluqueros activos del centro de recepción
+      description: >
+        Solo Recepcionista. Devuelve usuarios activos con rol PELUQUERO asociados al
+        centro propio de la sesión, ordenados por nombre. No acepta centro en la petición.
+      operationId: listReceptionGroomers
+      responses:
+        '200':
+          description: Peluqueros activos del centro; la lista puede estar vacía.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GroomerOptionDto'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+  /api/recepcion/peluqueros/{groomerId}/agenda:
+    get:
+      security:
+        - basicAuth: []
+      tags: [Peluquería]
+      summary: Consulta la agenda diaria de un peluquero
+      description: >
+        Solo Recepcionista. Devuelve citas asignadas al peluquero activo del centro
+        autenticado para el día solicitado, ordenadas por inicio e identificador. Incluye
+        citas internas y B2B con servicios del centro. No devuelve citas pendientes de
+        asignación ni franjas libres, no calcula disponibilidad y no modifica datos.
+      operationId: getReceptionGroomerAgenda
+      parameters:
+        - in: path
+          name: groomerId
+          required: true
+          schema: { type: integer, format: int64, minimum: 0 }
+        - in: query
+          name: date
+          required: true
+          description: Día concreto consultado; formato ISO 8601.
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Agenda del día; appointments puede estar vacío.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroomerAgendaDto'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+  /api/recepcion/peluqueros/{groomerId}/agenda/{appointmentId}:
+    get:
+      security:
+        - basicAuth: []
+      tags: [Peluquería]
+      summary: Consulta una cita desde la agenda del peluquero
+      description: >
+        Solo Recepcionista. La cita debe estar asignada al peluquero indicado y tener
+        servicios coherentes del centro de la sesión; recursos ajenos o no asignados
+        responden como no encontrados. Operación de solo lectura.
+      operationId: getReceptionGroomerAgendaAppointment
+      parameters:
+        - in: path
+          name: groomerId
+          required: true
+          schema: { type: integer, format: int64, minimum: 0 }
+        - in: path
+          name: appointmentId
+          required: true
+          schema: { type: integer, format: int64, minimum: 0 }
+      responses:
+        '200':
+          description: Detalle con perro, tutor o guardería cliente, servicio, fecha, hora, lugar, estado y observaciones.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroomingAppointmentDetailDto'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
   /api/recepcion/citas-peluqueria/{id}:
     get:
       security:
@@ -2700,6 +2796,23 @@ components:
         - type: object
           properties:
             notes: { type: string, nullable: true, maxLength: 2000 }
+    GroomerOptionDto:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: integer, format: int64, minimum: 0 }
+        name: { type: string, minLength: 1, maxLength: 280 }
+    GroomerAgendaDto:
+      type: object
+      required: [groomerId, groomerName, date, appointments]
+      properties:
+        groomerId: { type: integer, format: int64, minimum: 0 }
+        groomerName: { type: string, minLength: 1, maxLength: 280 }
+        date: { type: string, format: date }
+        appointments:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroomingAppointmentDto'
     GroomingDogOptionPageDto:
       type: object
       required: [items, page, size, totalElements, totalPages]

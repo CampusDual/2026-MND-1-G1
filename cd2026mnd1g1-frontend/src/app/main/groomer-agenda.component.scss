@@ -1,0 +1,30 @@
+:host{display:block;min-height:100vh;color:#19384a;background:#f5f8fa}
+.topbar{min-height:68px;display:flex;align-items:center;gap:1.2rem;padding:0 5%;background:#fff;border-bottom:1px solid #e5edef}
+.brand{display:flex;align-items:center;gap:.6rem;margin-right:auto;color:#153449;font-weight:700;text-decoration:none}
+.brand-mark{width:36px;height:36px;display:grid;place-items:center;border-radius:12px;color:#fff;background:#159b8a;font-size:1.2rem}
+.brand-divider{color:#9cabb4;font-weight:400}.brand strong{color:#527080;font-size:.92rem}
+.nav-link{color:#167d72;font-size:.88rem;font-weight:700;text-decoration:none}
+.logout-button,.back-button,.secondary-button,.primary-button{padding:.65rem .9rem;border:1px solid #dce6e9;border-radius:8px;color:#3c5867;background:#fff;font:inherit;font-size:.85rem;font-weight:600;cursor:pointer}
+.primary-button{border-color:#22786e;color:#fff;background:#22786e}
+.content{width:min(900px,92%);margin:auto;padding:2rem 0 4rem}
+.back-button{margin-bottom:1.4rem;color:#167d72}
+.eyebrow{margin:0 0 .4rem;color:#168d80;font-size:.7rem;font-weight:800;letter-spacing:.12em}
+h1{margin:0;font-size:2rem}.subtitle{margin:.45rem 0 1.4rem;color:#758794}
+.filters,.state-card,.appointment-card{padding:1rem 1.2rem;border:1px solid #e4ecef;border-radius:12px;background:#fff}
+.filters{display:grid;grid-template-columns:auto minmax(180px,1fr) auto minmax(160px,.7fr) auto;align-items:center;gap:.7rem;margin-bottom:1rem}
+.filters label{color:#526b78;font-size:.85rem;font-weight:700}
+.filters select,.filters input{min-width:0;padding:.65rem;border:1px solid #dce6e9;border-radius:7px;color:#19384a;background:#fff;font:inherit}
+.state-card{margin:.8rem 0;color:#657987}.state-card.error{color:#9e3f36;background:#fff0ed}
+.empty-inline{grid-column:span 4;margin:0;color:#758794}
+.agenda-heading{display:flex;justify-content:space-between;align-items:center;margin:1.5rem 0 .8rem}
+.agenda-heading h2{margin:0;font-size:1.25rem}.agenda-heading p{margin:.25rem 0;color:#758794}.agenda-heading>span{color:#758794;font-size:.85rem}
+.appointment-list{display:grid;gap:.8rem}.appointment-card{padding:1.1rem 1.2rem}
+.appointment-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem}
+.appointment-heading h3{margin:0;font-size:1.05rem}.appointment-heading p{margin:.25rem 0;color:#758794}
+.origin-badge,.status-badge{display:inline-block;padding:.28rem .55rem;border-radius:999px;color:#246858;background:#e6f5f0;font-size:.73rem;font-weight:700}
+.origin-badge.b2b{color:#76551f;background:#fff3d9}
+.appointment-card dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.8rem;margin:1rem 0}
+.appointment-card dt{color:#758794;font-size:.73rem}.appointment-card dd{margin:.25rem 0 0;font-weight:600}
+.detail-link{padding:0;border:0;color:#167d72;background:none;font:inherit;font-weight:700;cursor:pointer}
+button:disabled{cursor:wait;opacity:.6}
+@media(max-width:700px){.topbar{flex-wrap:wrap;padding:1rem 4%}.brand{width:100%}.content{padding-top:1.4rem}.filters{grid-template-columns:1fr}.filters>*{width:100%;box-sizing:border-box}.empty-inline{grid-column:auto}.appointment-heading{flex-direction:column}.agenda-heading{align-items:flex-start}}

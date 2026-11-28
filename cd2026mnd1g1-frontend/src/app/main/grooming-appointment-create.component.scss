@@ -23,6 +23,7 @@ h1{margin:0;font-size:2rem}.subtitle{margin:.45rem 0 1.4rem;color:#758794}
 .dog-pagination,.form-actions{display:flex;align-items:center;justify-content:space-between;gap:.8rem;margin-top:.7rem}
 .dog-pagination{justify-content:flex-start;font-size:.8rem;color:#758794}
 .form-actions{justify-content:flex-end;margin-top:1rem}
+.agenda-button{justify-self:start;margin-top:.35rem}
 .state-card{display:block;color:#657987}.state-card.error{color:#9e3f36;background:#fff0ed}
 button:disabled{cursor:wait;opacity:.6}
 @media(max-width:620px){.topbar{flex-wrap:wrap;padding:1rem 4%}.brand{width:100%}.content{padding-top:1.4rem}.date-time-fields{grid-template-columns:1fr}.form-actions{flex-wrap:wrap}.form-actions button{flex:1}}

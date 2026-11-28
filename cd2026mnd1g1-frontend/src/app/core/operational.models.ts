@@ -179,6 +179,18 @@ export interface GroomingAppointmentDetail extends GroomingAppointment {
   notes: string | null;
 }
 
+export interface GroomerOption {
+  id: number;
+  name: string;
+}
+
+export interface GroomerAgenda {
+  groomerId: number;
+  groomerName: string;
+  date: string;
+  appointments: GroomingAppointment[];
+}
+
 export interface GroomingDogOption {
   id: number;
   name: string;

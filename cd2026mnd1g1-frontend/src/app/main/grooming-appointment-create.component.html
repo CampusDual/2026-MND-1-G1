@@ -91,6 +91,10 @@
                   [(ngModel)]="notes" placeholder="Añade información para esta cita"></textarea>
         <p class="field-help">Máximo 2000 caracteres.</p>
 
+        <button class="secondary-button agenda-button" type="button" (click)="openAgenda()">
+          Consultar agenda de peluqueros
+        </button>
+
         @if (submitError) {
           <p class="field-error" role="alert">{{ submitError }}</p>
         }

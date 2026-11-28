@@ -7,6 +7,8 @@ import com.campusdual.cd2026mnd1g1.api.dto.GroomingDogOptionPageDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingServiceOptionDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingRequestOriginDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentStatusDto;
+import com.campusdual.cd2026mnd1g1.api.dto.GroomerAgendaDto;
+import com.campusdual.cd2026mnd1g1.api.dto.GroomerOptionDto;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -74,4 +76,36 @@ public interface ReceptionGroomingAppointmentService {
      * @return detalle de la cita
      */
     GroomingAppointmentDetailDto findAppointment(Long appointmentId, String username);
+
+    /**
+     * Lista peluqueros activos del centro de recepción.
+     *
+     * @param username usuario autenticado
+     * @return peluqueros ordenados por nombre
+     */
+    List<GroomerOptionDto> findGroomers(String username);
+
+    /**
+     * Consulta citas asignadas a un peluquero en un día concreto.
+     *
+     * @param groomerId identificador del peluquero
+     * @param date día consultado
+     * @param username usuario autenticado
+     * @return agenda de solo lectura
+     */
+    GroomerAgendaDto findGroomerAgenda(Long groomerId, LocalDate date, String username);
+
+    /**
+     * Consulta una cita únicamente si está asignada al peluquero indicado y pertenece al centro.
+     *
+     * @param groomerId identificador del peluquero
+     * @param appointmentId identificador de cita
+     * @param username usuario autenticado
+     * @return detalle de cita
+     */
+    GroomingAppointmentDetailDto findGroomerAgendaAppointment(
+            Long groomerId,
+            Long appointmentId,
+            String username
+    );
 }

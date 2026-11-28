@@ -14,6 +14,7 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Collection;
 
 @Repository
 public interface GroomingAppointmentRepository extends JpaRepository<GroomingAppointmentEntity, Long> {
@@ -111,5 +112,68 @@ public interface GroomingAppointmentRepository extends JpaRepository<GroomingApp
     List<GroomingAppointmentServiceNameProjection> findServiceNames(
             @Param("appointmentIds") List<Long> appointmentIds,
             @Param("centerId") Long centerId
+    );
+
+    @EntityGraph(attributePaths = {
+            "dog", "dog.tutor", "dog.center", "groomer", "groomer.center", "request", "request.customerCenter"
+    })
+    @Query("""
+            SELECT appointment FROM GroomingAppointmentEntity appointment
+            JOIN appointment.groomer groomer
+            JOIN appointment.dog dog
+            WHERE groomer.id = :groomerId
+              AND groomer.center.id = :centerId
+              AND dog.center.type IN :originTypes
+              AND appointment.startAt >= :fromDate
+              AND appointment.startAt < :toDate
+              AND appointment.status <> :unassignedStatus
+              AND EXISTS (
+                  SELECT service.id FROM GroomingServiceEntity service
+                  WHERE service MEMBER OF appointment.services
+                    AND service.center.id = :centerId
+              )
+              AND NOT EXISTS (
+                  SELECT otherService.id FROM GroomingServiceEntity otherService
+                  WHERE otherService MEMBER OF appointment.services
+                    AND otherService.center.id <> :centerId
+              )
+            ORDER BY appointment.startAt, appointment.id
+            """)
+    List<GroomingAppointmentEntity> findGroomerAgenda(
+            @Param("groomerId") Long groomerId,
+            @Param("centerId") Long centerId,
+            @Param("originTypes") Collection<CenterType> originTypes,
+            @Param("fromDate") LocalDateTime fromDate,
+            @Param("toDate") LocalDateTime toDate,
+            @Param("unassignedStatus") GroomingAppointmentStatus unassignedStatus
+    );
+
+    @EntityGraph(attributePaths = {
+            "dog", "dog.tutor", "dog.center", "groomer", "groomer.center", "request", "request.customerCenter"
+    })
+    @Query("""
+            SELECT appointment FROM GroomingAppointmentEntity appointment
+            JOIN appointment.groomer groomer
+            JOIN appointment.dog dog
+            WHERE appointment.id = :appointmentId
+              AND groomer.id = :groomerId
+              AND groomer.center.id = :centerId
+              AND appointment.status <> :unassignedStatus
+              AND EXISTS (
+                  SELECT service.id FROM GroomingServiceEntity service
+                  WHERE service MEMBER OF appointment.services
+                    AND service.center.id = :centerId
+              )
+              AND NOT EXISTS (
+                  SELECT otherService.id FROM GroomingServiceEntity otherService
+                  WHERE otherService MEMBER OF appointment.services
+                    AND otherService.center.id <> :centerId
+              )
+            """)
+    Optional<GroomingAppointmentEntity> findGroomerAgendaAppointment(
+            @Param("appointmentId") Long appointmentId,
+            @Param("groomerId") Long groomerId,
+            @Param("centerId") Long centerId,
+            @Param("unassignedStatus") GroomingAppointmentStatus unassignedStatus
     );
 }

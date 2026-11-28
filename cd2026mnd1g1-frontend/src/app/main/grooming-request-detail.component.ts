@@ -27,6 +27,10 @@ export class GroomingRequestDetailComponent implements OnInit {
   hasAccessError: boolean = false;
   errorMessage: string = '';
   private appointmentId: number = 0;
+  private agendaGroomerId: number | null = null;
+  private agendaDate: string | null = null;
+  private agendaReturnTo: string | null = null;
+  private sourceAppointmentId: number | null = null;
 
   constructor(
     private readonly authService: AuthService,
@@ -42,6 +46,10 @@ export class GroomingRequestDetailComponent implements OnInit {
       this.errorMessage = 'No se encontró la cita indicada.';
       return;
     }
+    this.agendaGroomerId = this.readId(this.route.snapshot.queryParamMap.get('agendaGroomerId'));
+    this.agendaDate = this.route.snapshot.queryParamMap.get('agendaDate');
+    this.agendaReturnTo = this.route.snapshot.queryParamMap.get('returnTo');
+    this.sourceAppointmentId = this.readId(this.route.snapshot.queryParamMap.get('sourceAppointmentId'));
     this.loadAppointment();
   }
 
@@ -49,7 +57,13 @@ export class GroomingRequestDetailComponent implements OnInit {
     this.isLoading = true;
     this.hasAccessError = false;
     this.errorMessage = '';
-    this.daycareOperationsService.getReceptionGroomingAppointment(this.appointmentId).subscribe({
+    const request = this.agendaGroomerId === null
+      ? this.daycareOperationsService.getReceptionGroomingAppointment(this.appointmentId)
+      : this.daycareOperationsService.getReceptionGroomerAgendaAppointment(
+        this.agendaGroomerId,
+        this.appointmentId
+      );
+    request.subscribe({
       next: (appointment: GroomingAppointmentDetail) => {
         this.appointment = appointment;
         this.isLoading = false;
@@ -92,7 +106,35 @@ export class GroomingRequestDetailComponent implements OnInit {
   }
 
   backToList(): void {
+    if (this.hasAgendaContext && this.agendaGroomerId !== null && this.agendaDate !== null) {
+      this.router.navigate(['/agenda-peluqueros'], {
+        queryParams: {
+          groomerId: this.agendaGroomerId,
+          date: this.agendaDate,
+          returnTo: this.agendaReturnTo,
+          sourceAppointmentId: this.sourceAppointmentId
+        }
+      });
+      return;
+    }
     this.router.navigate(['/citas-peluqueria']);
+  }
+
+  get hasAgendaContext(): boolean {
+    return this.agendaGroomerId !== null && this.agendaDate !== null;
+  }
+
+  openAgenda(): void {
+    if (this.appointment === null || this.appointment.status !== 'PENDIENTE_ASIGNACION') {
+      return;
+    }
+    this.router.navigate(['/agenda-peluqueros'], {
+      queryParams: {
+        date: this.appointment.date,
+        returnTo: 'appointment',
+        sourceAppointmentId: this.appointment.id
+      }
+    });
   }
 
   logout(): void {
@@ -115,5 +157,13 @@ export class GroomingRequestDetailComponent implements OnInit {
     this.errorMessage = error.status === 404
       ? 'No se encontró la cita indicada.'
       : 'No se pudo cargar el detalle. Comprueba la conexión e inténtalo de nuevo.';
+  }
+
+  private readId(value: string | null): number | null {
+    if (value === null || !/^\d+$/.test(value)) {
+      return null;
+    }
+    const parsedId: number = Number(value);
+    return Number.isSafeInteger(parsedId) && parsedId >= 0 ? parsedId : null;
   }
 }

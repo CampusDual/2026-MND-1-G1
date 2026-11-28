@@ -36,6 +36,8 @@ import {
   GroomingServiceOption,
   GroomingRequestOrigin,
   GroomingAppointmentPage,
+  GroomerAgenda,
+  GroomerOption,
   GroomingRequest,
   GroomingRequestDetail,
   GroomingRequestPage,
@@ -63,6 +65,7 @@ export class DaycareOperationsService {
   private readonly reservationsPath: string = '/api/reservas';
   private readonly receptionReservationsPath: string = '/api/recepcion/reservas';
   private readonly groomingAppointmentsPath: string = '/api/recepcion/citas-peluqueria';
+  private readonly groomersPath: string = '/api/recepcion/peluqueros';
   private readonly groomingRequestsPath: string = '/api/recepcion/solicitudes-peluqueria';
   private readonly receptionPath: string = '/api/recepcion';
   private readonly tutorsPath: string = '/api/recepcion/tutores';
@@ -293,6 +296,30 @@ export class DaycareOperationsService {
     return this.http.post<GroomingAppointmentDetail>(this.groomingAppointmentsPath, request, {
       headers: this.getAuthHeaders()
     });
+  }
+
+  getReceptionGroomers(): Observable<GroomerOption[]> {
+    return this.http.get<GroomerOption[]>(this.groomersPath, {
+      headers: this.getAuthHeaders()
+    });
+  }
+
+  getReceptionGroomerAgenda(groomerId: number, date: string): Observable<GroomerAgenda> {
+    const params: HttpParams = new HttpParams().set('date', date);
+    return this.http.get<GroomerAgenda>(`${this.groomersPath}/${groomerId}/agenda`, {
+      headers: this.getAuthHeaders(),
+      params
+    });
+  }
+
+  getReceptionGroomerAgendaAppointment(
+    groomerId: number,
+    appointmentId: number
+  ): Observable<GroomingAppointmentDetail> {
+    return this.http.get<GroomingAppointmentDetail>(
+      `${this.groomersPath}/${groomerId}/agenda/${appointmentId}`,
+      { headers: this.getAuthHeaders() }
+    );
   }
 
   getReceptionGroomingRequests(

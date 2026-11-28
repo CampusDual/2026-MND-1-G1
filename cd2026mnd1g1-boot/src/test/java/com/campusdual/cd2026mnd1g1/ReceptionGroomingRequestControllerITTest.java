@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Base64;
+import java.util.UUID;
 
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -44,6 +45,11 @@ class ReceptionGroomingRequestControllerITTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isUnauthorized());
+        this.mockMvc.perform(get("/api/recepcion/peluqueros"))
+                .andExpect(status().isUnauthorized());
+        this.mockMvc.perform(get("/api/recepcion/peluqueros/0/agenda")
+                        .queryParam("date", REQUEST_DATE.toString()))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -58,6 +64,9 @@ class ReceptionGroomingRequestControllerITTest {
                         .header("Authorization", basicAuthorization("tutor")))
                 .andExpect(status().isForbidden());
         this.mockMvc.perform(get("/api/recepcion/citas-peluqueria")
+                        .header("Authorization", basicAuthorization("tutor")))
+                .andExpect(status().isForbidden());
+        this.mockMvc.perform(get("/api/recepcion/peluqueros")
                         .header("Authorization", basicAuthorization("tutor")))
                 .andExpect(status().isForbidden());
     }
@@ -452,6 +461,168 @@ class ReceptionGroomingRequestControllerITTest {
     }
 
     @Test
+    void receptionListsOwnGroomersAndReadsTheirDailyAgendaAndDetails() throws Exception {
+        long ownCenterId = centerId(CENTER_CIF);
+        long clientCenterId = createCenter("B00000116", "CLIENTE", "Guardería B2B agenda");
+        long otherCenterId = createCenter("B00000117", "PROPIA", "Otro centro peluquería agenda");
+        long ownGroomerId = createGroomer(ownCenterId, "agenda-groomer-a", "Ada", "Peluquera");
+        long emptyGroomerId = createGroomer(ownCenterId, "agenda-groomer-empty", "Eva", "Sin citas");
+        long inactiveGroomerId = createGroomer(ownCenterId, "agenda-groomer-inactive", "Ines", "Inactiva");
+        long foreignGroomerId = createGroomer(otherCenterId, "agenda-groomer-foreign", "Noa", "Ajena");
+        this.jdbcTemplate.update("UPDATE usuarios SET activo = FALSE WHERE id = ?", inactiveGroomerId);
+        long internalDogId = createDog(
+                ownCenterId,
+                createTutor(ownCenterId, "GROOM-AGENDA-01"),
+                "Perro interno agenda"
+        );
+        long b2bDogId = createDog(clientCenterId, null, "Perro B2B agenda");
+        long serviceId = createService(ownCenterId, "Servicio agenda");
+        long foreignDogId = createDog(otherCenterId, null, "Perro otro centro agenda");
+        long foreignServiceId = createService(otherCenterId, "Servicio otro centro agenda");
+        long internalAppointmentId = createAppointment(
+                internalDogId,
+                ownGroomerId,
+                serviceId,
+                LocalDateTime.of(2026, 11, 25, 9, 0),
+                "CONFIRMADA"
+        );
+        long b2bAppointmentId = createAppointment(
+                b2bDogId,
+                ownGroomerId,
+                serviceId,
+                LocalDateTime.of(2026, 11, 25, 11, 30),
+                "COMPLETADA"
+        );
+        long foreignAppointmentId = createAppointment(
+                foreignDogId,
+                foreignGroomerId,
+                foreignServiceId,
+                LocalDateTime.of(2026, 11, 25, 14, 0),
+                "CONFIRMADA"
+        );
+        createAppointment(
+                internalDogId,
+                ownGroomerId,
+                serviceId,
+                LocalDateTime.of(2026, 11, 25, 12, 0),
+                "CANCELADA"
+        );
+        createUnassignedAppointment(
+                internalDogId,
+                serviceId,
+                LocalDateTime.of(2026, 11, 25, 13, 0)
+        );
+        long appointmentsBefore = this.jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM cita_peluqueria",
+                Long.class
+        );
+        long requestsBefore = this.jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM solicitud_peluqueria",
+                Long.class
+        );
+
+        this.mockMvc.perform(get("/api/recepcion/peluqueros")
+                        .header("Authorization", basicAuthorization("recepcionista")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == " + ownGroomerId + ")]").exists())
+                .andExpect(jsonPath("$[?(@.id == " + emptyGroomerId + ")]").exists())
+                .andExpect(jsonPath("$[?(@.id == " + inactiveGroomerId + ")]").doesNotExist())
+                .andExpect(jsonPath("$[?(@.id == " + foreignGroomerId + ")]").doesNotExist());
+
+        this.mockMvc.perform(get("/api/recepcion/peluqueros/{id}/agenda", ownGroomerId)
+                        .queryParam("date", REQUEST_DATE.toString())
+                        .header("Authorization", basicAuthorization("recepcionista")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.groomerId").value(ownGroomerId))
+                .andExpect(jsonPath("$.groomerName").value("Ada Peluquera"))
+                .andExpect(jsonPath("$.date").value("2026-11-25"))
+                .andExpect(jsonPath("$.appointments.length()").value(3))
+                .andExpect(jsonPath("$.appointments[0].id").value(internalAppointmentId))
+                .andExpect(jsonPath("$.appointments[0].origin").value("INTERNA"))
+                .andExpect(jsonPath("$.appointments[0].status").value("CONFIRMADA"))
+                .andExpect(jsonPath("$.appointments[1].id").value(b2bAppointmentId))
+                .andExpect(jsonPath("$.appointments[1].origin").value("B2B"))
+                .andExpect(jsonPath("$.appointments[1].customerName").value("Guardería B2B agenda"))
+                .andExpect(jsonPath("$.appointments[1].status").value("COMPLETADA"))
+                .andExpect(jsonPath("$.appointments[2].status").value("CANCELADA"));
+
+        this.mockMvc.perform(get("/api/recepcion/peluqueros/{id}/agenda", emptyGroomerId)
+                        .queryParam("date", REQUEST_DATE.toString())
+                        .header("Authorization", basicAuthorization("recepcionista")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.appointments.length()").value(0));
+
+        this.mockMvc.perform(get(
+                                "/api/recepcion/peluqueros/{groomerId}/agenda/{appointmentId}",
+                                ownGroomerId,
+                                b2bAppointmentId
+                        )
+                        .header("Authorization", basicAuthorization("recepcionista")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dogName").value("Perro B2B agenda"))
+                .andExpect(jsonPath("$.customerName").value("Guardería B2B agenda"))
+                .andExpect(jsonPath("$.serviceNames[0]").value("Servicio agenda"));
+
+        this.mockMvc.perform(get(
+                                "/api/recepcion/peluqueros/{groomerId}/agenda/{appointmentId}",
+                                ownGroomerId,
+                                internalAppointmentId
+                        )
+                        .header("Authorization", basicAuthorization("recepcionista")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dogName").value("Perro interno agenda"))
+                .andExpect(jsonPath("$.customerName").value("Tutor GROOM-AGENDA-01"));
+
+        this.mockMvc.perform(get("/api/recepcion/peluqueros/{id}/agenda", foreignGroomerId)
+                        .queryParam("date", REQUEST_DATE.toString())
+                        .header("Authorization", basicAuthorization("recepcionista")))
+                .andExpect(status().isNotFound());
+        this.mockMvc.perform(get(
+                                "/api/recepcion/peluqueros/{groomerId}/agenda/{appointmentId}",
+                                foreignGroomerId,
+                                internalAppointmentId
+                        )
+                        .header("Authorization", basicAuthorization("recepcionista")))
+                .andExpect(status().isNotFound());
+        this.mockMvc.perform(get(
+                                "/api/recepcion/peluqueros/{groomerId}/agenda/{appointmentId}",
+                                ownGroomerId,
+                                foreignAppointmentId
+                        )
+                        .header("Authorization", basicAuthorization("recepcionista")))
+                .andExpect(status().isNotFound());
+        this.mockMvc.perform(get(
+                                "/api/recepcion/peluqueros/{groomerId}/agenda/{appointmentId}",
+                                ownGroomerId,
+                                internalAppointmentId
+                        )
+                        .header("Authorization", basicAuthorization("tutor")))
+                .andExpect(status().isForbidden());
+        this.mockMvc.perform(get("/api/recepcion/peluqueros/{id}/agenda", ownGroomerId)
+                        .queryParam("date", "invalid-date")
+                        .header("Authorization", basicAuthorization("recepcionista")))
+                .andExpect(status().isBadRequest());
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                appointmentsBefore,
+                this.jdbcTemplate.queryForObject("SELECT COUNT(*) FROM cita_peluqueria", Long.class)
+        );
+        org.junit.jupiter.api.Assertions.assertEquals(
+                requestsBefore,
+                this.jdbcTemplate.queryForObject("SELECT COUNT(*) FROM solicitud_peluqueria", Long.class)
+        );
+    }
+
+    @Test
+    void groomerAgendaRejectsUnassignedAppointmentsAndMissingDate() throws Exception {
+        long ownCenterId = centerId(CENTER_CIF);
+        long groomerId = createGroomer(ownCenterId, "agenda-groomer-validation", "Mia", "Agenda");
+        this.mockMvc.perform(get("/api/recepcion/peluqueros/{id}/agenda", groomerId)
+                        .header("Authorization", basicAuthorization("recepcionista")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void groomingAppointmentCreationRequiresReceptionAndRequiredFields() throws Exception {
         this.mockMvc.perform(post("/api/recepcion/citas-peluqueria")
                         .header("Authorization", basicAuthorization("tutor"))
@@ -564,6 +735,50 @@ class ReceptionGroomingRequestControllerITTest {
                 centerId,
                 name
         );
+    }
+
+    private long createGroomer(long centerId, String username, String firstName, String lastName) {
+        this.jdbcTemplate.update("""
+                INSERT INTO usuarios (
+                    centro_id, rol_id, nombre, apellidos, dni, email, username, password_hash, activo, creado_en
+                )
+                SELECT ?, role.id, ?, ?, ?, ?, ?, receptionist.password_hash, TRUE, CURRENT_TIMESTAMP
+                FROM rol role
+                JOIN usuarios receptionist ON receptionist.username = 'recepcionista'
+                WHERE role.nombre = 'PELUQUERO'
+                """,
+                centerId,
+                firstName,
+                lastName,
+                "GA" + UUID.randomUUID().toString().replace("-", "").substring(0, 16),
+                username + "@example.test",
+                username
+        );
+        return this.jdbcTemplate.queryForObject(
+                "SELECT id FROM usuarios WHERE username = ?",
+                Long.class,
+                username
+        );
+    }
+
+    private long createUnassignedAppointment(long dogId, long serviceId, LocalDateTime startAt) {
+        this.jdbcTemplate.update("""
+                INSERT INTO cita_peluqueria
+                    (perro_id, peluquero_id, inicio, duracion_min, lugar, estado)
+                VALUES (?, NULL, ?, 60, NULL, 'PENDIENTE_ASIGNACION')
+                """, dogId, startAt);
+        long appointmentId = this.jdbcTemplate.queryForObject(
+                "SELECT MAX(id) FROM cita_peluqueria WHERE perro_id = ? AND inicio = ?",
+                Long.class,
+                dogId,
+                startAt
+        );
+        this.jdbcTemplate.update(
+                "INSERT INTO cita_servicio (cita_id, servicio_id) VALUES (?, ?)",
+                appointmentId,
+                serviceId
+        );
+        return appointmentId;
     }
 
     private long createRequest(

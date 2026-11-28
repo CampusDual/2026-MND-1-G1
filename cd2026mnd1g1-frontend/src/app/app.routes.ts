@@ -16,6 +16,7 @@ import { GroomingRequestDetailComponent } from './main/grooming-request-detail.c
 import { ReceptionGroomingRequestsComponent } from './main/reception-grooming-requests.component';
 import { ReceptionGroomingRequestDetailComponent } from './main/reception-grooming-request-detail.component';
 import { GroomingAppointmentCreateComponent } from './main/grooming-appointment-create.component';
+import { GroomerAgendaComponent } from './main/groomer-agenda.component';
 
 const receptionRoles: string[] = ['RECEPCIONISTA', 'ADMIN', 'GERENTE'];
 
@@ -32,6 +33,7 @@ export const routes: Routes = [
 	{ path: 'solicitudes-peluqueria/:id', component: ReceptionGroomingRequestDetailComponent, canActivate: [authGuard, roleGuard], data: { roles: receptionRoles } },
 	{ path: 'solicitudes-peluqueria', component: ReceptionGroomingRequestsComponent, canActivate: [authGuard, roleGuard], data: { roles: receptionRoles } },
 	{ path: 'citas-peluqueria/nueva', component: GroomingAppointmentCreateComponent, canActivate: [authGuard, roleGuard], data: { roles: ['RECEPCIONISTA'] } },
+	{ path: 'agenda-peluqueros', component: GroomerAgendaComponent, canActivate: [authGuard, roleGuard], data: { roles: ['RECEPCIONISTA'] } },
 	{ path: 'citas-peluqueria/:id', component: GroomingRequestDetailComponent, canActivate: [authGuard, roleGuard], data: { roles: receptionRoles } },
 	{ path: 'citas-peluqueria', component: GroomingRequestsComponent, canActivate: [authGuard, roleGuard], data: { roles: receptionRoles } },
 	{ path: 'tablero-diario/reservas/:id', component: ReservationDetailComponent, canActivate: [authGuard, roleGuard], data: { roles: receptionRoles } },
