@@ -3,10 +3,12 @@ package com.campusdual.cd2026mnd1g1.model.repository;
 import com.campusdual.cd2026mnd1g1.model.entity.CenterType;
 import com.campusdual.cd2026mnd1g1.model.entity.GroomingAppointmentEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.GroomingAppointmentStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -20,15 +22,33 @@ import java.util.Collection;
 public interface GroomingAppointmentRepository extends JpaRepository<GroomingAppointmentEntity, Long> {
 
     @EntityGraph(attributePaths = {
-            "dog", "dog.tutor", "dog.center", "groomer", "groomer.center", "request", "request.customerCenter"
+            "dog", "dog.tutor", "dog.center", "groomer", "groomer.center", "request",
+            "request.customerCenter", "request.dog"
     })
     @Query(
             value = """
                     SELECT appointment FROM GroomingAppointmentEntity appointment
                     JOIN appointment.dog dog
                     LEFT JOIN appointment.groomer groomer
-                    WHERE (groomer.center.id = :centerId
-                           OR (groomer IS NULL AND dog.center.id = :centerId))
+                    LEFT JOIN groomer.center groomerCenter
+                    LEFT JOIN appointment.request request
+                    WHERE (groomerCenter.id = :centerId
+                           OR (groomer IS NULL AND dog.center.id = :centerId)
+                           OR (groomer IS NULL
+                               AND appointment.status = :pendingStatus
+                               AND dog.center.type = :clientType
+                               AND request.dog.id = dog.id
+                               AND request.customerCenter.id = dog.center.id
+                               AND EXISTS (
+                                   SELECT requestedService.id FROM GroomingServiceEntity requestedService
+                                   WHERE requestedService MEMBER OF request.services
+                                     AND requestedService.center.id = :centerId
+                               )
+                               AND NOT EXISTS (
+                                   SELECT otherRequestService.id FROM GroomingServiceEntity otherRequestService
+                                   WHERE otherRequestService MEMBER OF request.services
+                                     AND otherRequestService.center.id <> :centerId
+                               )))
                       AND dog.center.type = COALESCE(:originCenterType, dog.center.type)
                       AND appointment.status = COALESCE(:status, appointment.status)
                       AND (:fromDate IS NULL OR appointment.startAt >= :fromDate)
@@ -48,8 +68,25 @@ public interface GroomingAppointmentRepository extends JpaRepository<GroomingApp
                     SELECT COUNT(appointment.id) FROM GroomingAppointmentEntity appointment
                     JOIN appointment.dog dog
                     LEFT JOIN appointment.groomer groomer
-                    WHERE (groomer.center.id = :centerId
-                      OR (groomer IS NULL AND dog.center.id = :centerId))
+                    LEFT JOIN groomer.center groomerCenter
+                    LEFT JOIN appointment.request request
+                    WHERE (groomerCenter.id = :centerId
+                           OR (groomer IS NULL AND dog.center.id = :centerId)
+                           OR (groomer IS NULL
+                               AND appointment.status = :pendingStatus
+                               AND dog.center.type = :clientType
+                               AND request.dog.id = dog.id
+                               AND request.customerCenter.id = dog.center.id
+                               AND EXISTS (
+                                   SELECT requestedService.id FROM GroomingServiceEntity requestedService
+                                   WHERE requestedService MEMBER OF request.services
+                                     AND requestedService.center.id = :centerId
+                               )
+                               AND NOT EXISTS (
+                                   SELECT otherRequestService.id FROM GroomingServiceEntity otherRequestService
+                                   WHERE otherRequestService MEMBER OF request.services
+                                     AND otherRequestService.center.id <> :centerId
+                               )))
                       AND dog.center.type = COALESCE(:originCenterType, dog.center.type)
                       AND appointment.status = COALESCE(:status, appointment.status)
                       AND (:fromDate IS NULL OR appointment.startAt >= :fromDate)
@@ -68,6 +105,8 @@ public interface GroomingAppointmentRepository extends JpaRepository<GroomingApp
     )
     Page<GroomingAppointmentEntity> findVisibleAppointments(
             @Param("centerId") Long centerId,
+            @Param("pendingStatus") GroomingAppointmentStatus pendingStatus,
+            @Param("clientType") CenterType clientType,
             @Param("originCenterType") CenterType originCenterType,
             @Param("status") GroomingAppointmentStatus status,
             @Param("fromDate") LocalDateTime fromDate,
@@ -82,9 +121,26 @@ public interface GroomingAppointmentRepository extends JpaRepository<GroomingApp
             SELECT appointment FROM GroomingAppointmentEntity appointment
             JOIN appointment.dog dog
             LEFT JOIN appointment.groomer groomer
+            LEFT JOIN groomer.center groomerCenter
+            LEFT JOIN appointment.request request
             WHERE appointment.id = :appointmentId
-              AND (groomer.center.id = :centerId
-                   OR (groomer IS NULL AND dog.center.id = :centerId))
+              AND (groomerCenter.id = :centerId
+                   OR (groomer IS NULL AND dog.center.id = :centerId)
+                   OR (groomer IS NULL
+                       AND appointment.status = :pendingStatus
+                       AND dog.center.type = :clientType
+                       AND request.dog.id = dog.id
+                       AND request.customerCenter.id = dog.center.id
+                       AND EXISTS (
+                           SELECT requestedService.id FROM GroomingServiceEntity requestedService
+                           WHERE requestedService MEMBER OF request.services
+                             AND requestedService.center.id = :centerId
+                       )
+                       AND NOT EXISTS (
+                           SELECT otherRequestService.id FROM GroomingServiceEntity otherRequestService
+                           WHERE otherRequestService MEMBER OF request.services
+                             AND otherRequestService.center.id <> :centerId
+                       )))
               AND EXISTS (
                   SELECT service.id FROM GroomingServiceEntity service
                   WHERE service MEMBER OF appointment.services
@@ -98,7 +154,56 @@ public interface GroomingAppointmentRepository extends JpaRepository<GroomingApp
             """)
     Optional<GroomingAppointmentEntity> findVisibleAppointment(
             @Param("appointmentId") Long appointmentId,
-            @Param("centerId") Long centerId
+            @Param("centerId") Long centerId,
+            @Param("pendingStatus") GroomingAppointmentStatus pendingStatus,
+            @Param("clientType") CenterType clientType
+    );
+
+    @EntityGraph(attributePaths = {
+            "dog", "dog.tutor", "dog.center", "groomer", "groomer.center", "request",
+            "request.customerCenter", "request.dog"
+    })
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            SELECT appointment FROM GroomingAppointmentEntity appointment
+            JOIN appointment.dog dog
+            LEFT JOIN appointment.groomer groomer
+            LEFT JOIN groomer.center groomerCenter
+            LEFT JOIN appointment.request request
+            WHERE appointment.id = :appointmentId
+              AND (groomerCenter.id = :centerId
+                   OR (groomer IS NULL AND dog.center.id = :centerId)
+                   OR (groomer IS NULL
+                       AND appointment.status = :pendingStatus
+                       AND dog.center.type = :clientType
+                       AND request.dog.id = dog.id
+                       AND request.customerCenter.id = dog.center.id
+                       AND EXISTS (
+                           SELECT requestedService.id FROM GroomingServiceEntity requestedService
+                           WHERE requestedService MEMBER OF request.services
+                             AND requestedService.center.id = :centerId
+                       )
+                       AND NOT EXISTS (
+                           SELECT otherRequestService.id FROM GroomingServiceEntity otherRequestService
+                           WHERE otherRequestService MEMBER OF request.services
+                             AND otherRequestService.center.id <> :centerId
+                       )))
+              AND EXISTS (
+                  SELECT service.id FROM GroomingServiceEntity service
+                  WHERE service MEMBER OF appointment.services
+                    AND service.center.id = :centerId
+              )
+              AND NOT EXISTS (
+                  SELECT otherService.id FROM GroomingServiceEntity otherService
+                  WHERE otherService MEMBER OF appointment.services
+                    AND otherService.center.id <> :centerId
+              )
+            """)
+    Optional<GroomingAppointmentEntity> findVisibleAppointmentForUpdate(
+            @Param("appointmentId") Long appointmentId,
+            @Param("centerId") Long centerId,
+            @Param("pendingStatus") GroomingAppointmentStatus pendingStatus,
+            @Param("clientType") CenterType clientType
     );
 
     @Query("""

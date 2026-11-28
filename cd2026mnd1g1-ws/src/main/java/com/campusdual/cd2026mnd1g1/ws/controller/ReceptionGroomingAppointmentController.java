@@ -1,6 +1,7 @@
 package com.campusdual.cd2026mnd1g1.ws.controller;
 
 import com.campusdual.cd2026mnd1g1.api.dto.CreateGroomingAppointmentRequestDto;
+import com.campusdual.cd2026mnd1g1.api.dto.AssignGroomingAppointmentRequestDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentDetailDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentPageDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingDogOptionPageDto;
@@ -157,5 +158,27 @@ public class ReceptionGroomingAppointmentController {
             Principal principal
     ) {
         return ResponseEntity.ok(this.appointmentService.findAppointment(id, principal.getName()));
+    }
+
+    /**
+     * Asigna peluquero y lugar a una cita pendiente de asignación.
+     *
+     * @param id identificador de cita
+     * @param request campos permitidos de asignación
+     * @param principal usuario autenticado
+     * @return cita asignada y persistida
+     */
+    @PostMapping("/{id}/asignacion")
+    @PreAuthorize("hasRole('RECEPCIONISTA')")
+    public ResponseEntity<GroomingAppointmentDetailDto> assignAppointment(
+            @PathVariable @Min(0) Long id,
+            @Valid @RequestBody AssignGroomingAppointmentRequestDto request,
+            Principal principal
+    ) {
+        return ResponseEntity.ok(this.appointmentService.assignAppointment(
+                id,
+                request,
+                principal.getName()
+        ));
     }
 }

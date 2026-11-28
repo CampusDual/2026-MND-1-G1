@@ -27,10 +27,70 @@
         <p class="eyebrow">DETALLE DE PELUQUERÍA</p>
         <h1>Cita #{{ item.id }}</h1>
         <p class="date">{{ formatDate(item.date, item.time) }}</p>
-        @if (item.status === 'PENDIENTE_ASIGNACION') {
-          <button class="agenda-button" type="button" (click)="openAgenda()">
-            Consultar agenda de peluqueros
-          </button>
+        @if (assignmentSuccess) {
+          <section class="state-card success" role="status">
+            <h2>Asignación confirmada</h2>
+            <p>{{ item.dogName }} · {{ item.serviceNames.join(', ') }}</p>
+            <p>{{ item.groomerName }} · {{ locationLabel(item.location) }}</p>
+            <p>{{ formatDate(item.date, item.time) }} · {{ statusLabel(item.status) }}</p>
+          </section>
+        }
+        @if (assignmentError && item.status !== 'PENDIENTE_ASIGNACION') {
+          <section class="state-card error" role="alert">
+            <p>{{ assignmentError }}</p>
+          </section>
+        }
+
+        @if (canAssign && item.status === 'PENDIENTE_ASIGNACION') {
+          <section class="detail-card assignment-card" aria-labelledby="assignment-title">
+            <h2 id="assignment-title">Asignar peluquero y modalidad</h2>
+            <p>La fecha y la hora propuestas se pueden confirmar o ajustar. La agenda solo muestra citas existentes.</p>
+            @if (assignmentError) {
+              <div class="state-card error" role="alert">
+                <p>{{ assignmentError }}</p>
+                @if (!isLoadingGroomers && groomers.length === 0) {
+                  <button class="secondary-button" type="button" (click)="retryGroomers()">Reintentar peluqueros</button>
+                }
+              </div>
+            }
+            <div class="assignment-fields">
+              <label for="assignment-groomer">Peluquero</label>
+              @if (isLoadingGroomers) {
+                <p role="status">Cargando peluqueros...</p>
+              } @else if (groomers.length === 0) {
+                <p>No hay peluqueros activos disponibles en este centro.</p>
+              } @else {
+                <select id="assignment-groomer" name="groomerId" [(ngModel)]="selectedGroomerId">
+                  <option [ngValue]="null">Selecciona un peluquero</option>
+                  @for (groomer of groomers; track groomer.id) {
+                    <option [ngValue]="groomer.id">{{ groomer.name }}</option>
+                  }
+                </select>
+              }
+              <label for="assignment-location">Modalidad</label>
+              <select id="assignment-location" name="location" [(ngModel)]="selectedLocation">
+                <option value="">Selecciona una modalidad</option>
+                <option value="EN_INSTALACIONES">En las instalaciones</option>
+                <option value="DESPLAZADO">Servicio desplazado</option>
+              </select>
+              <label for="assignment-date">Fecha</label>
+              <input id="assignment-date" name="date" type="date" [(ngModel)]="assignmentDate">
+              <label for="assignment-time">Hora</label>
+              <input id="assignment-time" name="time" type="time" [(ngModel)]="assignmentTime">
+            </div>
+            <div class="assignment-actions">
+              <button class="agenda-button" type="button"
+                      [disabled]="isLoadingGroomers || isAssigning || selectedGroomerId === null"
+                      (click)="openAgenda()">Consultar agenda</button>
+              <button class="primary-button" type="button"
+                      [disabled]="isLoadingGroomers || isAssigning || groomers.length === 0"
+                      (click)="confirmAssignment()">
+                {{ isAssigning ? 'Asignando...' : 'Confirmar asignación' }}
+              </button>
+              <button class="secondary-button" type="button" [disabled]="isAssigning"
+                      (click)="cancelAssignment()">Volver sin asignar</button>
+            </div>
+          </section>
         }
 
       <section class="detail-card">
@@ -40,7 +100,10 @@
           <div><dt>Estado</dt><dd><span class="status">{{ statusLabel(item.status) }}</span></dd></div>
           <div><dt>Fecha y hora</dt><dd>{{ formatDate(item.date, item.time) }}</dd></div>
           <div><dt>Duración</dt><dd>{{ item.durationMinutes }} min</dd></div>
-          <div><dt>Lugar</dt><dd>{{ locationLabel(item.location) }}</dd></div>
+          <div><dt>Modalidad</dt><dd>{{ locationLabel(item.location) }}</dd></div>
+          @if (item.groomerName) {
+            <div><dt>Peluquero</dt><dd>{{ item.groomerName }}</dd></div>
+          }
         </dl>
       </section>
 

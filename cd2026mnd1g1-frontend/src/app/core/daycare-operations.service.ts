@@ -32,6 +32,7 @@ import {
   GroomingAppointmentStatus,
   GroomingAppointmentDetail,
   CreateGroomingAppointmentRequest,
+  AssignGroomingAppointmentRequest,
   GroomingDogOptionPage,
   GroomingServiceOption,
   GroomingRequestOrigin,
@@ -296,6 +297,17 @@ export class DaycareOperationsService {
     return this.http.post<GroomingAppointmentDetail>(this.groomingAppointmentsPath, request, {
       headers: this.getAuthHeaders()
     });
+  }
+
+  assignReceptionGroomingAppointment(
+    appointmentId: number,
+    request: AssignGroomingAppointmentRequest
+  ): Observable<GroomingAppointmentDetail> {
+    return this.http.post<GroomingAppointmentDetail>(
+      `${this.groomingAppointmentsPath}/${appointmentId}/asignacion`,
+      request,
+      { headers: this.getAuthHeaders() }
+    );
   }
 
   getReceptionGroomers(): Observable<GroomerOption[]> {

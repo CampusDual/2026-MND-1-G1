@@ -130,6 +130,7 @@ export type GroomingAppointmentStatus =
   | 'CONFIRMADA'
   | 'COMPLETADA'
   | 'CANCELADA';
+export type GroomingAppointmentLocation = 'EN_INSTALACIONES' | 'DESPLAZADO';
 
 export interface GroomingRequest {
   id: number;
@@ -162,7 +163,8 @@ export interface GroomingAppointment {
   date: string;
   time: string;
   durationMinutes: number;
-  location: 'EN_INSTALACIONES' | 'DESPLAZADO' | null;
+  location: GroomingAppointmentLocation | null;
+  groomerName: string | null;
   status: GroomingAppointmentStatus;
   origin: GroomingRequestOrigin;
 }
@@ -177,6 +179,13 @@ export interface GroomingAppointmentPage {
 
 export interface GroomingAppointmentDetail extends GroomingAppointment {
   notes: string | null;
+}
+
+export interface AssignGroomingAppointmentRequest {
+  groomerId: number;
+  location: GroomingAppointmentLocation;
+  date: string;
+  time: string;
 }
 
 export interface GroomerOption {

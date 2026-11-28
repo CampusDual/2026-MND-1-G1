@@ -1262,6 +1262,46 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
         '422': { $ref: '#/components/responses/UnprocessableEntity' }
         '500': { $ref: '#/components/responses/InternalServerError' }
+  /api/recepcion/citas-peluqueria/{id}/asignacion:
+    post:
+      security:
+        - basicAuth: []
+      tags: [Peluquería]
+      summary: Asigna peluquero y modalidad a una cita pendiente
+      description: >
+        Solo Recepcionista. El centro procede de la sesión y el peluquero debe ser activo
+        y pertenecer al mismo centro. Solo admite citas PENDIENTE_ASIGNACION visibles en
+        el ámbito del centro. Persiste peluquero, lugar y fecha/hora confirmados y cambia
+        el estado a CONFIRMADA. Una cita B2B requiere una solicitud asociada al mismo perro
+        y centro cliente y servicios coherentes del centro proveedor. No consulta
+        disponibilidad, no valida solapamientos, no permite reasignar ni modifica solicitudes,
+        reservas o fichas.
+      operationId: assignReceptionGroomingAppointment
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer, format: int64, minimum: 0 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignGroomingAppointmentRequestDto'
+      responses:
+        '200':
+          description: Cita asignada; incluye el resumen con peluquero, modalidad, fecha, hora y estado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroomingAppointmentDetailDto'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
   /api/recepcion/solicitudes-peluqueria:
     get:
       security:
@@ -2771,7 +2811,7 @@ components:
         totalPages: { type: integer, minimum: 0 }
     GroomingAppointmentDto:
       type: object
-      required: [id, dogName, serviceNames, date, time, durationMinutes, location, status, origin]
+      required: [id, dogName, serviceNames, date, time, durationMinutes, location, groomerName, status, origin]
       properties:
         id: { type: integer, format: int64, minimum: 0 }
         dogName: { type: string, maxLength: 120 }
@@ -2786,6 +2826,7 @@ components:
           type: string
           enum: [EN_INSTALACIONES, DESPLAZADO]
           nullable: true
+        groomerName: { type: string, nullable: true, maxLength: 280 }
         status:
           $ref: '#/components/schemas/GroomingAppointmentStatusDto'
         origin:
@@ -2848,6 +2889,17 @@ components:
         date: { type: string, format: date }
         time: { type: string, format: time }
         notes: { type: string, nullable: true, maxLength: 2000 }
+    AssignGroomingAppointmentRequestDto:
+      type: object
+      additionalProperties: false
+      required: [groomerId, location, date, time]
+      properties:
+        groomerId: { type: integer, format: int64, minimum: 0 }
+        location:
+          type: string
+          enum: [EN_INSTALACIONES, DESPLAZADO]
+        date: { type: string, format: date }
+        time: { type: string, format: time }
     ReceptionReservationPageDto:
       type: object
       required: [items, page, size, totalElements, totalPages]

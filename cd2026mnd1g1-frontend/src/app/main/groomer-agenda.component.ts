@@ -32,7 +32,7 @@ export class GroomerAgendaComponent implements OnInit {
   isLoadingAgenda: boolean = false;
   hasAccessError: boolean = false;
   errorMessage: string = '';
-  private returnTo: 'create' | 'appointment' | 'list' = 'list';
+  private returnTo: 'create' | 'appointment' | 'assignment' | 'list' = 'list';
   private sourceAppointmentId: number | null = null;
 
   constructor(
@@ -88,7 +88,8 @@ export class GroomerAgendaComponent implements OnInit {
   }
 
   returnToSource(): void {
-    if (this.returnTo === 'appointment' && this.sourceAppointmentId !== null) {
+    if ((this.returnTo === 'appointment' || this.returnTo === 'assignment')
+        && this.sourceAppointmentId !== null) {
       this.router.navigate(['/citas-peluqueria', this.sourceAppointmentId]);
       return;
     }
@@ -103,7 +104,7 @@ export class GroomerAgendaComponent implements OnInit {
     const labels: Record<GroomingAppointmentStatus, string> = {
       PENDIENTE_ASIGNACION: 'Pendiente de asignación',
       SOLICITADA: 'Solicitada',
-      CONFIRMADA: 'Confirmada',
+      CONFIRMADA: 'Confirmada · asignada',
       COMPLETADA: 'Completada',
       CANCELADA: 'Cancelada'
     };
@@ -173,8 +174,8 @@ export class GroomerAgendaComponent implements OnInit {
       : message;
   }
 
-  private readReturnTo(value: string | null): 'create' | 'appointment' | 'list' {
-    if (value === 'create' || value === 'appointment') {
+  private readReturnTo(value: string | null): 'create' | 'appointment' | 'assignment' | 'list' {
+    if (value === 'create' || value === 'appointment' || value === 'assignment') {
       return value;
     }
     return 'list';

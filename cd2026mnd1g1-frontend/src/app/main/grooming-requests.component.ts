@@ -93,6 +93,15 @@ export class GroomingRequestsComponent implements OnInit, OnDestroy {
     this.loadAppointmentsSubject.next();
   }
 
+  showPendingAssignments(): void {
+    this.origin = '';
+    this.status = 'PENDIENTE_ASIGNACION';
+    this.fromDate = '';
+    this.toDate = '';
+    this.currentPage = 0;
+    this.loadAppointments();
+  }
+
   changePage(page: number): void {
     if (page >= 0 && page < this.totalPages && page !== this.currentPage) {
       this.currentPage = page;
@@ -104,7 +113,7 @@ export class GroomingRequestsComponent implements OnInit, OnDestroy {
     const labels: Record<GroomingAppointmentStatus, string> = {
       PENDIENTE_ASIGNACION: 'Pendiente de asignación',
       SOLICITADA: 'Solicitada',
-      CONFIRMADA: 'Confirmada',
+      CONFIRMADA: 'Confirmada · asignada',
       COMPLETADA: 'Completada',
       CANCELADA: 'Cancelada'
     };

@@ -221,7 +221,102 @@ WHERE appointment_ref.fixture_key = 'grooming.agenda.appointment.internal.cancel
       WHERE link.cita_id = appointment_ref.entity_id AND link.servicio_id = service_ref.entity_id
   );
 
+-- Citas pendientes sin asignar para que recepción realice la operación manualmente.
+INSERT INTO cita_peluqueria (
+    perro_id, peluquero_id, solicitud_id, creado_por_usuario_id,
+    inicio, duracion_min, lugar, estado, observaciones
+)
+SELECT dog_ref.entity_id, NULL, NULL, receptionist.id,
+       TIMESTAMP(CURRENT_DATE + 1, TIME '16:00:00'),
+       60, NULL, 'PENDIENTE_ASIGNACION', 'Fixture asignación demo interna pendiente'
+FROM dev_fixture_registry dog_ref
+JOIN usuarios receptionist ON receptionist.username = 'recepcionista'
+WHERE dog_ref.fixture_key = 'reception.dog.bruno.ana'
+  AND NOT EXISTS (
+      SELECT 1 FROM dev_fixture_registry
+      WHERE fixture_key = 'grooming.assignment.appointment.internal.pending'
+  )
+  AND NOT EXISTS (
+      SELECT 1 FROM cita_peluqueria c
+      WHERE c.perro_id = dog_ref.entity_id
+        AND c.inicio = TIMESTAMP(CURRENT_DATE + 1, TIME '16:00:00')
+  );
+
+INSERT INTO dev_fixture_registry (fixture_key, entity_id)
+SELECT 'grooming.assignment.appointment.internal.pending', MAX(c.id)
+FROM cita_peluqueria c
+JOIN dev_fixture_registry dog_ref ON dog_ref.fixture_key = 'reception.dog.bruno.ana'
+WHERE c.perro_id = dog_ref.entity_id
+  AND c.inicio = TIMESTAMP(CURRENT_DATE + 1, TIME '16:00:00')
+  AND c.peluquero_id IS NULL
+  AND c.estado = 'PENDIENTE_ASIGNACION'
+  AND c.observaciones = 'Fixture asignación demo interna pendiente'
+  AND NOT EXISTS (
+      SELECT 1 FROM dev_fixture_registry
+      WHERE fixture_key = 'grooming.assignment.appointment.internal.pending'
+  )
+GROUP BY dog_ref.entity_id;
+
+INSERT INTO cita_servicio (cita_id, servicio_id)
+SELECT appointment_ref.entity_id, service_ref.entity_id
+FROM dev_fixture_registry appointment_ref
+JOIN dev_fixture_registry service_ref ON service_ref.fixture_key = 'grooming.service.bano-demo'
+WHERE appointment_ref.fixture_key = 'grooming.assignment.appointment.internal.pending'
+  AND NOT EXISTS (
+      SELECT 1 FROM cita_servicio link
+      WHERE link.cita_id = appointment_ref.entity_id AND link.servicio_id = service_ref.entity_id
+  );
+
+INSERT INTO cita_peluqueria (
+    perro_id, peluquero_id, solicitud_id, creado_por_usuario_id,
+    inicio, duracion_min, lugar, estado, observaciones
+)
+SELECT dog_ref.entity_id, NULL, request_ref.entity_id, receptionist.id,
+       TIMESTAMP(CURRENT_DATE + 1, TIME '17:00:00'),
+       60, NULL, 'PENDIENTE_ASIGNACION', 'Fixture asignación demo B2B pendiente'
+FROM dev_fixture_registry dog_ref
+JOIN dev_fixture_registry request_ref ON request_ref.fixture_key = 'grooming.request.b2b.pending'
+JOIN usuarios receptionist ON receptionist.username = 'recepcionista'
+WHERE dog_ref.fixture_key = 'grooming.dog.b2b'
+  AND NOT EXISTS (
+      SELECT 1 FROM dev_fixture_registry
+      WHERE fixture_key = 'grooming.assignment.appointment.b2b.pending'
+  )
+  AND NOT EXISTS (
+      SELECT 1 FROM cita_peluqueria c
+      WHERE c.perro_id = dog_ref.entity_id
+        AND c.inicio = TIMESTAMP(CURRENT_DATE + 1, TIME '17:00:00')
+  );
+
+INSERT INTO dev_fixture_registry (fixture_key, entity_id)
+SELECT 'grooming.assignment.appointment.b2b.pending', MAX(c.id)
+FROM cita_peluqueria c
+JOIN dev_fixture_registry dog_ref ON dog_ref.fixture_key = 'grooming.dog.b2b'
+JOIN dev_fixture_registry request_ref ON request_ref.fixture_key = 'grooming.request.b2b.pending'
+WHERE c.perro_id = dog_ref.entity_id
+  AND c.solicitud_id = request_ref.entity_id
+  AND c.inicio = TIMESTAMP(CURRENT_DATE + 1, TIME '17:00:00')
+  AND c.peluquero_id IS NULL
+  AND c.estado = 'PENDIENTE_ASIGNACION'
+  AND c.observaciones = 'Fixture asignación demo B2B pendiente'
+  AND NOT EXISTS (
+      SELECT 1 FROM dev_fixture_registry
+      WHERE fixture_key = 'grooming.assignment.appointment.b2b.pending'
+  )
+GROUP BY dog_ref.entity_id;
+
+INSERT INTO cita_servicio (cita_id, servicio_id)
+SELECT appointment_ref.entity_id, service_ref.entity_id
+FROM dev_fixture_registry appointment_ref
+JOIN dev_fixture_registry service_ref ON service_ref.fixture_key = 'grooming.service.bano-demo'
+WHERE appointment_ref.fixture_key = 'grooming.assignment.appointment.b2b.pending'
+  AND NOT EXISTS (
+      SELECT 1 FROM cita_servicio link
+      WHERE link.cita_id = appointment_ref.entity_id AND link.servicio_id = service_ref.entity_id
+  );
+
 SELECT fixture_key, entity_id
 FROM dev_fixture_registry
 WHERE fixture_key LIKE 'grooming.agenda.%'
+   OR fixture_key LIKE 'grooming.assignment.%'
 ORDER BY fixture_key;

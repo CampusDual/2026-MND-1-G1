@@ -20,6 +20,8 @@
         Actualizar
       </button>
       @if (canCreateAppointment()) {
+        <button class="secondary-button" type="button" [disabled]="isLoading"
+                (click)="showPendingAssignments()">Citas pendientes de asignación</button>
         <a class="primary-button" routerLink="/citas-peluqueria/nueva">Crear cita de peluquería</a>
       }
     </div>
@@ -96,6 +98,9 @@
                 <dt>Estado</dt>
                 <dd><span class="status-badge">{{ statusLabel(appointment.status) }}</span></dd>
               </div>
+              @if (appointment.groomerName) {
+                <div><dt>Peluquero</dt><dd>{{ appointment.groomerName }}</dd></div>
+              }
               <div><dt>Duración</dt><dd>{{ appointment.durationMinutes }} min</dd></div>
               <div><dt>Lugar</dt><dd>{{ locationLabel(appointment.location) }}</dd></div>
             </dl>

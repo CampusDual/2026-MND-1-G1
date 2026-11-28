@@ -3,6 +3,7 @@ package com.campusdual.cd2026mnd1g1.api.service;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentDetailDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentPageDto;
 import com.campusdual.cd2026mnd1g1.api.dto.CreateGroomingAppointmentRequestDto;
+import com.campusdual.cd2026mnd1g1.api.dto.AssignGroomingAppointmentRequestDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingDogOptionPageDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingServiceOptionDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingRequestOriginDto;
@@ -76,6 +77,20 @@ public interface ReceptionGroomingAppointmentService {
      * @return detalle de la cita
      */
     GroomingAppointmentDetailDto findAppointment(Long appointmentId, String username);
+
+    /**
+     * Asigna peluquero y lugar a una cita pendiente dentro del centro autenticado.
+     *
+     * @param appointmentId identificador de cita
+     * @param request peluquero, lugar y hueco confirmado
+     * @param username usuario autenticado
+     * @return cita asignada
+     */
+    GroomingAppointmentDetailDto assignAppointment(
+            Long appointmentId,
+            AssignGroomingAppointmentRequestDto request,
+            String username
+    );
 
     /**
      * Lista peluqueros activos del centro de recepción.

@@ -1,9 +1,10 @@
 package com.campusdual.cd2026mnd1g1.model.service;
 
+import com.campusdual.cd2026mnd1g1.api.dto.AssignGroomingAppointmentRequestDto;
+import com.campusdual.cd2026mnd1g1.api.dto.CreateGroomingAppointmentRequestDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentDetailDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingAppointmentPageDto;
-import com.campusdual.cd2026mnd1g1.api.dto.CreateGroomingAppointmentRequestDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingDogOptionDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingDogOptionPageDto;
 import com.campusdual.cd2026mnd1g1.api.dto.GroomingServiceOptionDto;
@@ -18,6 +19,7 @@ import com.campusdual.cd2026mnd1g1.model.entity.GroomingAppointmentEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.GroomingAppointmentStatus;
 import com.campusdual.cd2026mnd1g1.model.entity.GroomingServiceEntity;
 import com.campusdual.cd2026mnd1g1.model.entity.UserEntity;
+import com.campusdual.cd2026mnd1g1.model.exception.GroomingAppointmentAssignmentConflictException;
 import com.campusdual.cd2026mnd1g1.model.exception.OperationalUserNotFoundException;
 import com.campusdual.cd2026mnd1g1.model.exception.ResourceNotFoundException;
 import com.campusdual.cd2026mnd1g1.model.repository.GroomingAppointmentRepository;
@@ -94,6 +96,14 @@ public class ReceptionGroomingAppointmentServiceImpl implements ReceptionGroomin
         );
     }
 
+    private String groomerName(GroomingAppointmentEntity appointment) {
+        UserEntity groomer = appointment.getGroomer();
+        if (groomer == null) {
+            return null;
+        }
+        return groomer.getFirstName() + " " + groomer.getLastName();
+    }
+
     @Override
     public List<GroomingServiceOptionDto> findAvailableServices(String username) {
         UserEntity user = findActiveReceptionist(username);
@@ -152,6 +162,8 @@ public class ReceptionGroomingAppointmentServiceImpl implements ReceptionGroomin
         Long centerId = user.getCenter().getId();
         Page<GroomingAppointmentEntity> appointmentPage = this.appointmentRepository.findVisibleAppointments(
                 centerId,
+                GroomingAppointmentStatus.PENDIENTE_ASIGNACION,
+                CenterType.CLIENTE,
                 toCenterType(origin),
                 toStatus(status),
                 fromDate == null ? null : fromDate.atStartOfDay(),
@@ -183,12 +195,48 @@ public class ReceptionGroomingAppointmentServiceImpl implements ReceptionGroomin
         UserEntity user = findActiveReceptionist(username);
         GroomingAppointmentEntity appointment = this.appointmentRepository.findVisibleAppointment(
                         appointmentId,
-                        user.getCenter().getId()
+                        user.getCenter().getId(),
+                        GroomingAppointmentStatus.PENDIENTE_ASIGNACION,
+                        CenterType.CLIENTE
                 )
                 .orElseThrow(() -> new ResourceNotFoundException("No existe la cita indicada"));
         List<String> services = findServiceNames(List.of(appointment), user.getCenter().getId())
                 .getOrDefault(appointment.getId(), List.of());
         return toDetailDto(appointment, services);
+    }
+
+    @Override
+    @Transactional
+    public GroomingAppointmentDetailDto assignAppointment(
+            Long appointmentId,
+            AssignGroomingAppointmentRequestDto request,
+            String username
+    ) {
+        validateAssignmentRequest(appointmentId, request);
+        UserEntity receptionist = findActiveReceptionist(username);
+        validateReceptionCenter(receptionist);
+        Long centerId = receptionist.getCenter().getId();
+        GroomingAppointmentEntity appointment = this.appointmentRepository.findVisibleAppointmentForUpdate(
+                        appointmentId,
+                        centerId,
+                        GroomingAppointmentStatus.PENDIENTE_ASIGNACION,
+                        CenterType.CLIENTE
+                )
+                .orElseThrow(() -> new ResourceNotFoundException("No existe la cita indicada"));
+        if (appointment.getStatus() != GroomingAppointmentStatus.PENDIENTE_ASIGNACION) {
+            throw new GroomingAppointmentAssignmentConflictException(
+                    "La cita ya no está pendiente de asignación"
+            );
+        }
+        UserEntity groomer = findActiveGroomer(request.groomerId(), centerId);
+        appointment.setGroomer(groomer);
+        appointment.setLocation(request.location().name());
+        appointment.setStartAt(LocalDateTime.of(request.date(), request.time()));
+        appointment.setStatus(GroomingAppointmentStatus.CONFIRMADA);
+        GroomingAppointmentEntity saved = this.appointmentRepository.saveAndFlush(appointment);
+        List<String> services = findServiceNames(List.of(saved), centerId)
+                .getOrDefault(saved.getId(), List.of());
+        return toDetailDto(saved, services);
     }
 
     @Override
@@ -306,6 +354,7 @@ public class ReceptionGroomingAppointmentServiceImpl implements ReceptionGroomin
                 appointment.getStartAt().toLocalTime(),
                 appointment.getDurationMinutes(),
                 appointment.getLocation(),
+                groomerName(appointment),
                 GroomingAppointmentStatusDto.valueOf(appointment.getStatus().name()),
                 toOrigin(appointment)
         );
@@ -324,6 +373,7 @@ public class ReceptionGroomingAppointmentServiceImpl implements ReceptionGroomin
                 appointment.getStartAt().toLocalTime(),
                 appointment.getDurationMinutes(),
                 appointment.getLocation(),
+                groomerName(appointment),
                 GroomingAppointmentStatusDto.valueOf(appointment.getStatus().name()),
                 toOrigin(appointment),
                 visibleAppointmentNotes(appointment)
@@ -372,6 +422,17 @@ public class ReceptionGroomingAppointmentServiceImpl implements ReceptionGroomin
         }
         if (request.notes() != null && request.notes().length() > 2000) {
             throw new IllegalArgumentException("Las observaciones no pueden superar 2000 caracteres");
+        }
+    }
+
+    private void validateAssignmentRequest(
+            Long appointmentId,
+            AssignGroomingAppointmentRequestDto request
+    ) {
+        if (appointmentId == null || appointmentId < 0 || request == null
+                || request.groomerId() == null || request.groomerId() < 0
+                || request.location() == null || request.date() == null || request.time() == null) {
+            throw new IllegalArgumentException("Cita, peluquero, lugar, fecha y hora son obligatorios");
         }
     }
 
